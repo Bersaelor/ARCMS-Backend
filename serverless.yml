@@ -21,18 +21,18 @@ custom:
 
 functions:
   get-brands:
-    handler: get-brands/brands.get
+    handler: user/user.get
     role: ${self:custom.get-brands-role}
     memorySize: 512
-    description: Get all brands for one user
+    description: Get all brand-user combinations for one user
     package:
       exclude:
         - node_modules/**
       include:
-        - get-brands/**
+        - user/**
     events:
       - http:
-          path: brands
+          path: user
           method: get
           cors: true
 

@@ -5,6 +5,8 @@ exports.get = async function(event, context, callback){
 
     console.log("Event: ", event);
 
+    var userParameter = event.queryStringParameters.user;
+
     const response = {
         statusCode: 200,
         headers: {
@@ -12,7 +14,7 @@ exports.get = async function(event, context, callback){
         },
     body: JSON.stringify({ 
             message: "Hello World!",
-            input: event
+            input: userParameter
         })
     };
 
