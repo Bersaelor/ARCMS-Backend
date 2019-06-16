@@ -20,7 +20,7 @@ custom:
   get-brands-role: arn:aws:iam::338756162532:role/transcode-video
 
 functions:
-  get-brands:
+  users:
     handler: user/user.get
     role: ${self:custom.get-brands-role}
     memorySize: 512
@@ -35,6 +35,9 @@ functions:
           path: user
           method: get
           cors: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
 
 #    The following are a few example events you can configure
