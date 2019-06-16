@@ -10,19 +10,43 @@ provider:
   name: aws
   runtime: nodejs10.x
   region: eu-central-1
+  environment:
+    CANDIDATE_TABLE: arcms-brandusers
 
 package:
   individually: true
   exclude:
     - "**/*"
 
+resources:
+  Resources:
+    CandidatesDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: "id"
+            AttributeType: "S"   
+          - AttributeName: "sk"
+            AttributeType: "S"   
+        KeySchema:
+          -
+            AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: "NEW_AND_OLD_IMAGES"
+        TableName: ${self:provider.environment.CANDIDATE_TABLE}
+
 custom:
-  get-brands-role: arn:aws:iam::338756162532:role/transcode-video
+  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
 
 functions:
   users:
     handler: user/user.get
-    role: ${self:custom.get-brands-role}
+    role: ${self:custom.users-role}
     memorySize: 512
     description: Get all brand-user combinations for one user
     package:
