@@ -41,9 +41,7 @@ exports.get = (event, context, callback) => {
 
         const response = {
             statusCode: 200,
-            headers: {
-                "x-custom-header" : "My Header Value"
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ brands: brands })
         };
     
