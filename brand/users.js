@@ -51,5 +51,14 @@ async function getAccessLvl(cognitoUserName, brand) {
         }
     };
 
-    return dynamoDb.query(params).promise();
+    return new Promise((resolve, reject) => {
+        dynamoDb.query(params, (error, data) => {
+            if (error) {
+                reject(error);
+                return;
+            }
+
+            resolve(data);
+        });
+    });
 }
