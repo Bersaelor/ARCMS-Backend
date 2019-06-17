@@ -11,6 +11,7 @@ exports.myBrands = function(event, context){
 
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -34,18 +35,15 @@ exports.myBrands = function(event, context){
             return response;
         }
 
-        console.log("Query succeeded: ", data);
+        const brands = data.Items.map( x => x.sk.slice(0, -5) );
+        console.log("Query succeeded, brands: ", brands);
 
         const response = {
             statusCode: 200,
             headers: {
                 "x-custom-header" : "My Header Value"
             },
-        body: JSON.stringify({ 
-                message: "Hello World!",
-                cognitoUserName: cognitoUserName,
-                items: JSON.stringify(data.Items),
-            })
+            body: JSON.stringify(brands)
         };
     
        return response;
