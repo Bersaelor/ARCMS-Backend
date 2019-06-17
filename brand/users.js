@@ -9,24 +9,12 @@ exports.all = async (event, context, callback) => {
 
     var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk",
-        KeyConditionExpression: "#id = :value",
-        ExpressionAttributeNames:{
-            "#id": "id"
-        },
-        ExpressionAttributeValues: {
-            ":value": cognitoUserName
-        }
-    };
-
-    console.log("Querying table for ", cognitoUserName, 'params: ', params);
+    console.log("Querying table for ", cognitoUserName);
 
     try {
-        const data = await getAccessLvl();
+        const data = await getAccessLvl(cognitoUserName, 'grafix');
 
-        const brands = data.Items.map( x => x.sk.slice(0 , -5) );
+        const brands = data.Items.map( x => x.accessLvl );
         console.log("Query succeeded, brands: ", brands);
 
         const response = {
@@ -52,13 +40,14 @@ exports.all = async (event, context, callback) => {
 async function getAccessLvl(cognitoUserName, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk",
-        KeyConditionExpression: "#id = :value",
+        ProjectionExpression: "accessLvl",
+        KeyConditionExpression: "#id = :value and sk = :brand",
         ExpressionAttributeNames:{
             "#id": "id"
         },
         ExpressionAttributeValues: {
-            ":value": cognitoUserName
+            ":value": cognitoUserName,
+            ":brand": `${brand}#user`
         }
     };
 
