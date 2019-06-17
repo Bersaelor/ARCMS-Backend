@@ -37,6 +37,14 @@ function accessLvlMayEditStores(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
 
+function makeHeader(content) {
+    return { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': content
+    };
+}
+
 exports.get = async (event, context, callback) => {
 
     var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
@@ -47,7 +55,7 @@ exports.get = async (event, context, callback) => {
 
         const response = {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: makeHeader('application/json'),
             body: JSON.stringify({ brands: brands })
         };
     
@@ -56,7 +64,7 @@ exports.get = async (event, context, callback) => {
         console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
         const response = {
             statusCode: err.statusCode || 501,
-            headers: { 'Content-Type': 'text/plain' },
+            headers: makeHeader('text/plain'),
             body: 'Couldn\'t fetch the brands because of ' + err,
         };
         callback(null, response);

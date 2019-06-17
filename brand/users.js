@@ -41,6 +41,14 @@ async function getAccessLvl(cognitoUserName, brand) {
     });
 }
 
+function makeHeader(content) {
+    return { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': content
+    };
+}
+
 async function getUsers(brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -62,7 +70,7 @@ exports.all = async (event, context, callback) => {
     if (event.queryStringParameters.brand == undefined) {
         callback(null, {
             statusCode: 403,
-            headers: { 'Content-Type': 'text/plain' },
+            headers: makeHeader('text/plain'),
             body: `Missing query parameter 'brand'`,
         });
     }
@@ -81,7 +89,7 @@ exports.all = async (event, context, callback) => {
         if (!accessLvlMaySeeUsers(accessLvl)) {
             callback(null, {
                 statusCode: 403,
-                headers: { 'Content-Type': 'text/plain' },
+                headers: makeHeader('text/plain'),
                 body: `User ${cognitoUserName} is not allowed to list all users of brand ${brand}`,
             });
             return;
@@ -91,7 +99,7 @@ exports.all = async (event, context, callback) => {
 
         const response = {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: makeHeader('application/json' ),
             body: JSON.stringify(users)
         };
     
@@ -101,7 +109,7 @@ exports.all = async (event, context, callback) => {
         console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
         callback(null, {
             statusCode: error.statusCode || 501,
-            headers: { 'Content-Type': 'text/plain' },
+            headers: makeHeader('text/plain'),
             body: `Encountered error ${error}`,
         });
         return;
