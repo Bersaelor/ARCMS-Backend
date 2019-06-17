@@ -55,7 +55,7 @@ async function getUsers(brand) {
         }
     };
 
-    return dynamoDb.query(params).promise();
+    return dynamoDb.query(params).promise().then( x => x.Items );
 }
 
 exports.all = async (event, context, callback) => {
@@ -84,8 +84,9 @@ exports.all = async (event, context, callback) => {
                 headers: { 'Content-Type': 'text/plain' },
                 body: `User ${cognitoUserName} is not allowed to list all users of brand ${brand}`,
             });
+            return;
         }
-        const users = await usersPromise.then( x => x.Items );
+        const users = await usersPromise;
         console.log("Query succeeded, found: ", users.length, " users");
 
         const response = {

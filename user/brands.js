@@ -5,38 +5,44 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-exports.get = (event, context, callback) => {
-
-    var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
-
+async function getBrands(cognitoName) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk",
+        ProjectionExpression: "sk, accessLvl",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
         },
         ExpressionAttributeValues: {
-            ":value": cognitoUserName
+            ":value": cognitoName
         }
     };
 
-    console.log("Querying table for ", cognitoUserName, 'params: ', params);
-
-    dynamoDb.query(params, (err, data) => {
-        if (err) {
-            console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
-            const response = {
-                statusCode: err.statusCode || 501,
-                headers: { 'Content-Type': 'text/plain' },
-                error: err,
-                body: 'Couldn\'t fetch the brands',
+    return dynamoDb.query(params).promise().then( (data) => {
+        return data.Items.map( (value) => {
+            return { 
+                brand: value.sk.slice(0 , -5),
+                mayEditManagers: accessLvlMayEditManagers(value.accessLvl),
+                mayEditStores: accessLvlMayEditStores(value.accessLvl),
             };
-            callback(null, response);
-            return;
-        }
+        });
+    });
+}
 
-        const brands = data.Items.map( x => x.sk.slice(0 , -5) );
+function accessLvlMayEditManagers(accessLvl) {
+    return accessLvl == process.env.ACCESS_ADMIN;
+}
+
+function accessLvlMayEditStores(accessLvl) {
+    return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
+}
+
+exports.get = async (event, context, callback) => {
+
+    var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+
+    try {
+        const brands = await getBrands(cognitoUserName);
         console.log("Query succeeded, brands: ", brands);
 
         const response = {
@@ -46,5 +52,14 @@ exports.get = (event, context, callback) => {
         };
     
         callback(null, response);
-    });
+    } catch(err) {
+        console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
+        const response = {
+            statusCode: err.statusCode || 501,
+            headers: { 'Content-Type': 'text/plain' },
+            body: 'Couldn\'t fetch the brands because of ' + err,
+        };
+        callback(null, response);
+        return;
+    }
 };
