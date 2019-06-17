@@ -46,7 +46,7 @@ custom:
 
 functions:
   users:
-    handler: user/user.get
+    handler: user/user.myBrands
     role: ${self:custom.users-role}
     memorySize: 512
     description: Get all brand-user combinations for one user

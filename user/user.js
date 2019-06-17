@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-exports.get = async function(event, context, callback){
+exports.myBrands = async function(event, context, callback){
 
     var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"];
 
