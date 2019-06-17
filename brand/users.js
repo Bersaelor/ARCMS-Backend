@@ -12,15 +12,15 @@ exports.all = async (event, context, callback) => {
     console.log("Querying table for ", cognitoUserName);
 
     try {
-        const data = await getAccessLvl(cognitoUserName, 'grafix');
+        // make sure the current cognito user has high enough access lvl to get see all users for this brand
+        const accessLvl = await getAccessLvl(cognitoUserName, 'grafix');
 
-        const brands = data.Items.map( x => x.accessLvl );
-        console.log("Query succeeded, brands: ", brands);
+        console.log("Query succeeded, accessLvl: ", accessLvl);
 
         const response = {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(brands)
+            body: JSON.stringify(accessLvl)
         };
     
         callback(null, response);
@@ -56,9 +56,15 @@ async function getAccessLvl(cognitoUserName, brand) {
             if (error) {
                 reject(error);
                 return;
+            } else if (data.Items == undefined || data.Items.length < 1) {
+                reject(`No user entry for $(brand)!`);
+                return;
+            } else if (data.Items[0].accessLvl == undefined ) {
+                reject(`Entry $(data.Items[0]) has no accessLvl!`);
+                return;
+            } else {
+                resolve(data.Items[0].accessLvl);
             }
-
-            resolve(data);
         });
     });
 }
