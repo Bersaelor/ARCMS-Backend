@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-exports.myBrands = function(event, context){
+exports.myBrands = (event, context, callback) => {
 
     var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
@@ -31,11 +31,12 @@ exports.myBrands = function(event, context){
                 headers: { 'Content-Type': 'text/plain' },
                 error: err,
                 body: 'Couldn\'t fetch the brands',
-            }
-            return response;
+            };
+            callback(null, response);
+            return;
         }
 
-        const brands = data.Items.map( x => x.sk.slice(0, -5) );
+        const brands = data.Items.map( x => x.sk.slice(0 , -5) );
         console.log("Query succeeded, brands: ", brands);
 
         const response = {
@@ -46,6 +47,6 @@ exports.myBrands = function(event, context){
             body: JSON.stringify(brands)
         };
     
-       return response;
+        callback(null, response);
     });
 };
