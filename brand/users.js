@@ -41,6 +41,23 @@ async function getAccessLvl(cognitoUserName, brand) {
     });
 }
 
+async function getUsers(brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        IndexName: "sk-id-index",
+        ProjectionExpression: "id, accessLvl, address",
+        KeyConditionExpression: "#sk = :value",
+        ExpressionAttributeNames:{
+            "#sk": "sk"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#user`,
+        }
+    };
+
+    return dynamoDb.query(params).promise();
+}
+
 exports.all = async (event, context, callback) => {
     if (event.queryStringParameters.brand == undefined) {
         callback(null, {
@@ -57,6 +74,9 @@ exports.all = async (event, context, callback) => {
         // make sure the current cognito user has high enough access lvl to get see all users for this brand
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
 
+        // fetch the users for the brand
+        const usersPromise = getUsers(brand);
+
         const accessLvl = await accessLvlPromise;
         if (!accessLvlMaySeeUsers(accessLvl)) {
             callback(null, {
@@ -65,13 +85,13 @@ exports.all = async (event, context, callback) => {
                 body: `User ${cognitoUserName} is not allowed to list all users of brand ${brand}`,
             });
         }
-
+        const users = await usersPromise;
         console.log("Query succeeded, accessLvl: ", accessLvl);
 
         const response = {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(accessLvl)
+            body: JSON.stringify(users)
         };
     
         callback(null, response);
