@@ -12,6 +12,10 @@ provider:
   region: eu-central-1
   environment:
     CANDIDATE_TABLE: arcms-brandUserOrders
+    ACCESS_STORE: store
+    ACCESS_MANAGER: manager
+    ACCESS_ADMIN: admin
+
 
 package:
   individually: true

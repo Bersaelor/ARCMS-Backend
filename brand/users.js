@@ -7,13 +7,23 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 exports.all = async (event, context, callback) => {
 
-    var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = 'grafix';
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
     console.log("Querying table for ", cognitoUserName);
 
     try {
         // make sure the current cognito user has high enough access lvl to get see all users for this brand
-        const accessLvl = await getAccessLvl(cognitoUserName, 'grafix');
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
+
+        const accessLvl = await accessLvlPromise;
+        if (!accessLvlMaySeeUsers(accessLvl)) {
+            callback(null, {
+                statusCode: 403,
+                headers: { 'Content-Type': 'text/plain' },
+                body: `User ${cognitoUserName} is not allowed to list all users of brand ${brand}`,
+            });
+        }
 
         console.log("Query succeeded, accessLvl: ", accessLvl);
 
@@ -27,15 +37,18 @@ exports.all = async (event, context, callback) => {
 
     } catch(error) {
         console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
-        const response = {
+        callback(null, {
             statusCode: error.statusCode || 501,
             headers: { 'Content-Type': 'text/plain' },
             body: `Encountered error ${error}`,
-        };
-        callback(null, response);
+        });
         return;
     }
 };
+
+function accessLvlMaySeeUsers(accessLvl) {
+    return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
+}
 
 async function getAccessLvl(cognitoUserName, brand) {
     var params = {
@@ -57,10 +70,10 @@ async function getAccessLvl(cognitoUserName, brand) {
                 reject(error);
                 return;
             } else if (data.Items == undefined || data.Items.length < 1) {
-                reject(`No user entry for $(brand)!`);
+                reject('No user entry for brand \'' + brand + '\' !');
                 return;
             } else if (data.Items[0].accessLvl == undefined ) {
-                reject(`Entry $(data.Items[0]) has no accessLvl!`);
+                reject('Entry' + data.Items[0] + 'has no accessLvl!');
                 return;
             } else {
                 resolve(data.Items[0].accessLvl);
