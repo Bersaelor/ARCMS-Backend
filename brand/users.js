@@ -85,8 +85,8 @@ exports.all = async (event, context, callback) => {
                 body: `User ${cognitoUserName} is not allowed to list all users of brand ${brand}`,
             });
         }
-        const users = await usersPromise;
-        console.log("Query succeeded, accessLvl: ", accessLvl);
+        const users = await usersPromise.then( x => x.Items );
+        console.log("Query succeeded, found: ", users.length, " users");
 
         const response = {
             statusCode: 200,
