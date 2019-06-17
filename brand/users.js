@@ -5,47 +5,6 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-exports.all = async (event, context, callback) => {
-
-    const brand = 'grafix';
-    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
-
-    console.log("Querying table for ", cognitoUserName);
-
-    try {
-        // make sure the current cognito user has high enough access lvl to get see all users for this brand
-        const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
-
-        const accessLvl = await accessLvlPromise;
-        if (!accessLvlMaySeeUsers(accessLvl)) {
-            callback(null, {
-                statusCode: 403,
-                headers: { 'Content-Type': 'text/plain' },
-                body: `User ${cognitoUserName} is not allowed to list all users of brand ${brand}`,
-            });
-        }
-
-        console.log("Query succeeded, accessLvl: ", accessLvl);
-
-        const response = {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(accessLvl)
-        };
-    
-        callback(null, response);
-
-    } catch(error) {
-        console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
-        callback(null, {
-            statusCode: error.statusCode || 501,
-            headers: { 'Content-Type': 'text/plain' },
-            body: `Encountered error ${error}`,
-        });
-        return;
-    }
-};
-
 function accessLvlMaySeeUsers(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
@@ -81,3 +40,49 @@ async function getAccessLvl(cognitoUserName, brand) {
         });
     });
 }
+
+exports.all = async (event, context, callback) => {
+    if (event.queryStringParameters.brand == undefined) {
+        callback(null, {
+            statusCode: 403,
+            headers: { 'Content-Type': 'text/plain' },
+            body: `Missing query parameter 'brand'`,
+        });
+    }
+
+    const brand = event.queryStringParameters.brand;
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+
+    try {
+        // make sure the current cognito user has high enough access lvl to get see all users for this brand
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
+
+        const accessLvl = await accessLvlPromise;
+        if (!accessLvlMaySeeUsers(accessLvl)) {
+            callback(null, {
+                statusCode: 403,
+                headers: { 'Content-Type': 'text/plain' },
+                body: `User ${cognitoUserName} is not allowed to list all users of brand ${brand}`,
+            });
+        }
+
+        console.log("Query succeeded, accessLvl: ", accessLvl);
+
+        const response = {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(accessLvl)
+        };
+    
+        callback(null, response);
+
+    } catch(error) {
+        console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: { 'Content-Type': 'text/plain' },
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+};
