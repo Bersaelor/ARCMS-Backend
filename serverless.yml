@@ -45,11 +45,11 @@ custom:
   users-role: arn:aws:iam::338756162532:role/ARCMSLambda
 
 functions:
-  users:
-    handler: user/user.myBrands
+  my-brands:
+    handler: user/brands.get
     role: ${self:custom.users-role}
     memorySize: 512
-    description: Get all brand-user combinations for one user
+    description: Get all brands the current uses is member in
     package:
       exclude:
         - node_modules/**
@@ -64,6 +64,27 @@ functions:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
+  users-by-brand:
+    handler: brand/users.all
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Get all users for a given brand
+    package:
+      exclude:
+        - node_modules/**
+      include:
+        - brand/**
+    events:
+      - http:
+          path: users
+          method: get
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+
+            
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
