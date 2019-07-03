@@ -22,6 +22,7 @@ async function getBrands(cognitoName) {
         return data.Items.map( (value) => {
             return { 
                 brand: value.sk.slice(0 , -5),
+                role: value.accessLvl,
                 mayEditManagers: accessLvlMayEditManagers(value.accessLvl),
                 mayEditStores: accessLvlMayEditStores(value.accessLvl),
             };
