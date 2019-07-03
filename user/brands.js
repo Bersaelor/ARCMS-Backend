@@ -25,6 +25,7 @@ async function getBrands(cognitoName) {
                 role: value.accessLvl,
                 mayEditManagers: accessLvlMayEditManagers(value.accessLvl),
                 mayEditStores: accessLvlMayEditStores(value.accessLvl),
+                mayEditFrames: accessLvlMayEditFrames(value.accessLvl)
             };
         });
     });
@@ -37,6 +38,11 @@ function accessLvlMayEditManagers(accessLvl) {
 function accessLvlMayEditStores(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
+
+function accessLvlMayEditFrames(accessLvl) {
+    return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
+}
+
 
 function makeHeader(content) {
     return { 
