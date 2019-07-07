@@ -37,6 +37,40 @@ async function getAccessLvl(cognitoUserName, brand) {
     });
 }
 
+async function getIsExistingUser(email, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "accessLvl",
+        KeyConditionExpression: "#id = :value and sk = :brand",
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": email,
+            ":brand": `${brand}#user`
+        }
+    };
+
+    return new Promise((resolve, reject) => {
+        dynamoDb.query(params, (error, data) => {
+            if (error) {
+                reject(error);
+                return;
+            } else if (data.Items == undefined || data.Items.length < 1) {
+                console.log('No user entry for brand \'' + brand + '\' !');
+                resolve(false);
+                return;
+            } else if (data.Items.length > 0 ) {
+                console.log('Found user with email ', email);
+                resolve(true);
+                return;
+            } else {
+                reject("Unexpected result: ", data);
+            }
+        });
+    });
+}
+
 function accessLvlMayCreateUsers(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
@@ -98,6 +132,10 @@ exports.createNew = async (event, context, callback) => {
         // make sure the current cognito user has high enough access lvl
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
 
+        // check whether a user with that name already exists
+        const isUserExistingPromise = getIsExistingUser(body.email, brand)
+
+
         const ownAccessLvl = await accessLvlPromise;
         if (!accessLvlMayCreateUsers(ownAccessLvl)) {
             callback(null, {
@@ -108,8 +146,17 @@ exports.createNew = async (event, context, callback) => {
             return;
         }
 
-        const writeSuccess = await createUser(body)
+        const isUserExisting = await isUserExistingPromise;
+        if (isUserExisting) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `User ${cognitoUserName} already exists for ${brand}`,
+            });
+            return;
+        }
 
+        const writeSuccess = await createUser(body)
         console.log("writeSuccess: ", writeSuccess)
 
         const response = {
