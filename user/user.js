@@ -4,6 +4,7 @@
 
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
+var cognitoProvider = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
 
 async function getAccessLvl(cognitoUserName, brand) {
     var params = {
@@ -71,6 +72,23 @@ async function getIsExistingUser(email, brand) {
     });
 }
 
+async function createCognitoUser(email, firstName, lastName) {
+    var params = {
+        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
+        Username: email, /* required */
+        DesiredDeliveryMediums: [ 'EMAIL' ],
+        ForceAliasCreation: false,
+        MessageAction: 'RESEND',
+        UserAttributes: [
+            {
+                Name: 'email', /* required */
+                Value: 'me@example.com'
+            }
+        ]
+    };
+    return cognitoProvider.adminCreateUser(params).promise();
+}
+
 function accessLvlMayCreateUsers(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
@@ -83,7 +101,7 @@ function makeHeader(content) {
     };
 }
 
-async function createUser(values) {
+async function createUserInDB(values) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk, accessLvl",
@@ -151,13 +169,18 @@ exports.createNew = async (event, context, callback) => {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('text/plain'),
-                body: `User ${cognitoUserName} already exists for ${brand}`,
+                body: `User ${body.email} already exists for ${brand}`,
             });
             return;
         }
 
-        const writeSuccess = await createUser(body)
+        const writeDBPromise = createUserInDB(body)
+        const createCognitoPromise = createCognitoUser(body.email, body.firstName, body.lastName)
+
+        const writeSuccess = await writeDBPromise
+        const createUserSuccess = await createCognitoPromise
         console.log("writeSuccess: ", writeSuccess)
+        console.log("createUserSuccess: ", createUserSuccess)
 
         const response = {
             statusCode: 200,
