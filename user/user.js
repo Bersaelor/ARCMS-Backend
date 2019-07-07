@@ -49,6 +49,27 @@ function makeHeader(content) {
     };
 }
 
+async function createUser(values) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, accessLvl",
+        Item: {
+            "id": values.email,
+            "sk": `${values.brand}#user` ,
+            "accessLvl": values.accessLvl ,
+            "firstName": values.firstName ,
+            "lastName": values.lastName ,
+            "company": values.company ,
+            "address": values.address ,
+            "zipCode": values.zipCode ,
+            "city": values.city ,
+            "maxDevices": values.maxDevices
+        }
+    };
+
+    return dynamoDb.put(params).promise();
+}
+
 exports.createNew = async (event, context, callback) => {
 
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
@@ -87,11 +108,14 @@ exports.createNew = async (event, context, callback) => {
             return;
         }
 
+        const writeSuccess = await createUser(body)
+
+        console.log("writeSuccess: ", writeSuccess)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json' ),
-            body: JSON.stringify({"message: ": "User creation allowed"})
+            body: JSON.stringify({"message: ": "User creation successful"})
         };
     
         callback(null, response);
