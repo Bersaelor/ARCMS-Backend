@@ -68,6 +68,25 @@ functions:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
+  create-user:
+    handler: user/user.createNew
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Create new user with posted values should the current user have enough rights
+    package:
+      exclude:
+        - node_modules/**
+      include:
+        - user/**
+    events:
+      - http:
+          path: user
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
   users-by-brand:
     handler: brand/users.all
     role: ${self:custom.users-role}
