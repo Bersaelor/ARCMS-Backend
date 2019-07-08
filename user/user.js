@@ -89,7 +89,7 @@ async function createUserInDB(values) {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk, accessLvl",
         Item: {
-            "id": values.email,
+            "id": values.email.toLowerCase(),
             "sk": `${values.brand}#user` ,
             "accessLvl": values.accessLvl ,
             "firstName": values.firstName ,
@@ -108,7 +108,7 @@ async function createUserInDB(values) {
 async function createCognitoUser(email, firstName, lastName) {
     var params = {
         UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
-        Username: email, /* required */
+        Username: email.toLowerCase(), /* required */
         DesiredDeliveryMediums: [ 'EMAIL' ],
         ForceAliasCreation: false,
         UserAttributes: [
@@ -192,7 +192,7 @@ exports.createNew = async (event, context, callback) => {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('text/plain'),
-                body: `User ${cognitoUserName} is not allowed to create users for ${brand}`,
+                body: `User ${cognitoUserName} is not allowed to delete users for ${brand}`,
             });
             return;
         }
@@ -251,7 +251,21 @@ exports.delete = async (event, context, callback) => {
 
     console.log(cognitoUserName, " wants to delete user id: ", id, " from brand ", brand)
     try {
+        // get the brands and access level for the user to be deleted
         let brandsOfIdPromise = getBrands(id)
+        // make sure the current cognito user has high enough access lvl
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
+
+        const ownAccessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `User ${cognitoUserName} is not allowed to create users for ${brand}`,
+            });
+            return;
+        }
+        
         const data = await getBrands(id)
         let brands = data.Items.map((v) => v.sk.slice(0, -5))
         console.log(id, " is member of ", brands, " brands.")
