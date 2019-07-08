@@ -124,7 +124,7 @@ async function createCognitoUser(email, firstName, lastName) {
 async function getBrands(cognitoName) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk",
+        ProjectionExpression: "sk, accessLvl",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -135,6 +135,26 @@ async function getBrands(cognitoName) {
     };
 
     return dynamoDb.query(params).promise()
+}
+
+async function deleteUserFromDB(email, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {
+            "id": email,
+            "sk": `${brand}#user`,
+        } 
+    };
+
+    return dynamoDb.delete(params).promise()
+}
+
+async function deleteUserFromCognito(cognitoName) {
+    var params = {
+        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
+        Username: email, /* required */
+    };
+    return cognitoProvider.adminDeleteUser(params).promise();
 }
 
 exports.createNew = async (event, context, callback) => {
@@ -218,17 +238,64 @@ exports.delete = async (event, context, callback) => {
 
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     let id = event.pathParameters.id
-    console.log(cognitoUserName, " wants to delete user id: ", id)
+    let brand = event.queryStringParameters.brand;
 
-    let data = await getBrands(cognitoUserName)
-    let brands = data.Items.map( (v) => v.sk.slice(0 , -5) )
-    console.log(cognitoUserName, " is member of ", brands, " brands.")
+    if (!id || !brand) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected both a brand and a user-id, one is missing.`,
+        });
+        return;
+    }
 
-    const response = {
-        statusCode: 200,
-        headers: makeHeader('application/json' ),
-        body: JSON.stringify({"message: ": "Deletion of user successful"})
-    };
+    console.log(cognitoUserName, " wants to delete user id: ", id, " from brand ", brand)
+    try {
+        let brandsOfIdPromise = getBrands(id)
+        const data = await getBrands(id)
+        let brands = data.Items.map((v) => v.sk.slice(0, -5))
+        console.log(id, " is member of ", brands, " brands.")
+        let deletableUserAccessLvl = data.Items.find(value => value.sk.slice(0, -5) === brand).accessLvl
+        console.log(`In brand "${brand}" this user is a ${deletableUserAccessLvl}.`)
+   
+        if (deletableUserAccessLvl === process.env.ACCESS_ADMIN) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `Deleting of admins is only allowed via AWS console.`,
+            });
+            return;
+        }
 
-    callback(null, response);
+        let dbDeletionPromise = deleteUserFromDB(id, brand)
+        let cognitoDeletionPromise = undefined
+        if (brands.length == 1 && brands[0] == brand) {
+            cognitoDeletionPromise = deleteUserFromCognito(id)
+        } else {
+            console.log(`user ${id} is member of ${brands.length} brands, so not deleting from cognito`)
+        }
+
+        const deletionResponse = await dbDeletionPromise
+        console.log("deletionResponse: ", deletionResponse)
+        if (cognitoDeletionPromise) {
+            const cognitoDeletionResponse = await cognitoDeletionPromise
+            console.log("cognitoDeletionResponse: ", cognitoDeletionResponse)
+        }
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify({ "message: ": "Deletion of user " + id + " successful" })
+        };
+
+        callback(null, response);
+    } catch (error) {
+        console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 }
