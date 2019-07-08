@@ -26,7 +26,7 @@ async function getAccessLvl(cognitoUserName, brand) {
                 reject(error);
                 return;
             } else if (data.Items == undefined || data.Items.length < 1) {
-                reject('No user entry for brand \'' + brand + '\' !');
+                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
                 return;
             } else if (data.Items[0].accessLvl == undefined ) {
                 reject('Entry' + data.Items[0] + 'has no accessLvl!');
@@ -58,11 +58,11 @@ async function getIsExistingUser(email, brand) {
                 reject(error);
                 return;
             } else if (data.Items == undefined || data.Items.length < 1) {
-                console.log('No user entry for brand \'' + brand + '\' !');
+                console.log(`So far no user named "${email}" exists for ${brand}". Thats good.`);
                 resolve(false);
                 return;
             } else if (data.Items.length > 0 ) {
-                console.log('Found user with email ', email);
+                console.log('Found existing user with email ', email);
                 resolve(true);
                 return;
             } else {
@@ -70,23 +70,6 @@ async function getIsExistingUser(email, brand) {
             }
         });
     });
-}
-
-async function createCognitoUser(email, firstName, lastName) {
-    var params = {
-        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
-        Username: email, /* required */
-        DesiredDeliveryMediums: [ 'EMAIL' ],
-        ForceAliasCreation: false,
-        MessageAction: 'RESEND',
-        UserAttributes: [
-            {
-                Name: 'email', /* required */
-                Value: 'me@example.com'
-            }
-        ]
-    };
-    return cognitoProvider.adminCreateUser(params).promise();
 }
 
 function accessLvlMayCreateUsers(accessLvl) {
@@ -122,6 +105,33 @@ async function createUserInDB(values) {
     return dynamoDb.put(params).promise();
 }
 
+async function createCognitoUser(email, firstName, lastName) {
+    var params = {
+        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
+        Username: email, /* required */
+        DesiredDeliveryMediums: [ 'EMAIL' ],
+        ForceAliasCreation: false,
+        UserAttributes: [
+            {
+                Name: 'email', /* required */
+                Value: 'me@example.com'
+            }
+        ]
+    };
+    // return cognitoProvider.adminCreateUser(params).promise();
+
+    return new Promise((resolve, reject) => {
+        cognitoProvider.adminCreateUser(params, (error, data) => {
+            if (error) {
+                console.log("Failed to adminCreateUser in Cognito due to: ", error)
+                reject(error);
+            } else {
+                resolve(data)
+            }
+        });
+    });
+}
+
 exports.createNew = async (event, context, callback) => {
 
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
@@ -130,7 +140,6 @@ exports.createNew = async (event, context, callback) => {
     let accessLvl = body.accessLvl;
     
     console.log("event.body: ", body);
-
     console.log("cognitoUserName: ", cognitoUserName, " brand: ", brand);
 
     try {
