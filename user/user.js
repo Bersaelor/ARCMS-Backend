@@ -151,8 +151,8 @@ async function deleteUserFromDB(email, brand) {
 
 async function deleteUserFromCognito(cognitoName) {
     var params = {
-        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
-        Username: email, /* required */
+        UserPoolId: 'eu-central-1_Qg8GXUJ2v', 
+        Username: cognitoName,
     };
     return cognitoProvider.adminDeleteUser(params).promise();
 }
