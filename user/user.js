@@ -114,22 +114,11 @@ async function createCognitoUser(email, firstName, lastName) {
         UserAttributes: [
             {
                 Name: 'email', /* required */
-                Value: 'me@example.com'
+                Value: email
             }
         ]
     };
-    // return cognitoProvider.adminCreateUser(params).promise();
-
-    return new Promise((resolve, reject) => {
-        cognitoProvider.adminCreateUser(params, (error, data) => {
-            if (error) {
-                console.log("Failed to adminCreateUser in Cognito due to: ", error)
-                reject(error);
-            } else {
-                resolve(data)
-            }
-        });
-    });
+    return cognitoProvider.adminCreateUser(params).promise();
 }
 
 exports.createNew = async (event, context, callback) => {
