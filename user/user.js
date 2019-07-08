@@ -261,7 +261,7 @@ exports.delete = async (event, context, callback) => {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('text/plain'),
-                body: `User ${cognitoUserName} is not allowed to create users for ${brand}`,
+                body: `User ${cognitoUserName} is not allowed to delete users of ${brand}`,
             });
             return;
         }
