@@ -87,6 +87,29 @@ functions:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
+  delete-user:
+    handler: user/user.delete
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Delete user should the current user have enough rights
+    package:
+      exclude:
+        - node_modules/**
+      include:
+        - user/**
+    events:
+      - http:
+          path: user/{id}
+          method: delete
+          cors: true
+          request:
+            parameters:
+              paths:
+                id: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
   users-by-brand:
     handler: brand/users.all
     role: ${self:custom.users-role}

@@ -43,7 +43,6 @@ function accessLvlMayEditFrames(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
 
-
 function makeHeader(content) {
     return { 
         'Access-Control-Allow-Origin': '*',

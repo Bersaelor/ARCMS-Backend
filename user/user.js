@@ -121,6 +121,22 @@ async function createCognitoUser(email, firstName, lastName) {
     return cognitoProvider.adminCreateUser(params).promise();
 }
 
+async function getBrands(cognitoName) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": cognitoName
+        }
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
 exports.createNew = async (event, context, callback) => {
 
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
@@ -150,7 +166,6 @@ exports.createNew = async (event, context, callback) => {
 
         // check whether a user with that name already exists
         const isUserExistingPromise = getIsExistingUser(body.email, brand)
-
 
         const ownAccessLvl = await accessLvlPromise;
         if (!accessLvlMayCreateUsers(ownAccessLvl)) {
@@ -198,3 +213,22 @@ exports.createNew = async (event, context, callback) => {
         return;
     }
 };
+
+exports.delete = async (event, context, callback) => {
+
+    let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    let id = event.pathParameters.id
+    console.log(cognitoUserName, " wants to delete user id: ", id)
+
+    let data = await getBrands(cognitoUserName)
+    let brands = data.Items.map( (v) => v.sk.slice(0 , -5) )
+    console.log(cognitoUserName, " is member of ", brands, " brands.")
+
+    const response = {
+        statusCode: 200,
+        headers: makeHeader('application/json' ),
+        body: JSON.stringify({"message: ": "Deletion of user successful"})
+    };
+
+    callback(null, response);
+}
