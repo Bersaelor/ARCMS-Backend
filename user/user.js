@@ -133,6 +133,43 @@ async function deleteUserFromDB(email, brand) {
     return dynamoDb.delete(params).promise()
 }
 
+async function getDevices(email, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk",
+        KeyConditionExpression: "#id = :value and begins_with(sk, :brand)",
+        ExpressionAttributeNames:{
+            "#id": "id",
+        },
+        ExpressionAttributeValues: {
+            ":value": `${email}#device`,
+            ":brand": brand
+        }
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+async function deleteDevicesFromDB(email, brand) {
+
+    const deviceData = await getDevices(email, brand)
+    const devices = deviceData.Items
+
+    var deletePromises = devices.map(device => {
+        var params = {
+            TableName: process.env.CANDIDATE_TABLE,
+            Key: {
+                "id": `${email}#device`,
+                "sk": device.sk,
+            } 
+        };
+    
+        return dynamoDb.delete(params).promise()
+    })
+
+    return Promise.all(deletePromises)
+}
+
 async function getIsCognitoUserExisting(email) {
     var params = {
         UserPoolId: 'eu-central-1_Qg8GXUJ2v', 
@@ -318,6 +355,7 @@ exports.delete = async (event, context, callback) => {
         }
 
         let dbDeletionPromise = deleteUserFromDB(id, brand)
+        let deviceDeletionPromise = deleteDevicesFromDB(id, brand)
         let cognitoDeletionPromise = undefined
         if (brands.length == 1 && brands[0] == brand) {
             cognitoDeletionPromise = deleteUserFromCognito(id)
@@ -325,8 +363,14 @@ exports.delete = async (event, context, callback) => {
             console.log(`user ${id} is member of ${brands.length} brands, so not deleting from cognito`)
         }
 
-        const deletionResponse = await dbDeletionPromise
-        console.log("deletionResponse: ", deletionResponse)
+        let devices = await getDevices(id, brand)
+        console.log("devices: ", devices)
+
+        const userDeletionResponse = await dbDeletionPromise
+        console.log("userDeletionResponse: ", userDeletionResponse)
+        const deviceDeletionResponse = await dbDeletionPromise
+        console.log("deviceDeletionResponse: ", deviceDeletionResponse)
+
         if (cognitoDeletionPromise) {
             const cognitoDeletionResponse = await cognitoDeletionPromise
             console.log("cognitoDeletionResponse: ", cognitoDeletionResponse)
