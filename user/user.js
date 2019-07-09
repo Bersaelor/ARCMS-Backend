@@ -38,7 +38,7 @@ async function getAccessLvl(cognitoUserName, brand) {
     });
 }
 
-async function getIsExistingUser(email, brand) {
+async function getIsDBUserExisting(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "accessLvl",
@@ -57,7 +57,7 @@ async function getIsExistingUser(email, brand) {
             if (error) {
                 reject(error);
                 return;
-            } else if (data.Items == undefined || data.Items.length < 1) {
+            } else if (data.Count || data.Items.length < 1) {
                 console.log(`So far no user named "${email}" exists for ${brand}". Thats good.`);
                 resolve(false);
                 return;
@@ -105,22 +105,6 @@ async function createUserInDB(values) {
     return dynamoDb.put(params).promise();
 }
 
-async function createCognitoUser(email, firstName, lastName) {
-    var params = {
-        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
-        Username: email.toLowerCase(), /* required */
-        DesiredDeliveryMediums: [ 'EMAIL' ],
-        ForceAliasCreation: false,
-        UserAttributes: [
-            {
-                Name: 'email', /* required */
-                Value: email
-            }
-        ]
-    };
-    return cognitoProvider.adminCreateUser(params).promise();
-}
-
 async function getBrands(cognitoName) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -149,6 +133,46 @@ async function deleteUserFromDB(email, brand) {
     return dynamoDb.delete(params).promise()
 }
 
+async function getIsCognitoUserExisting(email) {
+    var params = {
+        UserPoolId: 'eu-central-1_Qg8GXUJ2v', 
+        Username: email,
+    };
+    return new Promise((resolve, reject) => {
+        cognitoProvider.adminGetUser(params, (error, data) => {
+            if (error && error.code === "UserNotFoundException") {
+                resolve(false)
+                return
+            } else if (error) {
+                reject(error)
+                return
+            } else if (data && data.Username) {
+                console.log('Found existing user with email ', data.Username);
+                resolve(true);
+                return;
+            } else {
+                reject("Unexpected result: ", data);
+            }
+        });
+    });
+}
+
+async function createCognitoUser(email, firstName, lastName) {
+    var params = {
+        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
+        Username: email, /* required */
+        DesiredDeliveryMediums: [ 'EMAIL' ],
+        ForceAliasCreation: false,
+        UserAttributes: [
+            {
+                Name: 'email', /* required */
+                Value: email
+            }
+        ]
+    };
+    return cognitoProvider.adminCreateUser(params).promise();
+}
+
 async function deleteUserFromCognito(cognitoName) {
     var params = {
         UserPoolId: 'eu-central-1_Qg8GXUJ2v', 
@@ -163,14 +187,15 @@ exports.createNew = async (event, context, callback) => {
     let body = JSON.parse(event.body)
     let brand = body.brand;
     let accessLvl = body.accessLvl;
-    
+    let email = body.email.toLowerCase()
+
     console.log("event.body: ", body);
     console.log("cognitoUserName: ", cognitoUserName, " brand: ", brand);
 
     try {
         // TODO: Proper error messages for all kinds of missing body values
 
-        console.log("Checking whether it's allowed to create user with accessLvl: ", accessLvl)
+        console.log("Checking whether current user is allowed to create user with accessLvl: ", accessLvl)
         if (!accessLvl || (accessLvl !== process.env.ACCESS_STORE && accessLvl !== process.env.ACCESS_MANAGER)) {
             console.log(`Access lvl is neither ${process.env.ACCESS_STORE} nor ${process.env.ACCESS_MANAGER}`)
             callback(null, {
@@ -185,7 +210,10 @@ exports.createNew = async (event, context, callback) => {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
 
         // check whether a user with that name already exists
-        const isUserExistingPromise = getIsExistingUser(body.email, brand)
+        const isDBUserExistingPromise = getIsDBUserExisting(email, brand)
+
+        // check whether a new cognito user has to be created
+        const isCognitoUserExistingPromise = getIsCognitoUserExisting(email)
 
         const ownAccessLvl = await accessLvlPromise;
         if (!accessLvlMayCreateUsers(ownAccessLvl)) {
@@ -197,22 +225,30 @@ exports.createNew = async (event, context, callback) => {
             return;
         }
 
-        const isUserExisting = await isUserExistingPromise;
+        const isUserExisting = await isDBUserExistingPromise;
         if (isUserExisting) {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('text/plain'),
-                body: `User ${body.email} already exists for ${brand}`,
+                body: `User ${email} already exists for ${brand}`,
             });
             return;
         }
 
         const writeDBPromise = createUserInDB(body)
-        const createCognitoPromise = createCognitoUser(body.email, body.firstName, body.lastName)
+
+        const isCognitoUserExisting = await isCognitoUserExistingPromise;
+
+        var createCognitoPromise = null
+        if (!isCognitoUserExisting) {
+            createCognitoPromise = createCognitoUser(email, body.firstName, body.lastName)
+        } else {
+            console.log("User already exists in Cognito, no need to create again")
+        }
 
         const writeSuccess = await writeDBPromise
-        const createUserSuccess = await createCognitoPromise
-        console.log("writeSuccess: ", writeSuccess)
+        const createUserSuccess = (createCognitoPromise) ? await createCognitoPromise : "not needed"
+        console.log("write User to db success: ", writeSuccess)
         console.log("createUserSuccess: ", createUserSuccess)
 
         const response = {
@@ -237,7 +273,7 @@ exports.createNew = async (event, context, callback) => {
 exports.delete = async (event, context, callback) => {
 
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
-    let id = event.pathParameters.id
+    let id = event.pathParameters.id.toLowerCase()
     let brand = event.queryStringParameters.brand;
 
     if (!id || !brand) {
