@@ -76,6 +76,14 @@ exports.all = async (event, context, callback) => {
     }
 
     const brand = event.queryStringParameters.brand;
+
+    if (!event.requestContext.authorizer) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Cognito Authorization missing`,
+        });
+    }
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
     try {

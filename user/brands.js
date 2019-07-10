@@ -53,6 +53,13 @@ function makeHeader(content) {
 
 exports.get = async (event, context, callback) => {
 
+    if (!event.requestContext.authorizer) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Cognito Authorization missing`,
+        });
+    }
     var cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
     try {
