@@ -16,7 +16,6 @@ provider:
     ACCESS_MANAGER: manager
     ACCESS_ADMIN: admin
 
-
 package:
   individually: true
   exclude:
@@ -194,7 +193,7 @@ functions:
     handler: orders/orders.create
     role: ${self:custom.users-role}
     memorySize: 512
-    description: Create new order
+    description: Create and save a new order
     package:
       exclude:
         - node_modules/**

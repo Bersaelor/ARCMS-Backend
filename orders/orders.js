@@ -9,12 +9,13 @@ async function loadOrdersFromDB(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "id, sk, models",
-        KeyConditionExpression: "#id = :value",
+        KeyConditionExpression: "#id = :value and begins_with(sk, :user)",
         ExpressionAttributeNames:{
             "#id": "id",
         },
         ExpressionAttributeValues: {
-            ":value": `${email}#${brand}`
+            ":value": `${brand}#order`,
+            ":user": email
         }
     };
 
@@ -31,9 +32,10 @@ function makeHeader(content) {
 
 function mapDBEntriesToOutput(items) {
     return items.map((value) => {
+        const dividerPos = value.sk.indexOf('#')
         return {
-            date: value.sk,
-            store: value.id.slice(0, -7),
+            date: value.sk.substring(dividerPos+1, dividerPos.length),
+            store: value.sk.substring(0, dividerPos),
             content: value.models
         }
     })
