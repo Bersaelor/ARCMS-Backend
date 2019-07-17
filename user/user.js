@@ -98,6 +98,7 @@ async function createUserInDB(values) {
             "address": values.address ,
             "zipCode": values.zipCode ,
             "city": values.city ,
+            "telNr": values.telNr ? values.telNr : "",
             "maxDevices": values.maxDevices
         }
     };
