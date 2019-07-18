@@ -85,19 +85,22 @@ function makeHeader(content) {
 }
 
 async function createUserInDB(values) {
+    const sanitize = (value) => ( value ? value : "n.A." ) 
+
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk, accessLvl",
         Item: {
             "id": values.email.toLowerCase(),
-            "sk": `${values.brand}#user` ,
-            "accessLvl": values.accessLvl ,
-            "firstName": values.firstName ,
-            "lastName": values.lastName ,
-            "company": values.company ,
-            "address": values.address ,
-            "zipCode": values.zipCode ,
-            "city": values.city ,
+            "sk": `${values.brand}#user`,
+            "accessLvl": values.accessLvl,
+            "firstName": sanitize(values.firstName),
+            "lastName": sanitize(values.lastName),
+            "company": sanitize(values.company),
+            "address": sanitize(values.address),
+            "zipCode": sanitize(values.zipCode),
+            "city": sanitize(values.city),
+            "telNr": sanitize(values.telNr),
             "maxDevices": values.maxDevices
         }
     };
