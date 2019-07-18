@@ -92,15 +92,15 @@ async function createUserInDB(values) {
         ProjectionExpression: "sk, accessLvl",
         Item: {
             "id": values.email.toLowerCase(),
-            "sk": `${values.brand}#user` ,
-            "accessLvl": values.accessLvl ,
-            "firstName": sanitize(values.firstName) ,
-            "lastName": sanitize(values.lastName) ,
-            "company": sanitize(values.company) ,
-            "address": sanitize(values.address) ,
-            "zipCode": sanitize(values.zipCode) ,
-            "city": sanitize(values.city) ,
-            "telNr": sanitize(values.telNr) ,
+            "sk": `${values.brand}#user`,
+            "accessLvl": values.accessLvl,
+            "firstName": sanitize(values.firstName),
+            "lastName": sanitize(values.lastName),
+            "company": sanitize(values.company),
+            "address": sanitize(values.address),
+            "zipCode": sanitize(values.zipCode),
+            "city": sanitize(values.city),
+            "telNr": sanitize(values.telNr),
             "maxDevices": values.maxDevices
         }
     };
