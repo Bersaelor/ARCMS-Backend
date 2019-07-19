@@ -25,6 +25,7 @@ async function getBrands(cognitoName) {
             value.mayEditStores = accessLvlMayEditStores(value.accessLvl)
             value.mayEditFrames = accessLvlMayEditFrames(value.accessLvl)
             value.role = value.accessLvl
+            delete(value.sk)
             delete(value.accessLvl)
             return value
         });
