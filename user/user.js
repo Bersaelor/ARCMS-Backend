@@ -213,6 +213,16 @@ async function createCognitoUser(email, firstName, lastName) {
     return cognitoProvider.adminCreateUser(params).promise();
 }
 
+async function setEmailVerified(email) {
+    var params = {
+        UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
+        Username: email, /* required */
+        UserAttributes: [{ Name: "email_verified", Value: "true"}]
+    };
+
+    return cognitoProvider.adminUpdateUserAttributes(params).promise();
+}
+
 async function deleteUserFromCognito(cognitoName) {
     var params = {
         UserPoolId: 'eu-central-1_Qg8GXUJ2v', 
@@ -286,10 +296,15 @@ exports.createNew = async (event, context, callback) => {
             console.log("User already exists in Cognito, no need to create again")
         }
 
-        const writeSuccess = await writeDBPromise
         const createUserSuccess = (createCognitoPromise) ? await createCognitoPromise : "not needed"
-        console.log("write User to db success: ", writeSuccess)
         console.log("createUserSuccess: ", createUserSuccess)
+        var verifyEmailPromise = !isCognitoUserExisting ? setEmailVerified(email) : null
+
+        const writeSuccess = await writeDBPromise
+        console.log("write User to db success: ", writeSuccess)
+
+        const verifyEmailResult = (verifyEmailPromise) ? await verifyEmailPromise : "not needed"
+        console.log("verifyEmailResult: ", verifyEmailResult)
 
         const response = {
             statusCode: 200,
