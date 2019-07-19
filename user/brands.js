@@ -8,7 +8,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 async function getBrands(cognitoName) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, accessLvl",
+        ProjectionExpression: "sk, accessLvl, firstName, lastName, company, address, zipCode, city, telNr, maxDevices",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -20,13 +20,13 @@ async function getBrands(cognitoName) {
 
     return dynamoDb.query(params).promise().then( (data) => {
         return data.Items.map( (value) => {
-            return { 
-                brand: value.sk.slice(0 , -5),
-                role: value.accessLvl,
-                mayEditManagers: accessLvlMayEditManagers(value.accessLvl),
-                mayEditStores: accessLvlMayEditStores(value.accessLvl),
-                mayEditFrames: accessLvlMayEditFrames(value.accessLvl)
-            };
+            value.brand = value.sk.slice(0 , -5)
+            value.mayEditManagers = accessLvlMayEditManagers(value.accessLvl)
+            value.mayEditStores = accessLvlMayEditStores(value.accessLvl)
+            value.mayEditFrames = accessLvlMayEditFrames(value.accessLvl)
+            value.role = value.accessLvl
+            delete(value.accessLvl)
+            return value
         });
     });
 }
@@ -69,7 +69,7 @@ exports.get = async (event, context, callback) => {
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify({ brands: brands })
+            body: JSON.stringify(brands)
         };
     
         callback(null, response);
