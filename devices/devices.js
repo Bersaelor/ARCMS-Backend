@@ -8,10 +8,11 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 async function loadDevicesFromDB(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, model",
+        ProjectionExpression: "sk, model, #n",
         KeyConditionExpression: "#id = :value and begins_with(sk, :brand)",
         ExpressionAttributeNames:{
             "#id": "id",
+            "#n": "name"
         },
         ExpressionAttributeValues: {
             ":value": `${email}#device`,
@@ -43,11 +44,14 @@ function makeHeader(content) {
 }
 
 function mapDBEntriesToOutput(brandName, items) {
+    const sanitize = (value) => ( value ? value : "n.A." ) 
+
     let length = brandName.length + 1
     return items.map((value) => {
         return {
-            model: value.model,
-            id: value.sk.slice(length)
+            model: sanitize(value.model),
+            id: value.sk.slice(length),
+            name: sanitize(value.name)
         }
     })
 }
