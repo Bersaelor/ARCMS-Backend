@@ -147,6 +147,25 @@ functions:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
+  check-device:
+    handler: devices/devices.check
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Check in with a device, add it if needed or reply that the user has used up his quota
+    package:
+      exclude:
+        - node_modules/**
+      include:
+        - devices/**
+    events:
+      - http:
+          path: device/check
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
   delete-device:
     handler: devices/devices.delete
     role: ${self:custom.users-role}

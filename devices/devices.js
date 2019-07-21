@@ -5,6 +5,12 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
+Date.prototype.addDays = function(days) {
+    var date = new Date(this.valueOf());
+    date.setDate(date.getDate() + days);
+    return date;
+}
+
 async function loadDevicesFromDB(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -100,6 +106,59 @@ exports.all = async (event, context, callback) => {
         return;
     }
 };
+
+// Check in with a device, add it if needed or reply that the user has used up his quota
+exports.check = async (event, context, callback) => {
+    if (event.queryStringParameters.brand == undefined) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Missing query parameter 'brand'`,
+        });
+    }
+
+    const brand = event.queryStringParameters.brand;
+
+    if (!event.requestContext.authorizer) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Cognito Authorization missing`,
+        });
+    }
+
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+
+    let body = JSON.parse(event.body)
+
+    try {
+        console.log("brand: ", brand, ", cognitoUserName: ", cognitoUserName)
+        const data = await loadDevicesFromDB(cognitoUserName, brand);
+
+        console.log(`So far the user is using ${data.Items.length} devices`)
+
+        console.log("event.body: ", body);
+
+        let tomorrow = (new Date()).addDays(1);
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify({ "status": "Device valid", "validTil": tomorrow.toISOString() })
+        };
+    
+        callback(null, response);
+    } catch(err) {
+        console.error('Query failed. Error JSON: ', JSON.stringify(err, null, 2));
+        const response = {
+            statusCode: err.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: 'Failed to check device because of ' + err,
+        };
+        callback(null, response);
+        return;
+    }
+};
+
 
 // Delete a device from the current user
 exports.delete = async (event, context, callback) => {

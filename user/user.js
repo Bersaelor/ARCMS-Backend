@@ -239,9 +239,6 @@ exports.createNew = async (event, context, callback) => {
     let accessLvl = body.accessLvl;
     let email = body.email.toLowerCase()
 
-    console.log("event.body: ", body);
-    console.log("cognitoUserName: ", cognitoUserName, " brand: ", brand);
-
     try {
         // TODO: Proper error messages for all kinds of missing body values
 
