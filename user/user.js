@@ -56,15 +56,12 @@ async function getIsDBUserExisting(email, brand) {
         dynamoDb.query(params, (error, data) => {
             if (error) {
                 reject(error);
-                return;
             } else if (data.Count || data.Items.length < 1) {
                 console.log(`So far no user named "${email}" exists for ${brand}". Thats good.`);
                 resolve(false);
-                return;
             } else if (data.Items.length > 0 ) {
                 console.log('Found existing user with email ', email);
                 resolve(true);
-                return;
             } else {
                 reject("Unexpected result: ", data);
             }

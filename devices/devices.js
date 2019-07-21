@@ -11,6 +11,10 @@ Date.prototype.addDays = function(days) {
     return date;
 }
 
+function accessLvlHasUnlimitedDevices(accessLvl) {
+    return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
+}
+
 async function loadDevicesFromDB(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -27,6 +31,39 @@ async function loadDevicesFromDB(email, brand) {
     };
 
     return dynamoDb.query(params).promise()
+}
+
+async function getMaxDevices(cognitoUserName, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "maxDevices, accessLvl",
+        KeyConditionExpression: "#id = :value and sk = :brand",
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": cognitoUserName,
+            ":brand": `${brand}#user`
+        }
+    };
+
+    return new Promise((resolve, reject) => {
+        dynamoDb.query(params, (error, data) => {
+            if (error) {
+                reject(error);
+            } else if (data.Items == undefined || data.Items.length < 1) {
+                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
+            } else if (data.Items[0].accessLvl == undefined ) {
+                reject('Entry' + data.Items[0] + 'has no accessLvl!');
+            } else if (accessLvlHasUnlimitedDevices(data.Items[0].accessLvl)) {
+                resolve(10000)
+            } else if (data.Items[0].maxDevices == undefined ) {
+                reject('Store Entry' + data.Items[0] + 'has no maxDevices!');
+            } else {
+                resolve(parseInt(data.Items[0].maxDevices));
+            }
+        });
+    });
 }
 
 async function deleteDevice(email, id, brand) {
@@ -133,17 +170,27 @@ exports.check = async (event, context, callback) => {
 
     try {
         console.log("brand: ", brand, ", cognitoUserName: ", cognitoUserName)
-        const data = await loadDevicesFromDB(cognitoUserName, brand);
-
-        console.log(`So far the user is using ${data.Items.length} devices`)
-
         console.log("event.body: ", body);
+
+        const devicesPromise = loadDevicesFromDB(cognitoUserName, brand);
+        const maxDevicesPromise = getMaxDevices(cognitoUserName, brand);
+        const deviceData = await devicesPromise;
+        const devices = deviceData.Items
+        const maxDevices = await maxDevicesPromise;
+        const usedDevices = devices.length
+        console.log(`So far the user is using ${usedDevices} devices out of a maximum of ${maxDevices}`)
+
 
         let tomorrow = (new Date()).addDays(1);
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify({ "status": "Device valid", "validTil": tomorrow.toISOString() })
+            body: JSON.stringify({
+                 "status": "Device valid",
+                 "validTil": tomorrow.toISOString(),
+                 "usedDevices": usedDevices,
+                 "maxDevices": maxDevices,
+            })
         };
     
         callback(null, response);
