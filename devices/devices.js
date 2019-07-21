@@ -196,34 +196,30 @@ exports.check = async (event, context, callback) => {
     const newDeviceID = body.id
 
     try {
-        console.log("brand: ", brand, ", cognitoUserName: ", cognitoUserName)
-        console.log("event.body: ", body);
-
         const devicesPromise = loadDevicesFromDB(cognitoUserName, brand);
         const maxDevicesPromise = getMaxDevices(cognitoUserName, brand);
 
         const deviceData = await devicesPromise;
         const devices = deviceData.Items
         const isExistingDevice = devices.some(v => v.id === newDeviceID)
-        const usedDevices = devices.length
+        var usedDevices = devices.length
         const maxDevices = await maxDevicesPromise;
 
         var createDevicePromise = null
         if (!isExistingDevice && usedDevices < maxDevices) {
             createDevicePromise = createDeviceInDB(cognitoUserName, brand, body)
+            usedDevices += 1
         }
 
         const createDeviceSuccess = (createDevicePromise) ? await createDevicePromise : "not needed"
         console.log("createDeviceSuccess: ", createDeviceSuccess)
-
-        console.log(`So far the user is using ${usedDevices} devices out of a maximum of ${maxDevices}`)
 
         let tomorrow = (new Date()).addDays(1);
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
             body: JSON.stringify({
-                 "status": "Device valid",
+                 "isDeviceValid": usedDevices <= maxDevices,
                  "validTil": tomorrow.toISOString(),
                  "usedDevices": usedDevices,
                  "maxDevices": maxDevices,
