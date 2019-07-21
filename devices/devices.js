@@ -66,6 +66,23 @@ async function getMaxDevices(cognitoUserName, brand) {
     });
 }
 
+async function createDeviceInDB(cognitoUserName, brand, values) {
+    const sanitize = (value) => ( value ? value : "n.A." ) 
+
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk",
+        Item: {
+            "id": `${cognitoUserName}#device`,
+            "sk": `${brand}#${values.id}`,
+            "model": sanitize(values.model),
+            "name": sanitize(values.name)
+        }
+    };
+
+    return dynamoDb.put(params).promise();
+}
+
 async function deleteDevice(email, id, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -166,7 +183,17 @@ exports.check = async (event, context, callback) => {
 
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
-    let body = JSON.parse(event.body)
+    const body = JSON.parse(event.body)
+
+    if (!body.id) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Missing body value id`,
+        });
+    }
+
+    const newDeviceID = body.id
 
     try {
         console.log("brand: ", brand, ", cognitoUserName: ", cognitoUserName)
@@ -174,12 +201,22 @@ exports.check = async (event, context, callback) => {
 
         const devicesPromise = loadDevicesFromDB(cognitoUserName, brand);
         const maxDevicesPromise = getMaxDevices(cognitoUserName, brand);
+
         const deviceData = await devicesPromise;
         const devices = deviceData.Items
-        const maxDevices = await maxDevicesPromise;
+        const isExistingDevice = devices.some(v => v.id === newDeviceID)
         const usedDevices = devices.length
-        console.log(`So far the user is using ${usedDevices} devices out of a maximum of ${maxDevices}`)
+        const maxDevices = await maxDevicesPromise;
 
+        var createDevicePromise = null
+        if (!isExistingDevice && usedDevices < maxDevices) {
+            createDevicePromise = createDeviceInDB(cognitoUserName, brand, body)
+        }
+
+        const createDeviceSuccess = (createDevicePromise) ? await createDevicePromise : "not needed"
+        console.log("createDeviceSuccess: ", createDeviceSuccess)
+
+        console.log(`So far the user is using ${usedDevices} devices out of a maximum of ${maxDevices}`)
 
         let tomorrow = (new Date()).addDays(1);
         const response = {
