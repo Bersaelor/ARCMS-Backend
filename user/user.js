@@ -303,7 +303,7 @@ exports.createNew = async (event, context, callback) => {
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json' ),
-            body: JSON.stringify({"message: ": "User creation successful"})
+            body: JSON.stringify({"message": "User creation successful"})
         };
     
         callback(null, response);
@@ -391,7 +391,7 @@ exports.delete = async (event, context, callback) => {
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify({ "message: ": "Deletion of user " + id + " successful" })
+            body: JSON.stringify({ "message": "Deletion of user " + id + " successful" })
         };
 
         callback(null, response);

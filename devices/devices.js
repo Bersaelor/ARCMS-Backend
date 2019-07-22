@@ -143,11 +143,12 @@ exports.all = async (event, context, callback) => {
     try {
         const data = await loadDevicesFromDB(cognitoUserName, brand);
         const devices = mapDBEntriesToOutput(brand, data.Items)
+        const sortedDevices = devices.sort((a , b) => a.lastUsed - b.lastUsed)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify(devices)
+            body: JSON.stringify(sortedDevices)
         };
     
         callback(null, response);
@@ -277,7 +278,7 @@ exports.delete = async (event, context, callback) => {
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify({ "message: ": "Deletion of device " + id + " successful" })
+            body: JSON.stringify({ "message": "Deletion of device " + id + " successful" })
         };
     
         callback(null, response);

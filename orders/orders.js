@@ -214,7 +214,7 @@ exports.create = async (event, context, callback) => {
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify({ "message: ": "Deletion of device " + id + " successful" })
+            body: JSON.stringify({ "message": "Deletion of device " + id + " successful" })
         };
     
         callback(null, response);
