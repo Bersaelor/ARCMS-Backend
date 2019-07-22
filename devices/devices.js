@@ -206,13 +206,14 @@ exports.check = async (event, context, callback) => {
         const devices = mapDBEntriesToOutput(brand, deviceData.Items)
         const isExistingDevice = devices.some(v => v.id === newDeviceID)
         var usedDevices = devices.length
+        var neededDevices = usedDevices + (isExistingDevice ? 0 : 1)
         const maxDevices = await maxDevicesPromise;
 
         var createDevicePromise = null
         var updateLastUsedPromise = null
         if (isExistingDevice) {
             updateLastUsedPromise = createDeviceInDB(cognitoUserName, brand, body)
-        } else if (!isExistingDevice && usedDevices < maxDevices) {
+        } else if (!isExistingDevice && neededDevices <= maxDevices) {
             createDevicePromise = createDeviceInDB(cognitoUserName, brand, body)
             usedDevices += 1
         }
@@ -226,7 +227,7 @@ exports.check = async (event, context, callback) => {
             statusCode: 200,
             headers: makeHeader('application/json'),
             body: JSON.stringify({
-                 "isDeviceValid": usedDevices <= maxDevices,
+                 "isDeviceValid": neededDevices <= maxDevices,
                  "validTil": tomorrow.toISOString(),
                  "usedDevices": usedDevices,
                  "maxDevices": maxDevices,
