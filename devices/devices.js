@@ -18,7 +18,7 @@ function accessLvlHasUnlimitedDevices(accessLvl) {
 async function loadDevicesFromDB(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, model, #n",
+        ProjectionExpression: "sk, model, #n, lastUsed",
         KeyConditionExpression: "#id = :value and begins_with(sk, :brand)",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -68,7 +68,7 @@ async function getMaxDevices(cognitoUserName, brand) {
 
 async function createDeviceInDB(cognitoUserName, brand, values) {
     const sanitize = (value) => ( value ? value : "n.A." ) 
-
+    const now = new Date()
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk",
@@ -76,7 +76,8 @@ async function createDeviceInDB(cognitoUserName, brand, values) {
             "id": `${cognitoUserName}#device`,
             "sk": `${brand}#${values.id}`,
             "model": sanitize(values.model),
-            "name": sanitize(values.name)
+            "name": sanitize(values.name),
+            "lastUsed": now.toISOString()
         }
     };
 
@@ -111,7 +112,8 @@ function mapDBEntriesToOutput(brandName, items) {
         return {
             model: sanitize(value.model),
             id: value.sk.slice(length),
-            name: sanitize(value.name)
+            name: sanitize(value.name),
+            lastUsed: value.lastUsed ? value.lastUsed : (new Date(0)).toISOString()
         }
     })
 }
@@ -200,19 +202,23 @@ exports.check = async (event, context, callback) => {
         const maxDevicesPromise = getMaxDevices(cognitoUserName, brand);
 
         const deviceData = await devicesPromise;
-        const devices = deviceData.Items
+        const devices = mapDBEntriesToOutput(brand, deviceData.Items)
         const isExistingDevice = devices.some(v => v.id === newDeviceID)
         var usedDevices = devices.length
         const maxDevices = await maxDevicesPromise;
 
         var createDevicePromise = null
-        if (!isExistingDevice && usedDevices < maxDevices) {
+        var updateLastUsedPromise = null
+        if (isExistingDevice) {
+            updateLastUsedPromise = createDeviceInDB(cognitoUserName, brand, body)
+        } else if (!isExistingDevice && usedDevices < maxDevices) {
             createDevicePromise = createDeviceInDB(cognitoUserName, brand, body)
             usedDevices += 1
         }
 
         const createDeviceSuccess = (createDevicePromise) ? await createDevicePromise : "not needed"
-        console.log("createDeviceSuccess: ", createDeviceSuccess)
+        const updateDeviceSuccess = (updateLastUsedPromise) ? await updateLastUsedPromise : "not needed"
+        console.log("createDeviceSuccess: ", createDeviceSuccess, ", updateDeviceSuccess: ", updateDeviceSuccess)
 
         let tomorrow = (new Date()).addDays(1);
         const response = {
