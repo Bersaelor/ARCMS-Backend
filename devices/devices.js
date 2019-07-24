@@ -186,19 +186,20 @@ exports.check = async (event, context, callback) => {
 
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
-    const body = JSON.parse(event.body)
-
-    if (!body.id) {
-        callback(null, {
-            statusCode: 403,
-            headers: makeHeader('text/plain'),
-            body: `Missing body value id`,
-        });
-    }
-
-    const newDeviceID = body.id
-
     try {
+
+        const body = JSON.parse(event.body)
+
+        if (!body.id) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `Missing body value id`,
+            });
+        }
+
+        const newDeviceID = body.id
+
         const devicesPromise = loadDevicesFromDB(cognitoUserName, brand);
         const maxDevicesPromise = getMaxDevices(cognitoUserName, brand);
 

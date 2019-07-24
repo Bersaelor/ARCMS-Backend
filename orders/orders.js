@@ -8,7 +8,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 async function loadUserOrdersFromDB(brand, email) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, models",
+        ProjectionExpression: "id, sk, contact, orderJSON",
         KeyConditionExpression: "#id = :value and begins_with(sk, :user)",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -25,7 +25,7 @@ async function loadUserOrdersFromDB(brand, email) {
 async function loadAllOrdersFromDB(brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, models",
+        ProjectionExpression: "id, sk, contact, orderJSON",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -36,6 +36,22 @@ async function loadAllOrdersFromDB(brand) {
     };
 
     return dynamoDb.query(params).promise()
+}
+
+async function writeOrderToDB(cognitoUserName, brand, orderString, contactName) {
+    const now = new Date()
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk",
+        Item: {
+            "id": `${brand}#order`,
+            "sk": `${cognitoUserName}#${now.toISOString()}`,
+            "contact": contactName,
+            "orderJSON": orderString
+        }
+    };
+
+    return dynamoDb.put(params).promise();
 }
 
 async function getAccessLvl(cognitoUserName, brand) {
@@ -70,6 +86,36 @@ async function getAccessLvl(cognitoUserName, brand) {
     });
 }
 
+async function getContactName(cognitoUserName, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "firstName, lastName",
+        KeyConditionExpression: "#id = :value and sk = :brand",
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": cognitoUserName,
+            ":brand": `${brand}#user`
+        }
+    };
+
+    return new Promise((resolve, reject) => {
+        dynamoDb.query(params, (error, data) => {
+            console.log("Contactname query data: ", data)
+            if (error) {
+                reject(error);
+                return;
+            } else if (data.Items == undefined || data.Items.length < 1) {
+                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
+                return;
+            } else {
+                resolve(`${data.Items.firstName ? data.Items.firstName : "?"} ${data.Items.lastName ? data.Items.lastName : "?"}`);
+            }
+        });
+    });
+}
+
 function makeHeader(content) {
     return { 
         'Access-Control-Allow-Origin': '*',
@@ -79,12 +125,15 @@ function makeHeader(content) {
 }
 
 function mapDBEntriesToOutput(items) {
+    const sanitize = (value) => ( value ? value : "n.A." ) 
+
     return items.map((value) => {
         const dividerPos = value.sk.indexOf('#')
         return {
             date: value.sk.substring(dividerPos+1, dividerPos.length),
             store: value.sk.substring(0, dividerPos),
-            content: value.models
+            contact: sanitize(value.contact),
+            content: value.orderJSON
         }
     })
 }
@@ -209,12 +258,34 @@ exports.create = async (event, context, callback) => {
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
     try {
-        // TODO create order
+        const body = JSON.parse(event.body)
+
+        if (!body) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `Missing body value`,
+            });
+            return
+        }
+    
+        const bodyString = JSON.stringify(body)
+    
+        const contactName = await getContactName(cognitoUserName, brand)
+
+        console.log("writeSuccess: ", contactName)
+
+        const writeSuccess = await writeOrderToDB(cognitoUserName, brand, bodyString, contactName)
+
+        console.log("writeSuccess: ", writeSuccess)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify({ "message": "Deletion of device " + id + " successful" })
+            body: JSON.stringify({ 
+                "message": "Creation of order successful",
+                "isSuccessful:": true
+            })
         };
     
         callback(null, response);

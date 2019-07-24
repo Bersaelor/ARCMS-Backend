@@ -220,6 +220,13 @@ functions:
         - orders/**
     events:
       - http:
+          path: order/create
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+      - http:
           path: order
           method: post
           cors: true
