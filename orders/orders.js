@@ -133,7 +133,7 @@ function mapDBEntriesToOutput(items) {
             date: value.sk.substring(dividerPos+1, dividerPos.length),
             store: value.sk.substring(0, dividerPos),
             contact: sanitize(value.contact),
-            content: value.orderJSON
+            content: JSON.parse(value.orderJSON)
         }
     })
 }
