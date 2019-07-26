@@ -284,7 +284,7 @@ exports.create = async (event, context, callback) => {
             headers: makeHeader('application/json'),
             body: JSON.stringify({ 
                 "message": "Creation of order successful",
-                "isSuccessful:": true
+                "isSuccessful": true
             })
         };
     
