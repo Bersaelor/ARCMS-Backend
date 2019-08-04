@@ -4,6 +4,7 @@
 
 const AWS = require('aws-sdk'); 
 const SES = new AWS.SES({ region: 'eu-west-1' });
+const strings = require('./locales.js');
 
 const manufacturerAddresses = {
     "grafix": "mom@looc.io",
@@ -13,11 +14,6 @@ const manufacturerAddresses = {
 const manufacturerLanguages = {
     "grafix": "de",
     "domevtro": "en"
-}
-
-const subjectLines = {
-    "de": "Neue Bestellung von $FRAME_COUNT$ Brillen für $STORE$",
-    "en": "New order for $FRAME_COUNT$ frames from $STORE$"
 }
 
 function makeHeader(content) {
@@ -39,7 +35,7 @@ async function mailToManufacturer(brand, storeEmail, orders) {
 
     const fromBase64 = Buffer.from(from).toString('base64');
 
-    const subject = subjectLines[locale].replace("$STORE$", storeEmail).replace("$FRAME_COUNT$", `${orders.length}`)
+    const subject = strings[locale].subject.replace("$STORE$", storeEmail).replace("$FRAME_COUNT$", `${orders.length}`)
 
     const htmlBody = `
     <!DOCTYPE html>
