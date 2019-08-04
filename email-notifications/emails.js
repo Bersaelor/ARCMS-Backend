@@ -3,6 +3,22 @@
 'use strict';
 
 const AWS = require('aws-sdk'); 
+const SES = new AWS.SES({ region: 'eu-west-1' });
+
+const manufacturerAddresses = {
+    "grafix": "mom@looc.io",
+    "domevtro": "konrad@looc.io"
+}
+
+const manufacturerLanguages = {
+    "grafix": "de",
+    "domevtro": "en"
+}
+
+const subjectLines = {
+    "de": "Neue Bestellung von $FRAME_COUNT$ Brillen für $STORE$",
+    "en": "New order for $FRAME_COUNT$ frames from $STORE$"
+}
 
 function makeHeader(content) {
     return { 
@@ -10,6 +26,49 @@ function makeHeader(content) {
         'Access-Control-Allow-Credentials': true,
         'Content-Type': content
     };
+}
+
+const from = "no_reply@looc.io"
+
+async function mailToManufacturer(brand, storeEmail, orders) {
+    if(!manufacturerAddresses[brand]) {
+        throw `There is no manufacturer address saved for brand ${brand}`
+    }
+
+    const locale = manufacturerLanguages[brand]
+
+    const fromBase64 = Buffer.from(from).toString('base64');
+
+    const subject = subjectLines[locale].replace("$STORE$", storeEmail).replace("$FRAME_COUNT$", `${orders.length}`)
+
+    const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+      <head></head>
+      <body><h1>Hello world!</h1></body>
+    </html>
+  `;
+
+    const sesParams = {
+        Destination: {
+            ToAddresses: [manufacturerAddresses[brand]],
+        },
+        Message: {
+            Body: {
+                Html: {
+                    Charset: 'UTF-8',
+                    Data: htmlBody,
+                },
+            },
+            Subject: {
+                Charset: 'UTF-8',
+                Data: subject,
+            },
+        },
+        Source: `=?utf-8?B?${fromBase64}?= <${from}>`,
+    };
+
+    return SES.sendEmail(sesParams).promise();
 }
 
 // Delete a device from the current user
@@ -30,22 +89,9 @@ exports.newOrder = async (event, context, callback) => {
 
     console.log("order: ", order)
 
-    try {
-        const response = {
-            statusCode: 200,
-            headers: makeHeader('application/json'),
-            body: JSON.stringify({ "message": "Sending of emails was successful" })
-        };
-    
-        callback(null, response);
-    } catch(err) {
-        console.error('Sending email notifications failed. Error JSON: ', JSON.stringify(err, null, 2));
-        const response = {
-            statusCode: err.statusCode || 501,
-            headers: makeHeader('text/plain'),
-            body: 'Failed to send emails because of ' + err,
-        };
-        callback(null, response);
-        return;
-    }
+    const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order) 
+
+    const mailToManuSuccess = await mailToManufacturerPromise
+
+    console.log("mailToManuSuccess: ", mailToManuSuccess)
 };
