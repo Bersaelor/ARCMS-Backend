@@ -4,6 +4,7 @@
 
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const sns = new AWS.SNS();
 
 async function loadUserOrdersFromDB(brand, email) {
     var params = {
@@ -71,10 +72,10 @@ async function getAccessLvl(cognitoUserName, brand) {
     return new Promise((resolve, reject) => {
         dynamoDb.query(params, (error, data) => {
             if (error) {
-                reject(error);
+                reject(error)
                 return;
             } else if (data.Items == undefined || data.Items.length < 1) {
-                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
+                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !')
                 return;
             } else if (data.Items[0].accessLvl == undefined ) {
                 reject('Entry' + data.Items[0] + 'has no accessLvl!');
@@ -234,6 +235,16 @@ async function replyWithAllOrders(brand, cognitoUserName, callback) {
     }
 }
 
+async function postNewOrderNotification(context, order) {
+    var params = {
+        Message: order, 
+        Subject: "New glasses order",
+        TopicArn: process.env.snsArn
+    };
+    console.log("Posting params ", params)
+    return sns.publish(params, context.done).promise()
+}
+
 
 // Create and save a new order
 exports.create = async (event, context, callback) => {
@@ -275,9 +286,12 @@ exports.create = async (event, context, callback) => {
 
         console.log("writeSuccess: ", contactName)
 
-        const writeSuccess = await writeOrderToDB(cognitoUserName, brand, bodyString, contactName)
+        const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName)
+        const notifiyViaEmailPromise = postNewOrderNotification(context, bodyString)
 
-        console.log("writeSuccess: ", writeSuccess)
+        const writeSuccess = await writeSuccessPromise
+        const notificationSuccess = await notifiyViaEmailPromise
+        console.log("writeSuccess: ", writeSuccess, ", notificationSuccess: ", notificationSuccess)
 
         const response = {
             statusCode: 200,
@@ -288,6 +302,7 @@ exports.create = async (event, context, callback) => {
             })
         };
     
+        console.log("Sending successful 200 response")
         callback(null, response);
     } catch(err) {
         console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
