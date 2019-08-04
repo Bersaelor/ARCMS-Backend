@@ -20,6 +20,7 @@ package:
   individually: true
   exclude:
     - "**/*"
+    - node_modules/**
 
 resources:
   Resources:
@@ -56,8 +57,6 @@ functions:
     memorySize: 512
     description: Get all brands the current uses is member in
     package:
-      exclude:
-        - node_modules/**
       include:
         - user/**
     events:
@@ -75,8 +74,6 @@ functions:
     memorySize: 512
     description: Create new user with posted values should the current user have enough rights
     package:
-      exclude:
-        - node_modules/**
       include:
         - user/**
     events:
@@ -94,8 +91,6 @@ functions:
     memorySize: 512
     description: Delete user should the current user have enough rights
     package:
-      exclude:
-        - node_modules/**
       include:
         - user/**
     events:
@@ -117,8 +112,6 @@ functions:
     memorySize: 512
     description: Get all users for a given brand
     package:
-      exclude:
-        - node_modules/**
       include:
         - brand/**
     events:
@@ -136,8 +129,6 @@ functions:
     memorySize: 512
     description: Get all devices for the current user
     package:
-      exclude:
-        - node_modules/**
       include:
         - devices/**
     events:
@@ -155,8 +146,6 @@ functions:
     memorySize: 512
     description: Check in with a device, add it if needed or reply that the user has used up his quota
     package:
-      exclude:
-        - node_modules/**
       include:
         - devices/**
     events:
@@ -174,8 +163,6 @@ functions:
     memorySize: 512
     description: Delete a device from the current user
     package:
-      exclude:
-        - node_modules/**
       include:
         - devices/**
     events:
@@ -197,8 +184,6 @@ functions:
     memorySize: 512
     description: Get all orders for the current user or brand depending on the accessLvl
     package:
-      exclude:
-        - node_modules/**
       include:
         - orders/**
     events:
@@ -216,8 +201,6 @@ functions:
     memorySize: 512
     description: Create and save a new order
     package:
-      exclude:
-        - node_modules/**
       include:
         - orders/**
     environment:
@@ -244,8 +227,6 @@ functions:
     memorySize: 512
     description: Send email notifications when new order is received
     package:
-      exclude:
-        - node_modules/**
       include:
         - email-notifications/**
     events:
