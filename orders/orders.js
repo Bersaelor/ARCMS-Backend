@@ -235,14 +235,14 @@ async function replyWithAllOrders(brand, cognitoUserName, callback) {
     }
 }
 
-async function postNewOrderNotification(context, order) {
+async function postNewOrderNotification(order) {
     var params = {
         Message: order, 
         Subject: "New glasses order",
         TopicArn: process.env.snsArn
     };
     console.log("Posting params ", params)
-    return sns.publish(params, context.done).promise()
+    return sns.publish(params).promise()
 }
 
 
@@ -287,7 +287,7 @@ exports.create = async (event, context, callback) => {
         console.log("writeSuccess: ", contactName)
 
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName)
-        const notifiyViaEmailPromise = postNewOrderNotification(context, bodyString)
+        const notifiyViaEmailPromise = postNewOrderNotification(bodyString)
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise
@@ -302,7 +302,6 @@ exports.create = async (event, context, callback) => {
             })
         };
     
-        console.log("Sending successful 200 response")
         callback(null, response);
     } catch(err) {
         console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
