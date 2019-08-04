@@ -4,12 +4,33 @@
 
 const AWS = require('aws-sdk'); 
 
+function makeHeader(content) {
+    return { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': content
+    };
+}
+
 // Delete a device from the current user
 exports.newOrder = async (event, context, callback) => {
-    console.log("event: ", event)
+    const firstRecord = event.Records[0]
+    if (!firstRecord || !firstRecord.Sns) {
+        throw "Failed to get firstRecord or Sns entry"
+    }
+    const message = firstRecord.Sns
+    let order = JSON.parse(message.Message)
+    let storeEmail = message.MessageAttributes.storeEmail.Value
+    let brand = message.MessageAttributes.brand.Value
+    if (!order || !storeEmail || !brand) {
+        throw "Failed to get bodyJSON, storeEmail, brand entry"
+    }
+
+    console.log("Received order-notification from ", storeEmail, " for brand ", brand)
+
+    console.log("order: ", order)
 
     try {
-
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),

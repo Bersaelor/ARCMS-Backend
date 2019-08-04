@@ -235,11 +235,21 @@ async function replyWithAllOrders(brand, cognitoUserName, callback) {
     }
 }
 
-async function postNewOrderNotification(order) {
+async function postNewOrderNotification(orderString, storeEmail, brand) {
     var params = {
-        Message: order, 
+        Message: orderString, 
         Subject: "New glasses order",
-        TopicArn: process.env.snsArn
+        TopicArn: process.env.snsArn,
+        MessageAttributes: {
+            'storeEmail': {
+                DataType: 'String',
+                StringValue: storeEmail
+            },
+            'brand': {
+                DataType: 'String',
+                StringValue: brand
+            }
+        }
     };
     console.log("Posting params ", params)
     return sns.publish(params).promise()
@@ -287,7 +297,7 @@ exports.create = async (event, context, callback) => {
         console.log("writeSuccess: ", contactName)
 
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName)
-        const notifiyViaEmailPromise = postNewOrderNotification(bodyString)
+        const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, brand)
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise
