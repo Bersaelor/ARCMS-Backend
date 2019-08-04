@@ -4,6 +4,8 @@
 
 const AWS = require('aws-sdk'); 
 const SES = new AWS.SES({ region: 'eu-west-1' });
+const fs = require("fs");
+const Mustache = require('../node_modules/mustache/mustache.min.js');
 const strings = require('./locales.js');
 
 const manufacturerAddresses = {
@@ -16,14 +18,6 @@ const manufacturerLanguages = {
     "domevtro": "en"
 }
 
-function makeHeader(content) {
-    return { 
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Credentials': true,
-        'Content-Type': content
-    };
-}
-
 const from = "no_reply@looc.io"
 
 async function mailToManufacturer(brand, storeEmail, orders) {
@@ -32,18 +26,12 @@ async function mailToManufacturer(brand, storeEmail, orders) {
     }
 
     const locale = manufacturerLanguages[brand]
-
     const fromBase64 = Buffer.from(from).toString('base64');
+    const subject = Mustache.render(strings[locale].subject, {STORE: storeEmail, FRAME_COUNT: orders.length})
+       
+    const htmlTemplate = fs.readFileSync(`./email-notifications/manufacturer_${locale}.html`, "utf8")
 
-    const subject = strings[locale].subject.replace("$STORE$", storeEmail).replace("$FRAME_COUNT$", `${orders.length}`)
-
-    const htmlBody = `
-    <!DOCTYPE html>
-    <html>
-      <head></head>
-      <body><h1>Hello world!</h1></body>
-    </html>
-  `;
+    const htmlBody = Mustache.render(htmlTemplate, {STORE: storeEmail})
 
     const sesParams = {
         Destination: {

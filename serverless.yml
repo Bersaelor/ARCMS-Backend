@@ -229,5 +229,6 @@ functions:
     package:
       include:
         - email-notifications/**
+        - node_modules/mustache/mustache.min.js
     events:
       - sns: ${self:custom.newOrderTopic}
