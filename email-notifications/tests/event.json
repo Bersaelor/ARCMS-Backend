@@ -1,0 +1,31 @@
+{
+    "Records": [
+        {
+            "EventSource": "aws:sns",
+            "EventVersion": "1.0",
+            "EventSubscriptionArn": "arn:aws:sns:eu-central-1:338756162532:new-glasses-order:acb86594-b3f3-440c-9888-8921ff38d2fa",
+            "Sns": {
+                "Type": "Notification",
+                "MessageId": "12843542-87c7-5c1f-973b-60837789c0d8",
+                "TopicArn": "arn:aws:sns:eu-central-1:338756162532:new-glasses-order",
+                "Subject": "New glasses order",
+                "Message": "[{\"title\":\"Ariel\",\"isBespokeSize\":false,\"commentDetailItem\":{\"chosenDetails\":\"\"},\"frameOrderDetailItems\":[{\"chosenDetails\":\"Titanium\",\"titleTerm\":\"OrderOption.MetalColor\"},{\"chosenDetails\":\"Clear Glass\",\"titleTerm\":\"OrderOption.LensType\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (16 mm)\",\"defaultSizeString\":\"16 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.TempleLength\",\"chosenDetails\":\"Default (140 mm)\",\"defaultSizeString\":\"140 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.GlasWidth\",\"chosenDetails\":\"Default (49 mm)\",\"defaultSizeString\":\"49 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (35 mm)\",\"defaultSizeString\":\"35 mm\"}],\"id\":1,\"imageAndTitleItems\":[{\"title\":\"Ariel\",\"imageName\":\"Arial\"}],\"engravingItem\":{\"chosenDetails\":\"\"}},{\"id\":1,\"isBespokeSize\":false,\"imageAndTitleItems\":[{\"title\":\"Ariel\",\"imageName\":\"Arial\"}],\"frameOrderDetailItems\":[{\"chosenDetails\":\"Ice\",\"titleTerm\":\"OrderOption.MetalColor\"},{\"chosenDetails\":\"Clear Glass\",\"titleTerm\":\"OrderOption.LensType\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (16 mm)\",\"defaultSizeString\":\"16 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.TempleLength\",\"chosenDetails\":\"Default (140 mm)\",\"defaultSizeString\":\"140 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.GlasWidth\",\"chosenDetails\":\"Default (49 mm)\",\"defaultSizeString\":\"49 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (35 mm)\",\"defaultSizeString\":\"35 mm\"}],\"commentDetailItem\":{\"chosenDetails\":\"\"},\"engravingItem\":{\"chosenDetails\":\"\"},\"title\":\"Ariel\"}]",
+                "Timestamp": "2019-08-05T08:51:26.341Z",
+                "SignatureVersion": "1",
+                "Signature": "lla668VFOnhdI6kqLi4apvrMgHIKQYYccypy5pife1bt6cQNPwZLaYEhi1yR8cuRLGa5RQZPagL+AowhLVBmJfwwidNSbJqelMdHUmMsuY38JlYoD/AjanC1A6GPpovglp86AmNqDUZ1fyz9RSO7PkkwSDbG1L7KZEDrSbjl04NoiobpY8CaaSiDMW7mh1WDon/EYVW5WA9GC12dCL8wrwAQjN3fHWkAKJmIHoVIBLR3bbD3EpDMiLutnowUxoel81/PY9Aq0WC55cwpmQb45XxH9vGwZd2LxIux86TfFRyV9cchkKfT0sT+pXr4kAIz1Tq4IXHeW+Ne3c70CZnExA==",
+                "SigningCertUrl": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem",
+                "UnsubscribeUrl": "https://sns.eu-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:eu-central-1:338756162532:new-glasses-order:acb86594-b3f3-440c-9888-8921ff38d2fa",
+                "MessageAttributes": {
+                    "storeEmail": {
+                        "Type": "String",
+                        "Value": "k_w_f@web.de"
+                    },
+                    "brand": {
+                        "Type": "String",
+                        "Value": "grafix"
+                    }
+                }
+            }
+        }
+    ]
+}

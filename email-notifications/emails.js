@@ -31,7 +31,7 @@ async function mailToManufacturer(brand, storeEmail, orders) {
        
     const htmlTemplate = fs.readFileSync(`./email-notifications/manufacturer_${locale}.html`, "utf8")
 
-    const htmlBody = Mustache.render(htmlTemplate, {STORE: storeEmail})
+    const htmlBody = Mustache.render(htmlTemplate, {STORE: storeEmail, ORDERS: orders})
 
     const sesParams = {
         Destination: {
@@ -57,6 +57,7 @@ async function mailToManufacturer(brand, storeEmail, orders) {
 
 // Delete a device from the current user
 exports.newOrder = async (event, context, callback) => {
+
     const firstRecord = event.Records[0]
     if (!firstRecord || !firstRecord.Sns) {
         throw "Failed to get firstRecord or Sns entry"

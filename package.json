@@ -1,0 +1,16 @@
+{
+  "name": "ARCMS-Backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/Bersaelor/ARCMS-Backend.git",
+  "author": "Konrad Feiler <K_W_F@web.de>",
+  "license": "proprietary",
+  "private": true,
+  "dependencies": {
+    "aws-sdk": "^2.471.0",
+    "mustache": "3.0.1"
+  },
+  "devDependencies": {
+    "run-local-lambda": "^1.1.1"
+  }
+}
