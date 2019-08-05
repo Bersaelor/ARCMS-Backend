@@ -58,7 +58,7 @@ functions:
     description: Get all brands the current uses is member in
     package:
       include:
-        - user/**
+        - user/brands.js
     events:
       - http:
           path: user
@@ -75,7 +75,7 @@ functions:
     description: Create new user with posted values should the current user have enough rights
     package:
       include:
-        - user/**
+        - user/user.js
     events:
       - http:
           path: user
@@ -92,7 +92,7 @@ functions:
     description: Delete user should the current user have enough rights
     package:
       include:
-        - user/**
+        - user/user.js
     events:
       - http:
           path: user/{id}
@@ -113,7 +113,7 @@ functions:
     description: Get all users for a given brand
     package:
       include:
-        - brand/**
+        - brand/users.js
     events:
       - http:
           path: users
@@ -130,7 +130,7 @@ functions:
     description: Get all devices for the current user
     package:
       include:
-        - devices/**
+        - devices/devices.js
     events:
       - http:
           path: devices
@@ -147,7 +147,7 @@ functions:
     description: Check in with a device, add it if needed or reply that the user has used up his quota
     package:
       include:
-        - devices/**
+        - devices/devices.js
     events:
       - http:
           path: device/check
@@ -164,7 +164,7 @@ functions:
     description: Delete a device from the current user
     package:
       include:
-        - devices/**
+        - devices/devices.js
     events:
       - http:
           path: device/{id}
@@ -185,7 +185,7 @@ functions:
     description: Get all orders for the current user or brand depending on the accessLvl
     package:
       include:
-        - orders/**
+        - orders/orders.js
     events:
       - http:
           path: orders
@@ -202,7 +202,7 @@ functions:
     description: Create and save a new order
     package:
       include:
-        - orders/**
+        - orders/orders.js
     environment:
       snsArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.newOrderTopic}" ] ]  }
     events:
