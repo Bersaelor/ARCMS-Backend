@@ -65,17 +65,17 @@
 </head>
 
 <body lang="DE" link="#0563C1" vlink="#954F72">
-  <p class="normal">Hallo,</p>
+  <p class="normal">Hello,</p>
   <br>
-  <p class="normal">wir haben soeben eine neue Bestellung von „{{STORE}}‟ über folgende Brillen erhalten:</p>
+  <p class="normal">thank you for ordering the following glasses from {{BRAND_NAME}}:</p>
   <br>
   <table>
     <tr>
-      <th>Modell</th>
-      <th>Sonderanf.</th>
+      <th>Model</th>
+      <th>Special Size</th>
       <th>Details</th>
-      <th>Gravur</th>
-      <th>Kommentar</th>
+      <th>Engraving</th>
+      <th>Comment</th>
     </tr>
     {{#ORDERS}}
     <tr>
@@ -109,12 +109,19 @@
     {{/ORDERS}}
   </table>
   <br>
-  <p class="normal"><a href="{{LINK}}">Klicken Sie hier um die Bestellung im Browser oder App zu öffnen.</a></p>
+  <p class="normal">
+    We've received your order and will work on it momentarily.
+    For further questions please contact {{BRAND_EMAIL}}.
+  </p>
   <br>
-  <p class="normal">Vielen Dank,</p>
+  <p class="normal"><a href="{{LINK}}">Click here to open this order in your browser.</a></p>
   <br>
-  <p class="small">MOM GmbH, vertreten durch Geschäftsführer Mathias Schröder. Diese Nachricht wurde von der MOM GmbH,
-    Jahnstraße 27, 14712 Rathenow, Deutschland erzeugt und versendet.</p>
+  <p class="normal">Thank you, <BR> {{BRAND_NAME}}</p>
+  <br>
+  <p class="small">
+    MOM GmbH, managed through Mathias Schröder,
+    This message was produced and distributed by MOM GmbH, Jahnstraße 27, 14712 Rathenow, Germany.
+  </p>
   <p class="normal">
     ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   </p>

@@ -8,25 +8,23 @@ const fs = require("fs");
 const Mustache = require('../node_modules/mustache/mustache.min.js');
 const strings = require('./locales.js');
 
-const manufacturerAddresses = {
+const manufacturerAdresses = {
     "grafix": "mom@looc.io",
     "domevtro": "konrad@looc.io"
 }
 
 const manufacturerLanguages = {
     "grafix": "de",
-    "domevtro": "en"
+    "domvetro": "en"
 }
 
-const from = "no_reply@looc.io"
+const manufacturerNames = {
+    "grafix": "Grafix",
+    "domvetro": "DOM VETRO"
+}
 
-async function mailToManufacturer(brand, storeEmail, order, orderSK) {
-    if(!manufacturerAddresses[brand]) {
-        throw `There is no manufacturer address saved for brand ${brand}`
-    }
-
-    const locale = manufacturerLanguages[brand]
-    const localizedOrder = order.map(frame => {
+function localizeOrder(order, locale) {
+    return order.map(frame => {
         frame.frameOrderDetailItems = frame.frameOrderDetailItems.map(item => {
             if (item.titleTerm) {
                 item.title = strings[locale][item.titleTerm]
@@ -35,15 +33,54 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK) {
         })
         return frame
     })
-    const fromBase64 = Buffer.from(from).toString('base64');
-    const subject = Mustache.render(strings[locale].subject, {STORE: storeEmail, FRAME_COUNT: order.length})
+}
+
+async function mailToStore(brand, storeEmail, order, orderSK) {
+    if(!manufacturerAdresses[brand]) {
+        throw `There is no manufacturer address saved for brand ${brand}`
+    }
+
+    const locale = manufacturerLanguages[brand]
+    const localizedOrder = localizeOrder(order, locale)
+    const brandName = manufacturerNames[brand]
+    const subject = Mustache.render(strings[locale].subject_store, { BRAND_NAME: brandName })
+    const htmlTemplate = fs.readFileSync(`./email-notifications/store_${locale}.html`, "utf8")
+    const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
+    const htmlBody = Mustache.render(htmlTemplate, {
+        ORDERS: localizedOrder, 
+        LINK: link, 
+        BRAND_EMAIL: manufacturerAdresses[brand],
+        BRAND_NAME: brandName
+    })
+
+    return sendMail(manufacturerAdresses[brand], storeEmail, subject, htmlBody)
+}
+
+async function mailToManufacturer(brand, storeEmail, order, orderSK) {
+    if(!manufacturerAdresses[brand]) {
+        throw `There is no manufacturer address saved for brand ${brand}`
+    }
+
+    const locale = manufacturerLanguages[brand]
+    const localizedOrder = localizeOrder(order, locale)
+    const subject = Mustache.render(strings[locale].subject_manu, {STORE: storeEmail, FRAME_COUNT: order.length})
     const htmlTemplate = fs.readFileSync(`./email-notifications/manufacturer_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
-    const htmlBody = Mustache.render(htmlTemplate, {STORE: storeEmail, ORDERS: localizedOrder, LINK: link})
+    const htmlBody = Mustache.render(htmlTemplate, {
+        STORE: storeEmail, 
+        ORDERS: localizedOrder,
+        LINK: link
+    })
+    const sender = "no_reply@looc.io"
+    return sendMail(sender, manufacturerAdresses[brand], subject, htmlBody)
+}
+
+async function sendMail(sender, to, subject, htmlBody) {
+    const fromBase64 = Buffer.from(sender).toString('base64');
 
     const sesParams = {
         Destination: {
-            ToAddresses: [manufacturerAddresses[brand]],
+            ToAddresses: [to],
         },
         Message: {
             Body: {
@@ -57,7 +94,7 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK) {
                 Data: subject,
             },
         },
-        Source: `=?utf-8?B?${fromBase64}?= <${from}>`,
+        Source: `=?utf-8?B?${fromBase64}?= <${sender}>`,
     };
 
     return SES.sendEmail(sesParams).promise();
@@ -71,10 +108,10 @@ exports.newOrder = async (event, context, callback) => {
         throw "Failed to get firstRecord or Sns entry"
     }
     const message = firstRecord.Sns
-    let order = JSON.parse(message.Message)
-    let storeEmail = message.MessageAttributes.storeEmail.Value
-    let brand = message.MessageAttributes.brand.Value
-    let orderSK = message.MessageAttributes.orderSK.Value
+    const order = JSON.parse(message.Message)
+    const storeEmail = message.MessageAttributes.storeEmail.Value
+    const brand = message.MessageAttributes.brand.Value
+    const orderSK = message.MessageAttributes.orderSK.Value
     if (!order || !storeEmail || !brand || !orderSK) {
         throw "Failed to get bodyJSON, storeEmail, brand, orderSK entry"
     }
@@ -82,7 +119,9 @@ exports.newOrder = async (event, context, callback) => {
     console.log("Received order-notification from ", storeEmail, " for brand ", brand)
 
     const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order, orderSK) 
+    const mailToStorePromise = mailToStore(brand, storeEmail, order, orderSK) 
     const mailToManuSuccess = await mailToManufacturerPromise
+    const mailToStoreSuccess = await mailToStorePromise
 
-    console.log("mailToManuSuccess: ", mailToManuSuccess)
+    console.log("mailToManuSuccess: ", mailToManuSuccess, ", mailToStoreSuccess: ", mailToStoreSuccess)
 };

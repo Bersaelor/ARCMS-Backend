@@ -23,6 +23,10 @@
                     "brand": {
                         "Type": "String",
                         "Value": "grafix"
+                    },
+                    "orderSK": {
+                        "Type": "String",
+                        "Value": "k_w_f@web.de#2019-08-05T11:09:27.017Z"
                     }
                 }
             }

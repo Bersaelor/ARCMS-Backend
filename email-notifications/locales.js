@@ -1,6 +1,7 @@
 module.exports = {
     en: {
-        subject: "New order for {{FRAME_COUNT}} frames from {{STORE}}",
+        subject_manu: "New order for {{FRAME_COUNT}} frames from {{STORE}}",
+        subject_store: "Order confirmation from {{BRAND_NAME}}",
         "OrderOption.Frame": "Material",
         "OrderOption.MetalColor": "Metal Color",
         "OrderOption.TempleColor": "Temple Color",
@@ -12,7 +13,8 @@ module.exports = {
         "OrderOption.TempleLength": "Temple Length",
     },
     de: {
-        subject: "Neue Bestellung von {{FRAME_COUNT}} Brillen für {{STORE}}",
+        subject_manu: "Neue Bestellung von {{FRAME_COUNT}} Brillen für {{STORE}}",
+        subject_store: "Bestellbestätigung {{BRAND_NAME}}",
         "OrderOption.Frame": "Rahmen",
         "OrderOption.MetalColor": "Metallfarbe",
         "OrderOption.TempleColor": "Bügelfarbe",
