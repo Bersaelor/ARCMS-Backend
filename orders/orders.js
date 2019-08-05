@@ -17,7 +17,8 @@ async function loadUserOrdersFromDB(brand, email) {
         ExpressionAttributeValues: {
             ":value": `${brand}#order`,
             ":user": email
-        }
+        },
+        ScanIndexForward: false
     };
 
     return dynamoDb.query(params).promise()
@@ -33,7 +34,26 @@ async function loadAllOrdersFromDB(brand) {
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#order`,
-        }
+        },
+        ScanIndexForward: false
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+async function loadOrderFromDB(brand, orderSK) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "id, sk, contact, orderJSON",
+        KeyConditionExpression: "#id = :value and sk = :orderSK",
+        ExpressionAttributeNames:{
+            "#id": "id",
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#order`,
+            ":orderSK": orderSK
+        },
+        ScanIndexForward: false
     };
 
     return dynamoDb.query(params).promise()
@@ -141,6 +161,74 @@ function mapDBEntriesToOutput(items) {
 function accessLvlMaySeeAllOrders(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
+
+// Get a specific order based on brand, user and timeStamp
+exports.order = async (event, context, callback) => {
+    if (event.queryStringParameters.brand == undefined) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Missing query parameter 'brand'`,
+        });
+        return;
+    }
+    const brand = event.queryStringParameters.brand;
+
+    if (!event.requestContext.authorizer) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Cognito Authorization missing`,
+        });
+        return;
+    }
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+
+    const id = event.pathParameters.id
+    const orderSK = decodeURIComponent(id)
+    const customer = orderSK.split('#')[0]
+    const needsManagerAccess = customer != cognitoUserName
+
+    try {
+        const ownAccessLvl = needsManagerAccess ? await getAccessLvl(cognitoUserName, brand) : undefined
+        if (needsManagerAccess && !accessLvlMaySeeAllOrders(ownAccessLvl)) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `User ${cognitoUserName} is not allowed to see all orders for ${brand}`,
+            });
+            return;
+        }
+
+        const data = await loadOrderFromDB(brand, orderSK)
+        const orders = mapDBEntriesToOutput(data.Items)
+
+        if (orders.length < 1) {
+            const response = {
+                statusCode: 404,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify({message: `No order for ${customer} with this id found`}),
+            };
+            callback(null, response);
+            return;
+        }
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify(orders[0])
+        };
+        callback(null, response);
+    } catch(err) {
+        console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
+        const response = {
+            statusCode: err.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: 'Failed to fetch this order because of ' + err,
+        };
+        callback(null, response);
+    }
+};
 
 // Get all orders for the current user or brand depending on the accessLvl
 exports.all = async (event, context, callback) => {
@@ -256,7 +344,6 @@ async function postNewOrderNotification(orderString, storeEmail, brand, orderSK)
     };
     return sns.publish(params).promise()
 }
-
 
 // Create and save a new order
 exports.create = async (event, context, callback) => {
