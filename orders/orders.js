@@ -39,14 +39,13 @@ async function loadAllOrdersFromDB(brand) {
     return dynamoDb.query(params).promise()
 }
 
-async function writeOrderToDB(cognitoUserName, brand, orderString, contactName) {
-    const now = new Date()
+async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, orderSK) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk",
         Item: {
             "id": `${brand}#order`,
-            "sk": `${cognitoUserName}#${now.toISOString()}`,
+            "sk": orderSK,
             "contact": contactName,
             "orderJSON": orderString
         }
@@ -235,7 +234,7 @@ async function replyWithAllOrders(brand, cognitoUserName, callback) {
     }
 }
 
-async function postNewOrderNotification(orderString, storeEmail, brand) {
+async function postNewOrderNotification(orderString, storeEmail, brand, orderSK) {
     var params = {
         Message: orderString, 
         Subject: "New glasses order",
@@ -248,10 +247,13 @@ async function postNewOrderNotification(orderString, storeEmail, brand) {
             'brand': {
                 DataType: 'String',
                 StringValue: brand
+            },
+            'orderSK': {
+                DataType: 'String',
+                StringValue: orderSK
             }
         }
     };
-    console.log("Posting params ", params)
     return sns.publish(params).promise()
 }
 
@@ -296,8 +298,10 @@ exports.create = async (event, context, callback) => {
 
         console.log("writeSuccess: ", contactName)
 
-        const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName)
-        const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, brand)
+        const now = new Date()
+        const orderSK = `${cognitoUserName}#${now.toISOString()}`
+        const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK)
+        const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, brand, orderSK)
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise

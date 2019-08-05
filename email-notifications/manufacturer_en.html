@@ -1,55 +1,123 @@
 <html>
-    <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="Generator" content="Microsoft Word 15 (filtered medium)">
-    <style><!--
-        /* Font Definitions */
-        @font-face {
-            font-family:Verdana;
-            panose-1:2 11 6 4 3 5 4 4 2 4;
-        }
-        @font-face {
-            font-family:Calibri;
-            panose-1:2 11 5 2 2 1 4 2 2 3;
-        }
-        /* Style Definitions */
-        h3 {
-            font-size:14.0pt;
-            font-family:"Verdana";
-            color:#3B3838;
-        }
-        img.title {
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-            width: 520px;
-        }
-        p.normal, li.normal, div.normal {
-            margin:0cm;
-            margin-bottom:.0001pt;
-            font-size:10.0pt;
-            font-family:"Calibri",sans-serif;
-            mso-fareast-language:EN-US;
-        }
-        p.small {
-            margin:0cm;
-            margin-bottom:.0001pt;
-            font-size:8.0pt;  
-            font-family:"Calibri",sans-serif;
-            mso-fareast-language:EN-US;
-        }
-        --></style>
-    </head>
-    <body lang="DE" link="#0563C1" vlink="#954F72">
-        <h3>New order from {{STORE}} received:</h3>
-        <br>
-        <p class="normal">{{ORDER}}}</p>
-        <br>
-        <p class="normal">Nutzername & Passwort funktionieren <a href="https://cms.looc.io/grafix/redirect.html">in der App</a> als auch auf <a href="https://cms.looc.io/">https://cms.looc.io</a> !</p>
-        <br>
-        <p class="normal">Thank you,</p>
-        <br>
-        <p class="small">MOM GmbH, managed through Mathias Schröder, This message was produced and distributed by MOM GmbH, Jahnstraße 27, 14712 Rathenow, Germany.</p>
-        <p class="normal">---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------</p>
-    </body>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="Generator" content="Microsoft Word 15 (filtered medium)">
+  <style>
+    <!--
+    /* Font Definitions */
+    @font-face {
+      font-family: Verdana;
+      panose-1: 2 11 6 4 3 5 4 4 2 4;
+    }
+
+    @font-face {
+      font-family: Calibri;
+      panose-1: 2 11 5 2 2 1 4 2 2 3;
+    }
+
+    /* Style Definitions */
+    h3 {
+      font-size: 14.0pt;
+      font-family: "Verdana";
+      color: #3B3838;
+    }
+
+    img.title {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      width: 520px;
+    }
+
+    p.normal,
+    li.normal,
+    div.normal {
+      margin: 0cm;
+      margin-bottom: .0001pt;
+      font-size: 10.0pt;
+      font-family: "Calibri", sans-serif;
+      mso-fareast-language: EN-US;
+    }
+
+    p.small {
+      margin: 0cm;
+      margin-bottom: .0001pt;
+      font-size: 8.0pt;
+      font-family: "Calibri", sans-serif;
+      mso-fareast-language: EN-US;
+    }
+
+    table, th, td {
+      border: 2px solid gray;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 5px;
+    }
+
+    font.red {
+      color: red;
+    }
+    -->
+  </style>
+</head>
+
+<body lang="DE" link="#0563C1" vlink="#954F72">
+  <p class="normal">Dear Manufacturer,</p>
+  <br>
+  <p class="normal">we just received an order from „{{STORE}}‟ for the following frames:</p>
+  <br>
+  <table>
+    <tr>
+      <th>Model</th>
+      <th>Special Size</th>
+      <th>Details</th>
+      <th>Engraving</th>
+      <th>Comment</th>
+    </tr>
+    {{#ORDERS}}
+    <tr>
+      <td>
+        <b>{{title}}</b>
+      </td>
+      <td> 
+        {{#isBespokeSize}} ‼️ {{/isBespokeSize}}
+      </td>
+      <td> 
+        <table>
+          {{#frameOrderDetailItems}}
+            <tr>
+              <td>
+                {{title}}
+              </td>
+              <td>
+                {{chosenDetails}}
+              </td>
+            </tr>
+          {{/frameOrderDetailItems}}
+        </table>
+      </td>
+      <td>
+        {{engravingItem.chosenDetails}}
+      </td>
+      <td>
+        {{commentDetailItem.chosenDetails}}
+      </td>
+    </tr>
+    {{/ORDERS}}
+  </table>
+  <br>
+  <p class="normal"><a href="{{LINK}}">Click here to open this order in your browser.</a></p>
+  <br>
+  <p class="normal">Vielen Dank,</p>
+  <br>
+  <p class="small">MOM GmbH, vertreten durch Geschäftsführer Mathias Schröder. Diese Nachricht wurde von der MOM GmbH,
+    Jahnstraße 27, 14712 Rathenow, Deutschland erzeugt und versendet.</p>
+  <p class="normal">
+    ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  </p>
+</body>
+
 </html>
