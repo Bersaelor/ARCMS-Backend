@@ -29,6 +29,12 @@ function localizeOrder(order, locale) {
             if (item.titleTerm) {
                 item.title = strings[locale][item.titleTerm]
             }
+            if (item.defaultSize && item.chosenSize) {
+                let localeTemplate = item.defaultSize == item.chosenSize ? strings[locale].detail_item_default_size : strings[locale].detail_item_special_size
+                item.valueTitle = Mustache.render(localeTemplate, { SIZE: `${item.chosenSize} mm` })
+            } else {
+                item.valueTitle = item.chosenDetails
+            }
             return item
         })
         return frame
@@ -102,6 +108,8 @@ async function sendMail(sender, to, subject, htmlBody) {
 
 // Delete a device from the current user
 exports.newOrder = async (event, context, callback) => {
+
+    // console.log(JSON.stringify(event, null, 2))
 
     const firstRecord = event.Records[0]
     if (!firstRecord || !firstRecord.Sns) {

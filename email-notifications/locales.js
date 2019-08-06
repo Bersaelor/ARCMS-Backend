@@ -2,6 +2,8 @@ module.exports = {
     en: {
         subject_manu: "New order for {{FRAME_COUNT}} frames from {{STORE}}",
         subject_store: "Order confirmation from {{BRAND_NAME}}",
+        detail_item_default_size: "Default ({{SIZE}})",
+        detail_item_special_size: "Special size ({{SIZE}})",
         "OrderOption.Frame": "Material",
         "OrderOption.MetalColor": "Metal Color",
         "OrderOption.TempleColor": "Temple Color",
@@ -15,6 +17,8 @@ module.exports = {
     de: {
         subject_manu: "Neue Bestellung von {{FRAME_COUNT}} Brillen für {{STORE}}",
         subject_store: "Bestellbestätigung {{BRAND_NAME}}",
+        detail_item_default_size: "Standard ({{SIZE}})",
+        detail_item_special_size: "Sondergröße ({{SIZE}})",
         "OrderOption.Frame": "Rahmen",
         "OrderOption.MetalColor": "Metallfarbe",
         "OrderOption.TempleColor": "Bügelfarbe",

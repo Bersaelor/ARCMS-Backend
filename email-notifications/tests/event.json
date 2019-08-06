@@ -6,13 +6,13 @@
             "EventSubscriptionArn": "arn:aws:sns:eu-central-1:338756162532:new-glasses-order:acb86594-b3f3-440c-9888-8921ff38d2fa",
             "Sns": {
                 "Type": "Notification",
-                "MessageId": "b7dd27ca-55d3-55e7-86ea-720ba081770d",
+                "MessageId": "47870c70-f8c8-530e-bfce-59b370fde74e",
                 "TopicArn": "arn:aws:sns:eu-central-1:338756162532:new-glasses-order",
                 "Subject": "New glasses order",
-                "Message": "[{\"frameOrderDetailItems\":[{\"chosenDetails\":\"Ice\",\"titleTerm\":\"OrderOption.MetalColor\"},{\"chosenDetails\":\"Clear Glass\",\"titleTerm\":\"OrderOption.LensType\"},{\"isSpecial\":true,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Special size (19 mm)\",\"defaultSizeString\":\"16 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.TempleLength\",\"chosenDetails\":\"Default (140 mm)\",\"defaultSizeString\":\"140 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.GlasWidth\",\"chosenDetails\":\"Default (49 mm)\",\"defaultSizeString\":\"49 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (35 mm)\",\"defaultSizeString\":\"35 mm\"}],\"commentDetailItem\":{\"chosenDetails\":\"Breite Nase ey!\"},\"engravingItem\":{\"chosenDetails\":\"\"},\"id\":2,\"imageAndTitleItems\":[{\"title\":\"Ariel\",\"imageName\":\"Arial\"}],\"isBespokeSize\":true,\"title\":\"Ariel\"},{\"id\":40,\"imageAndTitleItems\":[{\"title\":\"Kari\",\"imageName\":\"Kari\"}],\"engravingItem\":{\"chosenDetails\":\"\"},\"isBespokeSize\":false,\"commentDetailItem\":{\"chosenDetails\":\"\"},\"title\":\"Kari\",\"frameOrderDetailItems\":[{\"chosenDetails\":\"Coppa\",\"titleTerm\":\"OrderOption.MetalColor\"},{\"chosenDetails\":\"Clear Glass\",\"titleTerm\":\"OrderOption.LensType\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (16 mm)\",\"defaultSizeString\":\"16 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.TempleLength\",\"chosenDetails\":\"Default (140 mm)\",\"defaultSizeString\":\"140 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.GlasWidth\",\"chosenDetails\":\"Default (47 mm)\",\"defaultSizeString\":\"47 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (37 mm)\",\"defaultSizeString\":\"37 mm\"}]},{\"engravingItem\":{\"chosenDetails\":\"Bussi\"},\"isBespokeSize\":true,\"id\":41,\"imageAndTitleItems\":[{\"title\":\"Loge\",\"imageName\":\"Loge\"}],\"commentDetailItem\":{\"chosenDetails\":\"\"},\"title\":\"Loge\",\"frameOrderDetailItems\":[{\"chosenDetails\":\"Olive\",\"titleTerm\":\"OrderOption.MetalColor\"},{\"chosenDetails\":\"Clear Glass\",\"titleTerm\":\"OrderOption.LensType\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (20 mm)\",\"defaultSizeString\":\"20 mm\"},{\"isSpecial\":false,\"titleTerm\":\"OrderOption.TempleLength\",\"chosenDetails\":\"Default (140 mm)\",\"defaultSizeString\":\"140 mm\"},{\"isSpecial\":true,\"titleTerm\":\"OrderOption.GlasWidth\",\"chosenDetails\":\"Special size (45 mm)\",\"defaultSizeString\":\"50 mm\"},{\"isSpecial\":true,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Special size (38 mm)\",\"defaultSizeString\":\"43 mm\"}]}]",
-                "Timestamp": "2019-08-05T09:12:50.299Z",
+                "Message": "[{\"engravingItem\":{\"chosenDetails\":\"\"},\"commentDetailItem\":{\"chosenDetails\":\"\"},\"frameOrderDetailItems\":[{\"chosenDetails\":\"Ice\",\"titleTerm\":\"OrderOption.MetalColor\"},{\"isSpecial\":true,\"defaultSize\":17,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Special size (19 mm)\",\"chosenSize\":19},{\"isSpecial\":false,\"defaultSize\":140,\"titleTerm\":\"OrderOption.TempleLength\",\"chosenDetails\":\"Default (140 mm)\",\"chosenSize\":140},{\"isSpecial\":false,\"defaultSize\":56,\"titleTerm\":\"OrderOption.GlasWidth\",\"chosenDetails\":\"Default (56 mm)\",\"chosenSize\":56},{\"isSpecial\":false,\"defaultSize\":36,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (36 mm)\",\"chosenSize\":36}],\"isBespokeSize\":true,\"imageAndTitleItems\":[{\"title\":\"Hyperion\",\"imageName\":\"Hyperion\"}],\"id\":61,\"title\":\"Hyperion\"},{\"commentDetailItem\":{\"chosenDetails\":\"\"},\"title\":\"Neso\",\"isBespokeSize\":true,\"imageAndTitleItems\":[{\"title\":\"Neso\",\"imageName\":\"Neso\"}],\"engravingItem\":{\"chosenDetails\":\"\"},\"id\":62,\"frameOrderDetailItems\":[{\"chosenDetails\":\"Ice\",\"titleTerm\":\"OrderOption.MetalColor\"},{\"isSpecial\":false,\"defaultSize\":18,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (18 mm)\",\"chosenSize\":18},{\"isSpecial\":true,\"defaultSize\":140,\"titleTerm\":\"OrderOption.TempleLength\",\"chosenDetails\":\"Special size (160 mm)\",\"chosenSize\":160},{\"isSpecial\":true,\"defaultSize\":56,\"titleTerm\":\"OrderOption.GlasWidth\",\"chosenDetails\":\"Special size (59 mm)\",\"chosenSize\":59},{\"isSpecial\":false,\"defaultSize\":48,\"titleTerm\":\"OrderOption.BridgeWidth\",\"chosenDetails\":\"Default (48 mm)\",\"chosenSize\":48}]}]",
+                "Timestamp": "2019-08-06T13:51:49.499Z",
                 "SignatureVersion": "1",
-                "Signature": "lKUAzBD9h4QkaLcE3vmVxoHvf7yauJwpx7TelGcSZ1lXkkJMIiB2YTf3ciSyjvSyk+m+QOn3Aq+y3PxHV8yX7oOe+uP+FdtsyovR2EIg93O5nHWLk4Rq6PCj0y5Zs8qO0fka9KA9i6PB/n1t/jkoUdCO3FwFWAUgbiN/RLxeXPc2Chv+eTVv/pkk2tMsOMGRpUdlOt5xDs5V1WrzoOlgXWTBwKrTXSavlHXmifhUq11FEFXx+F9ADUcUCucPShhCZA0p1s0awL/XBsgAf+TiaS1+wzmnYkjBUlWoxBDrPGyuVFAYMAKIIZJYMsMR3fji3fmOwOuJHfDOciXpAKCFeg==",
+                "Signature": "j27vQDGE4dZtl42Zu1Bn7ux312yj9EJ6t3BVVtFll4qPwZJZxapCaN44YjMBtsZYssh/2ISRQsxuxrzGx8Egnp54hONkanZnl7++8wkgZcxb6aQ2EPs3J4sk4zqzRymL1lgehLsd4+n5eumSjB3AUkuPQcU8A0RG0Z4VjT2SujnqRDGfzXY9r1UnJp9ZnOTHQ6C4fTyHnh+EqWBFOVMZ6eU1xz05E41lY+of4SGnrBvhfdY/45dU2qT4I307hdAWZ0MK+r/ol/nayNMuQf8El/h/OuhzDNGaisjWYZlZW6mlBrhGrI/yN4UkjPJ4H5LskTz27d4a2FMCevtHmhO76w==",
                 "SigningCertUrl": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem",
                 "UnsubscribeUrl": "https://sns.eu-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:eu-central-1:338756162532:new-glasses-order:acb86594-b3f3-440c-9888-8921ff38d2fa",
                 "MessageAttributes": {
@@ -20,13 +20,13 @@
                         "Type": "String",
                         "Value": "k_w_f@web.de"
                     },
+                    "orderSK": {
+                        "Type": "String",
+                        "Value": "k_w_f@web.de#2019-08-06T13:51:49.415Z"
+                    },
                     "brand": {
                         "Type": "String",
                         "Value": "grafix"
-                    },
-                    "orderSK": {
-                        "Type": "String",
-                        "Value": "k_w_f@web.de#2019-08-05T11:09:27.017Z"
                     }
                 }
             }

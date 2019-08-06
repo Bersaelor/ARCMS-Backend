@@ -93,7 +93,9 @@
                 {{title}}
               </td>
               <td>
-                {{chosenDetails}}
+                {{#isSpecial}} <font class="red"> {{/isSpecial}}
+                {{valueTitle}}
+                {{#isSpecial}} </font> {{/isSpecial}}
               </td>
             </tr>
           {{/frameOrderDetailItems}}
