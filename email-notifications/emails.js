@@ -59,8 +59,6 @@ async function mailToStore(brand, storeEmail, order, orderSK) {
         BRAND_NAME: brandName,
         ISTESTENVIRONMENT: process.env.STAGE != "prod"
     })
-    console.log("process.env.ACCESS_STORE: ", process.env.STAGE)
-    console.log("ISTESTENVIRONMENT: ", process.env.STAGE != "prod")
 
     return sendMail(manufacturerAdresses[brand], storeEmail, subject, htmlBody)
 }
