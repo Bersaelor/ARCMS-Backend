@@ -56,8 +56,11 @@ async function mailToStore(brand, storeEmail, order, orderSK) {
         ORDERS: localizedOrder, 
         LINK: link, 
         BRAND_EMAIL: manufacturerAdresses[brand],
-        BRAND_NAME: brandName
+        BRAND_NAME: brandName,
+        ISTESTENVIRONMENT: process.env.STAGE != "prod"
     })
+    console.log("process.env.ACCESS_STORE: ", process.env.STAGE)
+    console.log("ISTESTENVIRONMENT: ", process.env.STAGE != "prod")
 
     return sendMail(manufacturerAdresses[brand], storeEmail, subject, htmlBody)
 }
@@ -75,7 +78,8 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK) {
     const htmlBody = Mustache.render(htmlTemplate, {
         STORE: storeEmail, 
         ORDERS: localizedOrder,
-        LINK: link
+        LINK: link,
+        ISTESTENVIRONMENT: process.env.STAGE != "prod"
     })
     const sender = "no_reply@looc.io"
     return sendMail(sender, manufacturerAdresses[brand], subject, htmlBody)
