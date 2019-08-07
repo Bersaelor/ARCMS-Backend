@@ -1,4 +1,4 @@
-service: ARCMS-Backend # NOTE: update this with your service name
+service: ARCMS # NOTE: update this with your service name
 #app: your-app-name
 #tenant: your-tenant-name
 
@@ -6,12 +6,24 @@ service: ARCMS-Backend # NOTE: update this with your service name
 # Check out our docs for more details
 # frameworkVersion: "=X.X.X"
 
+custom:
+  myStage: ${opt:stage, self:provider.stage}
+  myEnvironment:
+    MESSAGE:
+      prod: "This is production environment"
+      dev: "This is development environment"
+  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
+  region: ${opt:region, self:provider.region}
+
 provider:
   name: aws
+  stage: dev
   runtime: nodejs10.x
   region: eu-central-1
   environment:
-    CANDIDATE_TABLE: arcms-brandUserOrders
+    NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
+    MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
+    CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
     ACCESS_STORE: store
     ACCESS_MANAGER: manager
     ACCESS_ADMIN: admin
@@ -44,11 +56,6 @@ resources:
         StreamSpecification:
           StreamViewType: "NEW_AND_OLD_IMAGES"
         TableName: ${self:provider.environment.CANDIDATE_TABLE}
-
-custom:
-  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
-  region: ${opt:region, self:provider.region}
-  newOrderTopic: new-glasses-order
 
 functions:
   my-brands:
@@ -221,7 +228,7 @@ functions:
       include:
         - orders/orders.js
     environment:
-      snsArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.newOrderTopic}" ] ]  }
+      snsArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
     events:
       - http:
           path: order/create
@@ -249,4 +256,4 @@ functions:
         - '!email-notifications/tests/**'
         - node_modules/mustache/mustache.min.js
     events:
-      - sns: ${self:custom.newOrderTopic}
+      - sns: ${self:provider.environment.NEWORDERTOPIC}
