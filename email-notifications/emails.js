@@ -23,6 +23,8 @@ const manufacturerNames = {
     "domvetro": "DOM VETRO"
 }
 
+const appDownloadLink = "https://beta.itunes.apple.com/v1/app/1450301394"
+
 function localizeOrder(order, locale) {
     return order.map(frame => {
         frame.frameOrderDetailItems = frame.frameOrderDetailItems.map(item => {
@@ -57,7 +59,8 @@ async function mailToStore(brand, storeEmail, order, orderSK) {
         LINK: link, 
         BRAND_EMAIL: manufacturerAdresses[brand],
         BRAND_NAME: brandName,
-        ISTESTENVIRONMENT: process.env.STAGE != "prod"
+        ISTESTENVIRONMENT: process.env.STAGE != "prod",
+        DOWNLOADLINK: appDownloadLink,
     })
 
     return sendMail(manufacturerAdresses[brand], storeEmail, subject, htmlBody)
@@ -77,7 +80,8 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK) {
         STORE: storeEmail, 
         ORDERS: localizedOrder,
         LINK: link,
-        ISTESTENVIRONMENT: process.env.STAGE != "prod"
+        ISTESTENVIRONMENT: process.env.STAGE != "prod",
+        DOWNLOADLINK: appDownloadLink,
     })
     const sender = "no_reply@looc.io"
     return sendMail(sender, manufacturerAdresses[brand], subject, htmlBody)
