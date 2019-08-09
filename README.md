@@ -2,7 +2,7 @@ This project uses the [`serverless`](https://serverless.com) framework.
 
 The `serverless.yml` file creates a layer of indirection between this project and aws, to be less specific about the provider.
 
-Visual animation of creating a KDTree:
+This repo is for the backend and together with the [React frontend](https://github.com/Bersaelor/cms-react) the architecture looks like the following:
 
 ![AWS Architecture](/serverless-architecture.png?raw=true)
 
