@@ -230,69 +230,80 @@ async function deleteUserFromCognito(cognitoName) {
 
 exports.createNew = async (event, context, callback) => {
 
-    let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
-    let body = JSON.parse(event.body)
-    let brand = body.brand;
-    let accessLvl = body.accessLvl;
-    let email = body.email.toLowerCase()
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const body = JSON.parse(event.body)
+    const brand = body.brand;
+    if (!body.accessLvl && body.role) {
+        // translate accessLvl into role
+        body.accessLvl = body.role
+    }
+    const accessLvl = body.accessLvl
+    const email = body.email.toLowerCase()
+    const isUpdatingSelf = email == cognitoUserName 
 
     try {
         // TODO: Proper error messages for all kinds of missing body values
 
         console.log("Checking whether current user is allowed to create user with accessLvl: ", accessLvl)
         if (!accessLvl || (accessLvl !== process.env.ACCESS_STORE && accessLvl !== process.env.ACCESS_MANAGER)) {
-            console.log(`Access lvl is neither ${process.env.ACCESS_STORE} nor ${process.env.ACCESS_MANAGER}`)
+            console.error(`Access lvl is neither ${process.env.ACCESS_STORE} nor ${process.env.ACCESS_MANAGER}`)
+            const msg = `New Users need to have a valid access lvl of "${process.env.ACCESS_STORE}" or "${process.env.ACCESS_MANAGER}"`
             callback(null, {
                 statusCode: 403,
-                headers: makeHeader('text/plain'),
-                body: `New Users need to have a valid access lvl of "${process.env.ACCESS_STORE}" or "${process.env.ACCESS_MANAGER}"`,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
             });
             return;
         }
-
-        // make sure the current cognito user has high enough access lvl
-        const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
-
-        // check whether a user with that name already exists
-        const isDBUserExistingPromise = getIsDBUserExisting(email, brand)
 
         // check whether a new cognito user has to be created
-        const isCognitoUserExistingPromise = getIsCognitoUserExisting(email)
+        const isCognitoUserExistingPromise = isUpdatingSelf ? undefined : getIsCognitoUserExisting(email)
 
-        const ownAccessLvl = await accessLvlPromise;
-        if (!accessLvlMayCreateUsers(ownAccessLvl)) {
-            callback(null, {
-                statusCode: 403,
-                headers: makeHeader('text/plain'),
-                body: `User ${cognitoUserName} is not allowed to delete users for ${brand}`,
-            });
-            return;
-        }
+        if (!isUpdatingSelf) {
+            // make sure the current cognito user has high enough access lvl
+            const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
 
-        const isUserExisting = await isDBUserExistingPromise;
-        if (isUserExisting) {
-            callback(null, {
-                statusCode: 403,
-                headers: makeHeader('text/plain'),
-                body: `User ${email} already exists for ${brand}`,
-            });
-            return;
+            // check whether a user with that name already exists
+            const isDBUserExistingPromise = getIsDBUserExisting(email, brand)
+
+            const ownAccessLvl = await accessLvlPromise;
+            if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+                callback(null, {
+                    statusCode: 403,
+                    headers: makeHeader('text/plain'),
+                    body: `User ${cognitoUserName} is not allowed to delete users for ${brand}`,
+                });
+                return;
+            }    
+
+            const isUserExisting = await isDBUserExistingPromise;
+            if (isUserExisting) {
+                callback(null, {
+                    statusCode: 403,
+                    headers: makeHeader('text/plain'),
+                    body: `User ${email} already exists for ${brand}`,
+                });
+                return;
+            }
         }
 
         const writeDBPromise = createUserInDB(body)
 
-        const isCognitoUserExisting = await isCognitoUserExistingPromise;
+        var verifyEmailPromise
+        if (!isUpdatingSelf) {
+            const isCognitoUserExisting = await isCognitoUserExistingPromise;
 
-        var createCognitoPromise = null
-        if (!isCognitoUserExisting) {
-            createCognitoPromise = createCognitoUser(email, body.firstName, body.lastName)
-        } else {
-            console.log("User already exists in Cognito, no need to create again")
+            var createCognitoPromise = null
+            if (!isCognitoUserExisting) {
+                createCognitoPromise = createCognitoUser(email, body.firstName, body.lastName)
+            } else {
+                console.log("User already exists in Cognito, no need to create again")
+            }
+    
+            const createUserSuccess = (createCognitoPromise) ? await createCognitoPromise : "not needed"
+            console.log("createUserSuccess: ", createUserSuccess)    
+            verifyEmailPromise = !isCognitoUserExisting ? setEmailVerified(email) : null
         }
-
-        const createUserSuccess = (createCognitoPromise) ? await createCognitoPromise : "not needed"
-        console.log("createUserSuccess: ", createUserSuccess)
-        var verifyEmailPromise = !isCognitoUserExisting ? setEmailVerified(email) : null
 
         const writeSuccess = await writeDBPromise
         console.log("write User to db success: ", writeSuccess)
@@ -300,10 +311,11 @@ exports.createNew = async (event, context, callback) => {
         const verifyEmailResult = (verifyEmailPromise) ? await verifyEmailPromise : "not needed"
         console.log("verifyEmailResult: ", verifyEmailResult)
 
+        const msg = isUpdatingSelf ? "User update successful" : "User creation successful"
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json' ),
-            body: JSON.stringify({"message": "User creation successful"})
+            body: JSON.stringify({"message": msg})
         };
     
         callback(null, response);
@@ -343,10 +355,11 @@ exports.delete = async (event, context, callback) => {
 
         const ownAccessLvl = await accessLvlPromise;
         if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+            const msg = `User ${cognitoUserName} is not allowed to delete users of ${brand}`
             callback(null, {
                 statusCode: 403,
-                headers: makeHeader('text/plain'),
-                body: `User ${cognitoUserName} is not allowed to delete users of ${brand}`,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
             });
             return;
         }
