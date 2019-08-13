@@ -223,13 +223,13 @@ exports.check = async (event, context, callback) => {
         const updateDeviceSuccess = (updateLastUsedPromise) ? await updateLastUsedPromise : "not needed"
         console.log("createDeviceSuccess: ", createDeviceSuccess, ", updateDeviceSuccess: ", updateDeviceSuccess)
 
-        let tomorrow = (new Date()).addDays(1);
+        let nextWeek = (new Date()).addDays(7);
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
             body: JSON.stringify({
                  "isDeviceValid": neededDevices <= maxDevices,
-                 "validTil": tomorrow.toISOString(),
+                 "validTil": nextWeek.toISOString(),
                  "usedDevices": usedDevices,
                  "maxDevices": maxDevices,
             })
