@@ -12,5 +12,9 @@
   },
   "devDependencies": {
     "run-local-lambda": "^1.1.1"
+  },
+  "scripts": {
+    "test-my-brands": "sls invoke local -f my-brands -p user/tests/event.json",
+    "test-new-order-email": "sls invoke local -f send-new-order-mails -p email-notifications/tests/event.json" 
   }
 }

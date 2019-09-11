@@ -1,38 +1,148 @@
 {
-    "Records": [
-        {
-            "eventVersion": "2.0",
-            "eventSource": "aws:s3",
-            "awsRegion": "us-east-1",
-            "eventTime": "2016-12-11T00:00:00.000Z",
-            "eventName": "ObjectCreated:Put",
-            "userIdentity": {
-                "principalId": "A3MCB9FEJCFJSY"
-            },
-            "requestParameters": {
-                "sourceIPAddress": "127.0.0.1"
-            },
-            "responseElements": {
-                "x-amz-request-id": "3966C864F562A6A0",
-                "x-amz-id-2": "2radsa8X4nKpba7KbgVurmc7rwe/"
-            },
-            "s3": {
-                "s3SchemaVersion": "1.0",
-                "configurationId": "Video Upload",
-                "bucket": {
-                    "name": "serverless-video-upload",
-                    "ownerIdentity": {
-                        "principalId": "A3MCB9FEJCFJSY"
-                    },
-                    "arn": "arn:aws:s3:::serverless-video-upload"
-                },
-                "object": {
-                    "key": "my video.mp4",
-                    "size": 2236480,
-                    "eTag": "ddb7a52094d2079a27ac44f83ca669e9",
-                    "sequencer": "005686091F4FFF1565"
-                }
+    "resource": "/user",
+    "path": "/staging/user",
+    "httpMethod": "GET",
+    "headers": {
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "de,en-US;q=0.9,en;q=0.8",
+        "Authorization": "Bearer eyJraWQiOiJla0hGRVwvdjlPRVFZQWRIaFE3aHBYZ3IyQVZvQkdNY016a0Z0YklyYkxVVT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI2MjUyZjgwMC04MjBiLTRlMDUtOGJhNS04NjJkNTNiYzljYmEiLCJhdWQiOiIxM2ZzZGkwaGpxcWYwbWNnZDlicXZiN2FlaiIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJldmVudF9pZCI6IjhkNjZmZDE1LWEwMzItNDA3NS04NWQ5LWNjN2VkY2UxOThmZiIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNTY3MjM2ODAwLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuZXUtY2VudHJhbC0xLmFtYXpvbmF3cy5jb21cL2V1LWNlbnRyYWwtMV9RZzhHWFVKMnYiLCJjb2duaXRvOnVzZXJuYW1lIjoia29ucmFkQGxvb2MuaW8iLCJleHAiOjE1NjgyMjQ4MTgsImlhdCI6MTU2ODIyMTIxOCwiZW1haWwiOiJrb25yYWRAbG9vYy5pbyJ9.CarRjpcdn739xhNIkcStWU-QcqBrPEGXUPGOV0jok7mztrbHzHy8PRrHRx5hbgOlYQtPcwdroh-VpQ4zmdHKXjZABZvOQEsWCHNHx3AjzBklZuPsJtPir_KBipc2mrG722vbZISbgu2VlgUvwjANrnJcs1yIUPw3FYPn1V5597yq-kC3Yn1gdsj27Xf_U73Y_8jge_13k3--RkBaIuwY5loZWTgG3HsJzG3gx85iye8RZ6Aeal2QX5p__qGKBh1R7_U33E7LkYjUU-1V4IQZMm7jNhO40Gja4p-uTnyIqwAeaD--3kC5bBKII5858FOwOGGFFLqRlFc2PxAYxKe0XQ",
+        "CloudFront-Forwarded-Proto": "https",
+        "CloudFront-Is-Desktop-Viewer": "true",
+        "CloudFront-Is-Mobile-Viewer": "false",
+        "CloudFront-Is-SmartTV-Viewer": "false",
+        "CloudFront-Is-Tablet-Viewer": "false",
+        "CloudFront-Viewer-Country": "DE",
+        "Host": "api.looc.io",
+        "origin": "http://127.0.0.1:3000",
+        "Referer": "http://127.0.0.1:3000/",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "cross-site",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36",
+        "Via": "2.0 117b54f007fbf40fc2a4bbbd8e88fc21.cloudfront.net (CloudFront)",
+        "X-Amz-Cf-Id": "deiUzaoHz72qhnOD5BNn-AW-jv8M1YFhegfk1NASAzJ4uGu1rhCBrw==",
+        "X-Amzn-Trace-Id": "Root=1-5d792876-8ac8a1cc81434864fedbf54a",
+        "X-Forwarded-For": "95.90.235.101, 70.132.42.146",
+        "X-Forwarded-Port": "443",
+        "X-Forwarded-Proto": "https"
+    },
+    "multiValueHeaders": {
+        "Accept": [
+            "*/*"
+        ],
+        "Accept-Encoding": [
+            "gzip, deflate, br"
+        ],
+        "Accept-Language": [
+            "de,en-US;q=0.9,en;q=0.8"
+        ],
+        "Authorization": [
+            "Bearer eyJraWQiOiJla0hGRVwvdjlPRVFZQWRIaFE3aHBYZ3IyQVZvQkdNY016a0Z0YklyYkxVVT0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI2MjUyZjgwMC04MjBiLTRlMDUtOGJhNS04NjJkNTNiYzljYmEiLCJhdWQiOiIxM2ZzZGkwaGpxcWYwbWNnZDlicXZiN2FlaiIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJldmVudF9pZCI6IjhkNjZmZDE1LWEwMzItNDA3NS04NWQ5LWNjN2VkY2UxOThmZiIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNTY3MjM2ODAwLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuZXUtY2VudHJhbC0xLmFtYXpvbmF3cy5jb21cL2V1LWNlbnRyYWwtMV9RZzhHWFVKMnYiLCJjb2duaXRvOnVzZXJuYW1lIjoia29ucmFkQGxvb2MuaW8iLCJleHAiOjE1NjgyMjQ4MTgsImlhdCI6MTU2ODIyMTIxOCwiZW1haWwiOiJrb25yYWRAbG9vYy5pbyJ9.CarRjpcdn739xhNIkcStWU-QcqBrPEGXUPGOV0jok7mztrbHzHy8PRrHRx5hbgOlYQtPcwdroh-VpQ4zmdHKXjZABZvOQEsWCHNHx3AjzBklZuPsJtPir_KBipc2mrG722vbZISbgu2VlgUvwjANrnJcs1yIUPw3FYPn1V5597yq-kC3Yn1gdsj27Xf_U73Y_8jge_13k3--RkBaIuwY5loZWTgG3HsJzG3gx85iye8RZ6Aeal2QX5p__qGKBh1R7_U33E7LkYjUU-1V4IQZMm7jNhO40Gja4p-uTnyIqwAeaD--3kC5bBKII5858FOwOGGFFLqRlFc2PxAYxKe0XQ"
+        ],
+        "CloudFront-Forwarded-Proto": [
+            "https"
+        ],
+        "CloudFront-Is-Desktop-Viewer": [
+            "true"
+        ],
+        "CloudFront-Is-Mobile-Viewer": [
+            "false"
+        ],
+        "CloudFront-Is-SmartTV-Viewer": [
+            "false"
+        ],
+        "CloudFront-Is-Tablet-Viewer": [
+            "false"
+        ],
+        "CloudFront-Viewer-Country": [
+            "DE"
+        ],
+        "Host": [
+            "api.looc.io"
+        ],
+        "origin": [
+            "http://127.0.0.1:3000"
+        ],
+        "Referer": [
+            "http://127.0.0.1:3000/"
+        ],
+        "sec-fetch-mode": [
+            "cors"
+        ],
+        "sec-fetch-site": [
+            "cross-site"
+        ],
+        "User-Agent": [
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36"
+        ],
+        "Via": [
+            "2.0 117b54f007fbf40fc2a4bbbd8e88fc21.cloudfront.net (CloudFront)"
+        ],
+        "X-Amz-Cf-Id": [
+            "deiUzaoHz72qhnOD5BNn-AW-jv8M1YFhegfk1NASAzJ4uGu1rhCBrw=="
+        ],
+        "X-Amzn-Trace-Id": [
+            "Root=1-5d792876-8ac8a1cc81434864fedbf54a"
+        ],
+        "X-Forwarded-For": [
+            "95.90.235.101, 70.132.42.146"
+        ],
+        "X-Forwarded-Port": [
+            "443"
+        ],
+        "X-Forwarded-Proto": [
+            "https"
+        ]
+    },
+    "queryStringParameters": null,
+    "multiValueQueryStringParameters": null,
+    "pathParameters": null,
+    "stageVariables": null,
+    "requestContext": {
+        "resourceId": "un78dd",
+        "authorizer": {
+            "claims": {
+                "sub": "6252f800-820b-4e05-8ba5-862d53bc9cba",
+                "aud": "13fsdi0hjqqf0mcgd9bqvb7aej",
+                "email_verified": "true",
+                "event_id": "8d66fd15-a032-4075-85d9-cc7edce198ff",
+                "token_use": "id",
+                "auth_time": "1567236800",
+                "iss": "https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_Qg8GXUJ2v",
+                "cognito:username": "konrad@looc.io",
+                "exp": "Wed Sep 11 18:00:18 UTC 2019",
+                "iat": "Wed Sep 11 17:00:18 UTC 2019",
+                "email": "konrad@looc.io"
             }
-        }
-    ]
+        },
+        "resourcePath": "/user",
+        "httpMethod": "GET",
+        "extendedRequestId": "f3NCgGUjFiAFoEQ=",
+        "requestTime": "11/Sep/2019:17:01:42 +0000",
+        "path": "/staging/user",
+        "accountId": "338756162532",
+        "protocol": "HTTP/1.1",
+        "stage": "dev",
+        "domainPrefix": "api",
+        "requestTimeEpoch": 1568221302441,
+        "requestId": "4260a9f7-4022-440e-8eed-68c49503afbb",
+        "identity": {
+            "cognitoIdentityPoolId": null,
+            "accountId": null,
+            "cognitoIdentityId": null,
+            "caller": null,
+            "sourceIp": "95.90.235.101",
+            "principalOrgId": null,
+            "accessKey": null,
+            "cognitoAuthenticationType": null,
+            "cognitoAuthenticationProvider": null,
+            "userArn": null,
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36",
+            "user": null
+        },
+        "domainName": "api.looc.io",
+        "apiId": "al3ems3e77"
+    },
+    "body": null,
+    "isBase64Encoded": false
 }
