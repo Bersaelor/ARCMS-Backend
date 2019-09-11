@@ -67,6 +67,8 @@ functions:
     package:
       include:
         - user/brands.js
+        - brand_settings.json
+
     events:
       - http:
           path: user

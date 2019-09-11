@@ -4,6 +4,7 @@
 
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const brandSettings = require('../brand_settings.json')
 
 async function getBrands(cognitoName) {
     var params = {
@@ -20,11 +21,14 @@ async function getBrands(cognitoName) {
 
     return dynamoDb.query(params).promise().then( (data) => {
         return data.Items.map( (value) => {
-            value.brand = value.sk.slice(0 , -5)
+            const brand = value.sk.slice(0 , -5)
+            const allows3DUpload = (brandSettings[brand] && brandSettings[brand].allows3DModelUpload) || false
+            value.brand = brand
             value.mayEditManagers = accessLvlMayEditManagers(value.accessLvl)
             value.mayEditStores = accessLvlMayEditStores(value.accessLvl)
             value.mayEditFrames = accessLvlMayEditFrames(value.accessLvl)
             value.role = value.accessLvl
+            value.allows3DUpload = allows3DUpload
             delete(value.sk)
             delete(value.accessLvl)
             return value

@@ -1,0 +1,11 @@
+{
+    "domvetro": {
+        "allows3DModelUpload": false
+    },
+    "grafix": {
+        "allows3DModelUpload": false
+    },
+    "loocfun": {
+        "allows3DModelUpload": true
+    }
+}
