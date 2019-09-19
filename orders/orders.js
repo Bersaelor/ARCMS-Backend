@@ -261,6 +261,37 @@ exports.all = async (event, context, callback) => {
     }
 };
 
+// Get all orders for the current user or a specified third user depending on the accessLvl
+exports.v2all = async (event, context, callback) => {
+    if (event.queryStringParameters.brand == undefined) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Missing query parameter 'brand'`,
+        });
+    }
+
+    const brand = event.queryStringParameters.brand;
+
+    if (!event.requestContext.authorizer) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Cognito Authorization missing`,
+        });
+    }
+
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+
+    const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
+
+    if (askingForStoreOnly) {
+        await replyWithUserOrders(brand, cognitoUserName, callback)
+    } else {
+        await replyWithAllOrders(brand, cognitoUserName, callback)
+    }
+};
+
 async function replyWithUserOrders(brand, cognitoUserName, callback) {
     try {
         const data = await loadUserOrdersFromDB(brand, cognitoUserName);
@@ -301,6 +332,8 @@ async function replyWithAllOrders(brand, cognitoUserName, callback) {
         }
 
         const data = await dataPromise
+        const LastEvaluatedKey = data.LastEvaluatedKey
+        console.log("LastEvaluatedKey: ", LastEvaluatedKey)
         const orders = mapDBEntriesToOutput(data.Items)
 
         const response = {
