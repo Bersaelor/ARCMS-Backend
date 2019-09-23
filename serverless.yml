@@ -222,6 +222,15 @@ functions:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
+  convert-order:
+    handler: orders/convert.convertAll
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Convert all existing orders to new version structure in DynamoDB
+    package:
+      include:
+        - orders/convert.js
+
   get-order:
     handler: orders/orders.order
     role: ${self:custom.users-role}
