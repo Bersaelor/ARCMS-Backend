@@ -6,7 +6,9 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
 
-async function loadUserOrdersFromDB(brand, email) {
+const defaultPerPage = 50;
+
+async function loadUserOrdersFromDB(brand, email, perPage = defaultPerPage) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "id, sk, contact, orderJSON",
@@ -18,13 +20,14 @@ async function loadUserOrdersFromDB(brand, email) {
             ":value": `${brand}#order`,
             ":user": email
         },
+        Limit: perPage,
         ScanIndexForward: false
     };
 
     return dynamoDb.query(params).promise()
 }
 
-async function loadAllOrdersFromDB(brand) {
+async function loadAllOrdersFromDB(brand, perPage = defaultPerPage) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "id-sk2-index",
@@ -36,6 +39,7 @@ async function loadAllOrdersFromDB(brand) {
         ExpressionAttributeValues: {
             ":value": `${brand}#order`,
         },
+        Limit: perPage,
         ScanIndexForward: false
     };
 
@@ -260,14 +264,14 @@ exports.all = async (event, context, callback) => {
     const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
 
     if (askingForStoreOnly) {
-        await replyWithUserOrders(brand, cognitoUserName, callback)
+        await replyWithUserOrders(brand, cognitoUserName, defaultPerPage, callback)
     } else {
-        await replyWithAllOrders(brand, cognitoUserName, callback)
+        await replyWithAllOrders(brand, cognitoUserName, defaultPerPage, callback)
     }
 };
 
 // Get all orders for the current user or a specified third user depending on the accessLvl
-exports.v2all = async (event, context, callback) => {
+exports.allPaginated = async (event, context, callback) => {
     if (event.queryStringParameters.brand == undefined) {
         callback(null, {
             statusCode: 403,
@@ -278,12 +282,9 @@ exports.v2all = async (event, context, callback) => {
 
     const brand = event.queryStringParameters.brand;
 
-    if (!event.requestContext.authorizer) {
-        callback(null, {
-            statusCode: 403,
-            headers: makeHeader('text/plain'),
-            body: `Cognito Authorization missing`,
-        });
+    var perPage = event.queryStringParameters.perPage;
+    if (!perPage || perPage > 2 * defaultPerPage) {
+        perPage = 2 * defaultPerPage
     }
 
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
@@ -291,16 +292,16 @@ exports.v2all = async (event, context, callback) => {
     const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
 
     if (askingForStoreOnly) {
-        await replyWithUserOrders(brand, cognitoUserName, callback)
+        await replyWithUserOrders(brand, cognitoUserName, perPage, callback)
     } else {
-        await replyWithAllOrders(brand, cognitoUserName, callback)
+        await replyWithAllOrders(brand, cognitoUserName, perPage, callback)
     }
 };
 
-async function replyWithUserOrders(brand, cognitoUserName, callback) {
+async function replyWithUserOrders(brand, cognitoUserName, perPage, callback) {
     try {
         const data = await loadUserOrdersFromDB(brand, cognitoUserName);
-        const orders = mapDBEntriesToOutput(data.Items)
+        const orders = mapDBEntriesToOutput(data.Items, perPage)
 
         const response = {
             statusCode: 200,
@@ -321,10 +322,10 @@ async function replyWithUserOrders(brand, cognitoUserName, callback) {
     }
 }
 
-async function replyWithAllOrders(brand, cognitoUserName, callback) {
+async function replyWithAllOrders(brand, cognitoUserName, perPage, callback) {
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
-        const dataPromise = loadAllOrdersFromDB(brand)
+        const dataPromise = loadAllOrdersFromDB(brand, perPage)
 
         const ownAccessLvl = await accessLvlPromise;
         if (!accessLvlMaySeeAllOrders(ownAccessLvl)) {

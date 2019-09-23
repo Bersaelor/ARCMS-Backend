@@ -206,7 +206,7 @@ functions:
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
   get-orders-v2:
-    handler: orders/orders.v2all
+    handler: orders/orders.allPaginated
     role: ${self:custom.users-role}
     memorySize: 512
     description: Get all orders for the current user or a specified third user depending on the accessLvl
