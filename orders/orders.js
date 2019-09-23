@@ -27,7 +27,8 @@ async function loadUserOrdersFromDB(brand, email) {
 async function loadAllOrdersFromDB(brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, contact, orderJSON",
+        IndexName: "id-sk2-index",
+        ProjectionExpression: "id, sk, sk2, contact, orderJSON",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -60,12 +61,16 @@ async function loadOrderFromDB(brand, orderSK) {
 }
 
 async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, orderSK) {
+    const email = orderSK.split('#')[0]
+    const timeString = orderSK.split('#')[1]
+
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk",
         Item: {
             "id": `${brand}#order`,
             "sk": orderSK,
+            "sk2": `${timeString}#${email}`,
             "contact": contactName,
             "orderJSON": orderString
         }

@@ -8,7 +8,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 async function loadAllOrdersFromDB(brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, contact, orderJSON",
+        ProjectionExpression: "id, sk, sk2, contact, orderJSON",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -31,13 +31,19 @@ function makeHeader(content) {
 }
 
 function convertOrder(originalOrder) {
+    if (originalOrder.sk2) {
+        // order is already correct, not converting
+        return originalOrder
+    }
+
     const brand = originalOrder.id.split('#')[0]
     const email = originalOrder.sk.split('#')[0]
     const timeString = originalOrder.sk.split('#')[1]
 
     return {
-        "id": `${brand}#order#${email}`,
-        "sk": timeString,
+        "id": `${brand}#order`,
+        "sk": `${email}#${timeString}`,
+        "sk2": `${timeString}#${email}`,
         "contact": originalOrder.contact,
         "orderJSON": originalOrder.orderJSON
     }
