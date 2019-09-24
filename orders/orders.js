@@ -311,7 +311,6 @@ async function replyWithUserOrders(brand, cognitoUserName, perPage, callback, sh
             headers: makeHeader('application/json'),
             body: body
         };
-            
         callback(null, response);
     } catch(err) {
         console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
@@ -366,12 +365,22 @@ async function replyWithAllOrders(brand, cognitoUserName, perPage, callback, sho
 }
 
 function paginate(orders, perPage, LastEvaluatedKey) {
-    return {
-        items: orders,
-        itemCount: orders.count,
-        fullPage: perPage,
-        hasMoreContent: LastEvaluatedKey !== undefined,
-        nextPageKey: LastEvaluatedKey
+    if (LastEvaluatedKey) {
+        const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
+        return {
+            items: orders,
+            itemCount: orders.count,
+            fullPage: perPage,
+            hasMoreContent: LastEvaluatedKey !== undefined,
+            nextPageKey: base64Key 
+        }
+    } else {
+        return {
+            items: orders,
+            itemCount: orders.count,
+            fullPage: perPage,
+            hasMoreContent: false,
+        }
     }
 }
 
