@@ -231,6 +231,15 @@ functions:
       include:
         - orders/convert.js
 
+  copy-orders:
+    handler: orders/convert.copyFromTo
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Copy all orders by one user to a different user, typically to generate a larger data set
+    package:
+      include:
+        - orders/convert.js
+
   get-order:
     handler: orders/orders.order
     role: ${self:custom.users-role}

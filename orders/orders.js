@@ -6,7 +6,7 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
 
-const defaultPerPage = 50;
+const defaultPerPage = 20;
 
 async function loadUserOrdersFromDB(brand, email, perPage = defaultPerPage) {
     var params = {
@@ -301,6 +301,8 @@ exports.allPaginated = async (event, context, callback) => {
 async function replyWithUserOrders(brand, cognitoUserName, perPage, callback) {
     try {
         const data = await loadUserOrdersFromDB(brand, cognitoUserName);
+        const LastEvaluatedKey = data.LastEvaluatedKey
+        console.log("LastEvaluatedKey: ", LastEvaluatedKey)
         const orders = mapDBEntriesToOutput(data.Items, perPage)
 
         const response = {
