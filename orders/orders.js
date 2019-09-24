@@ -8,7 +8,7 @@ const sns = new AWS.SNS();
 
 const defaultPerPage = 20;
 
-async function loadUserOrdersFromDB(brand, email, perPage = defaultPerPage) {
+async function loadUserOrdersFromDB(brand, email, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "id, sk, contact, orderJSON",
@@ -24,10 +24,12 @@ async function loadUserOrdersFromDB(brand, email, perPage = defaultPerPage) {
         ScanIndexForward: false
     };
 
+    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
+
     return dynamoDb.query(params).promise()
 }
 
-async function loadAllOrdersFromDB(brand, perPage = defaultPerPage) {
+async function loadAllOrdersFromDB(brand, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "id-sk2-index",
@@ -42,6 +44,8 @@ async function loadAllOrdersFromDB(brand, perPage = defaultPerPage) {
         Limit: perPage,
         ScanIndexForward: false
     };
+
+    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
     return dynamoDb.query(params).promise()
 }
@@ -287,20 +291,26 @@ exports.allPaginated = async (event, context, callback) => {
         perPage = 2 * defaultPerPage
     }
 
+    var LastEvaluatedKey = undefined
+    if (event.queryStringParameters.nextPageKey) {
+        let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
+        LastEvaluatedKey = JSON.parse(jsonString)
+    }
+
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
     const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
 
     if (askingForStoreOnly) {
-        await replyWithUserOrders(brand, cognitoUserName, perPage, callback, true)
+        await replyWithUserOrders(brand, cognitoUserName, perPage, callback, LastEvaluatedKey, true)
     } else {
-        await replyWithAllOrders(brand, cognitoUserName, perPage, callback, true)
+        await replyWithAllOrders(brand, cognitoUserName, perPage, callback, LastEvaluatedKey, true)
     }
 };
 
-async function replyWithUserOrders(brand, cognitoUserName, perPage, callback, shouldPaginate = false) {
+async function replyWithUserOrders(brand, cognitoUserName, perPage, callback, PreviousLastEvaluatedKey, shouldPaginate = false) {
     try {
-        const data = await loadUserOrdersFromDB(brand, cognitoUserName);
+        const data = await loadUserOrdersFromDB(brand, cognitoUserName, perPage, PreviousLastEvaluatedKey);
         const LastEvaluatedKey = data.LastEvaluatedKey
         console.log("LastEvaluatedKey: ", LastEvaluatedKey)
         const orders = mapDBEntriesToOutput(data.Items, perPage)
@@ -324,10 +334,10 @@ async function replyWithUserOrders(brand, cognitoUserName, perPage, callback, sh
     }
 }
 
-async function replyWithAllOrders(brand, cognitoUserName, perPage, callback, shouldPaginate = false) {
+async function replyWithAllOrders(brand, cognitoUserName, perPage, callback, PreviousLastEvaluatedKey, shouldPaginate = false) {
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
-        const dataPromise = loadAllOrdersFromDB(brand, perPage)
+        const dataPromise = loadAllOrdersFromDB(brand, perPage, PreviousLastEvaluatedKey)
 
         const ownAccessLvl = await accessLvlPromise;
         if (!accessLvlMaySeeAllOrders(ownAccessLvl)) {
