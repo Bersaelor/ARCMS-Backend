@@ -292,25 +292,26 @@ exports.allPaginated = async (event, context, callback) => {
     const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
 
     if (askingForStoreOnly) {
-        await replyWithUserOrders(brand, cognitoUserName, perPage, callback)
+        await replyWithUserOrders(brand, cognitoUserName, perPage, callback, true)
     } else {
-        await replyWithAllOrders(brand, cognitoUserName, perPage, callback)
+        await replyWithAllOrders(brand, cognitoUserName, perPage, callback, true)
     }
 };
 
-async function replyWithUserOrders(brand, cognitoUserName, perPage, callback) {
+async function replyWithUserOrders(brand, cognitoUserName, perPage, callback, shouldPaginate = false) {
     try {
         const data = await loadUserOrdersFromDB(brand, cognitoUserName);
         const LastEvaluatedKey = data.LastEvaluatedKey
         console.log("LastEvaluatedKey: ", LastEvaluatedKey)
         const orders = mapDBEntriesToOutput(data.Items, perPage)
+        const body = shouldPaginate? JSON.stringify(paginate(orders, perPage, LastEvaluatedKey)) : JSON.stringify(orders)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify(orders)
+            body: body
         };
-    
+            
         callback(null, response);
     } catch(err) {
         console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
@@ -324,7 +325,7 @@ async function replyWithUserOrders(brand, cognitoUserName, perPage, callback) {
     }
 }
 
-async function replyWithAllOrders(brand, cognitoUserName, perPage, callback) {
+async function replyWithAllOrders(brand, cognitoUserName, perPage, callback, shouldPaginate = false) {
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
         const dataPromise = loadAllOrdersFromDB(brand, perPage)
@@ -343,11 +344,12 @@ async function replyWithAllOrders(brand, cognitoUserName, perPage, callback) {
         const LastEvaluatedKey = data.LastEvaluatedKey
         console.log("LastEvaluatedKey: ", LastEvaluatedKey)
         const orders = mapDBEntriesToOutput(data.Items)
+        const body = shouldPaginate? JSON.stringify(paginate(orders, perPage, LastEvaluatedKey)) : JSON.stringify(orders)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify(orders)
+            body: body
         };
     
         callback(null, response);
@@ -360,6 +362,16 @@ async function replyWithAllOrders(brand, cognitoUserName, perPage, callback) {
         };
         callback(null, response);
         return;
+    }
+}
+
+function paginate(orders, perPage, LastEvaluatedKey) {
+    return {
+        items: orders,
+        itemCount: orders.count,
+        fullPage: perPage,
+        hasMoreContent: LastEvaluatedKey !== undefined,
+        nextPageKey: LastEvaluatedKey
     }
 }
 
