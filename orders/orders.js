@@ -286,7 +286,7 @@ exports.allPaginated = async (event, context, callback) => {
 
     const brand = event.queryStringParameters.brand;
 
-    var perPage = event.queryStringParameters.perPage;
+    var perPage = event.queryStringParameters.perPage ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
     if (!perPage || perPage > 2 * defaultPerPage) {
         perPage = 2 * defaultPerPage
     }
