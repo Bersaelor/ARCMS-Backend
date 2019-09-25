@@ -6,7 +6,9 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
 
-async function loadUserOrdersFromDB(brand, email) {
+const defaultPerPage = 20;
+
+async function loadUserOrdersFromDB(brand, email, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "id, sk, contact, orderJSON",
@@ -18,16 +20,20 @@ async function loadUserOrdersFromDB(brand, email) {
             ":value": `${brand}#order`,
             ":user": email
         },
+        Limit: perPage,
         ScanIndexForward: false
     };
+
+    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
     return dynamoDb.query(params).promise()
 }
 
-async function loadAllOrdersFromDB(brand) {
+async function loadAllOrdersFromDB(brand, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, contact, orderJSON",
+        IndexName: "id-sk2-index",
+        ProjectionExpression: "id, sk, sk2, contact, orderJSON",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -35,8 +41,11 @@ async function loadAllOrdersFromDB(brand) {
         ExpressionAttributeValues: {
             ":value": `${brand}#order`,
         },
+        Limit: perPage,
         ScanIndexForward: false
     };
+
+    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
     return dynamoDb.query(params).promise()
 }
@@ -60,12 +69,16 @@ async function loadOrderFromDB(brand, orderSK) {
 }
 
 async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, orderSK) {
+    const email = orderSK.split('#')[0]
+    const timeString = orderSK.split('#')[1]
+
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk",
         Item: {
             "id": `${brand}#order`,
             "sk": orderSK,
+            "sk2": `${timeString}#${email}`,
             "contact": contactName,
             "orderJSON": orderString
         }
@@ -255,21 +268,97 @@ exports.all = async (event, context, callback) => {
     const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
 
     if (askingForStoreOnly) {
-        await replyWithUserOrders(brand, cognitoUserName, callback)
+        await replyWithUserOrders(brand, cognitoUserName, defaultPerPage, callback)
     } else {
-        await replyWithAllOrders(brand, cognitoUserName, callback)
+        await replyWithAllOrders(brand, cognitoUserName, defaultPerPage, callback)
     }
 };
 
-async function replyWithUserOrders(brand, cognitoUserName, callback) {
+// Get all orders for the current user or a specified third user depending on the accessLvl
+exports.allPaginated = async (event, context, callback) => {
+    if (event.queryStringParameters.brand == undefined) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Missing query parameter 'brand'`,
+        });
+    }
+
+    const brand = event.queryStringParameters.brand;
+
+    var perPage = event.queryStringParameters.perPage;
+    if (!perPage || perPage > 2 * defaultPerPage) {
+        perPage = 2 * defaultPerPage
+    }
+
+    var LastEvaluatedKey = undefined
+    if (event.queryStringParameters.nextPageKey) {
+        let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
+        LastEvaluatedKey = JSON.parse(jsonString)
+    }
+
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+
+    const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
+
+    if (askingForStoreOnly) {
+        await replyWithUserOrders(brand, cognitoUserName, perPage, callback, LastEvaluatedKey, true)
+    } else {
+        await replyWithAllOrders(brand, cognitoUserName, perPage, callback, LastEvaluatedKey, true)
+    }
+};
+
+async function replyWithUserOrders(brand, cognitoUserName, perPage, callback, PreviousLastEvaluatedKey, shouldPaginate = false) {
     try {
-        const data = await loadUserOrdersFromDB(brand, cognitoUserName);
-        const orders = mapDBEntriesToOutput(data.Items)
+        const data = await loadUserOrdersFromDB(brand, cognitoUserName, perPage, PreviousLastEvaluatedKey);
+        const LastEvaluatedKey = data.LastEvaluatedKey
+        console.log("LastEvaluatedKey: ", LastEvaluatedKey)
+        const orders = mapDBEntriesToOutput(data.Items, perPage)
+        const body = shouldPaginate? JSON.stringify(paginate(orders, perPage, LastEvaluatedKey)) : JSON.stringify(orders)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify(orders)
+            body: body
+        };
+        callback(null, response);
+    } catch(err) {
+        console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
+        const response = {
+            statusCode: err.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: 'Failed to fetch the brands because of ' + err,
+        };
+        callback(null, response);
+        return;
+    }
+}
+
+async function replyWithAllOrders(brand, cognitoUserName, perPage, callback, PreviousLastEvaluatedKey, shouldPaginate = false) {
+    try {
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
+        const dataPromise = loadAllOrdersFromDB(brand, perPage, PreviousLastEvaluatedKey)
+
+        const ownAccessLvl = await accessLvlPromise;
+        if (!accessLvlMaySeeAllOrders(ownAccessLvl)) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `User ${cognitoUserName} is not allowed to see all orders for ${brand}`,
+            });
+            return;
+        }
+
+        const data = await dataPromise
+        const LastEvaluatedKey = data.LastEvaluatedKey
+        console.log("LastEvaluatedKey: ", LastEvaluatedKey)
+        const orders = mapDBEntriesToOutput(data.Items)
+        const body = shouldPaginate? JSON.stringify(paginate(orders, perPage, LastEvaluatedKey)) : JSON.stringify(orders)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: body
         };
     
         callback(null, response);
@@ -285,40 +374,23 @@ async function replyWithUserOrders(brand, cognitoUserName, callback) {
     }
 }
 
-async function replyWithAllOrders(brand, cognitoUserName, callback) {
-    try {
-        const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
-        const dataPromise = loadAllOrdersFromDB(brand)
-
-        const ownAccessLvl = await accessLvlPromise;
-        if (!accessLvlMaySeeAllOrders(ownAccessLvl)) {
-            callback(null, {
-                statusCode: 403,
-                headers: makeHeader('text/plain'),
-                body: `User ${cognitoUserName} is not allowed to see all orders for ${brand}`,
-            });
-            return;
+function paginate(orders, perPage, LastEvaluatedKey) {
+    if (LastEvaluatedKey) {
+        const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
+        return {
+            items: orders,
+            itemCount: orders.count,
+            fullPage: perPage,
+            hasMoreContent: LastEvaluatedKey !== undefined,
+            nextPageKey: base64Key 
         }
-
-        const data = await dataPromise
-        const orders = mapDBEntriesToOutput(data.Items)
-
-        const response = {
-            statusCode: 200,
-            headers: makeHeader('application/json'),
-            body: JSON.stringify(orders)
-        };
-    
-        callback(null, response);
-    } catch(err) {
-        console.error('Query failed to load data. Error JSON: ', JSON.stringify(err, null, 2));
-        const response = {
-            statusCode: err.statusCode || 501,
-            headers: makeHeader('text/plain'),
-            body: 'Failed to fetch the brands because of ' + err,
-        };
-        callback(null, response);
-        return;
+    } else {
+        return {
+            items: orders,
+            itemCount: orders.count,
+            fullPage: perPage,
+            hasMoreContent: false,
+        }
     }
 }
 
