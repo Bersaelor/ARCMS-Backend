@@ -379,7 +379,7 @@ function paginate(orders, perPage, LastEvaluatedKey) {
         const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
         return {
             items: orders,
-            itemCount: orders.count,
+            itemCount: orders.length,
             fullPage: perPage,
             hasMoreContent: LastEvaluatedKey !== undefined,
             nextPageKey: base64Key 
@@ -387,7 +387,7 @@ function paginate(orders, perPage, LastEvaluatedKey) {
     } else {
         return {
             items: orders,
-            itemCount: orders.count,
+            itemCount: orders.length,
             fullPage: perPage,
             hasMoreContent: false,
         }
