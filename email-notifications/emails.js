@@ -9,7 +9,7 @@ const Mustache = require('../node_modules/mustache/mustache.min.js');
 const strings = require('./locales.js');
 
 const manufacturerAdresses = {
-    "grafix": "mom@looc.io",
+    "grafix": "order@grafix-eyewear.com",
     "domevtro": "konrad@looc.io"
 }
 
@@ -23,7 +23,10 @@ const manufacturerNames = {
     "domvetro": "DOM VETRO"
 }
 
-const appDownloadLink = "https://beta.itunes.apple.com/v1/app/1450301394"
+const appDownloadLink = {
+    "grafix": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1",
+    "domvetro": "https://beta.itunes.apple.com/v1/app/1350106957"
+}
 
 function localizeOrder(order, locale) {
     return order.map(frame => {
@@ -54,13 +57,14 @@ async function mailToStore(brand, storeEmail, order, orderSK) {
     const subject = Mustache.render(strings[locale].subject_store, { BRAND_NAME: brandName })
     const htmlTemplate = fs.readFileSync(`./email-notifications/store_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
+    const downloadLink = appDownloadLink[brand]
     const htmlBody = Mustache.render(htmlTemplate, {
         ORDERS: localizedOrder, 
         LINK: link, 
         BRAND_EMAIL: manufacturerAdresses[brand],
         BRAND_NAME: brandName,
         ISTESTENVIRONMENT: process.env.STAGE != "prod",
-        DOWNLOADLINK: appDownloadLink,
+        DOWNLOADLINK: downloadLink,
     })
 
     return sendMail(manufacturerAdresses[brand], storeEmail, subject, htmlBody)
@@ -76,12 +80,13 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK) {
     const subject = Mustache.render(strings[locale].subject_manu, {STORE: storeEmail, FRAME_COUNT: order.length})
     const htmlTemplate = fs.readFileSync(`./email-notifications/manufacturer_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
+    const downloadLink = appDownloadLink[brand]
     const htmlBody = Mustache.render(htmlTemplate, {
         STORE: storeEmail, 
         ORDERS: localizedOrder,
         LINK: link,
         ISTESTENVIRONMENT: process.env.STAGE != "prod",
-        DOWNLOADLINK: appDownloadLink,
+        DOWNLOADLINK: downloadLink,
     })
     const sender = "no_reply@looc.io"
     return sendMail(sender, manufacturerAdresses[brand], subject, htmlBody)
@@ -112,7 +117,7 @@ async function sendMail(sender, to, subject, htmlBody) {
     return SES.sendEmail(sesParams).promise();
 }
 
-// Delete a device from the current user
+// Send email notifications when new order is received
 exports.newOrder = async (event, context, callback) => {
 
     // console.log(JSON.stringify(event, null, 2))
