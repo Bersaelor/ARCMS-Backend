@@ -70,7 +70,7 @@ async function mailToStore(brand, storeEmail, order, orderSK) {
     return sendMail(manufacturerAdresses[brand], storeEmail, subject, htmlBody)
 }
 
-async function mailToManufacturer(brand, storeEmail, order, orderSK) {
+async function mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId) {
     if(!manufacturerAdresses[brand]) {
         throw `There is no manufacturer address saved for brand ${brand}`
     }
@@ -83,6 +83,8 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK) {
     const downloadLink = appDownloadLink[brand]
     const htmlBody = Mustache.render(htmlTemplate, {
         STORE: storeEmail, 
+        CONTACT: customerContact,
+        CUSTOMERID: customerId,
         ORDERS: localizedOrder,
         LINK: link,
         ISTESTENVIRONMENT: process.env.STAGE != "prod",
@@ -131,13 +133,15 @@ exports.newOrder = async (event, context, callback) => {
     const storeEmail = message.MessageAttributes.storeEmail.Value
     const brand = message.MessageAttributes.brand.Value
     const orderSK = message.MessageAttributes.orderSK.Value
+    const customerContact = message.MessageAttributes.contactName.Value
+    const customerId = message.MessageAttributes.customerId.Value
     if (!order || !storeEmail || !brand || !orderSK) {
         throw "Failed to get bodyJSON, storeEmail, brand, orderSK entry"
     }
 
     console.log("Received order-notification from ", storeEmail, " for brand ", brand)
 
-    const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order, orderSK) 
+    const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId) 
     const mailToStorePromise = mailToStore(brand, storeEmail, order, orderSK) 
     const mailToManuSuccess = await mailToManufacturerPromise
     const mailToStoreSuccess = await mailToStorePromise

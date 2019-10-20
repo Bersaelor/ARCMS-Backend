@@ -119,10 +119,10 @@ async function getAccessLvl(cognitoUserName, brand) {
     });
 }
 
-async function getContactName(cognitoUserName, brand) {
+async function getContactNameAndCustomerId(cognitoUserName, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "firstName, lastName",
+        ProjectionExpression: "firstName, lastName, customerId",
         KeyConditionExpression: "#id = :value and sk = :brand",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -143,7 +143,8 @@ async function getContactName(cognitoUserName, brand) {
                 reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
                 return;
             } else {
-                resolve(`${data.Items.firstName ? data.Items.firstName : "?"} ${data.Items.lastName ? data.Items.lastName : "?"}`);
+                let contactName = `${data.Items.firstName ? data.Items.firstName : "?"} ${data.Items.lastName ? data.Items.lastName : "?"}`
+                resolve({contactName: contactName, customerId: data.Items.customerId});
             }
         });
     });
@@ -394,7 +395,7 @@ function paginate(orders, perPage, LastEvaluatedKey) {
     }
 }
 
-async function postNewOrderNotification(orderString, storeEmail, brand, orderSK) {
+async function postNewOrderNotification(orderString, storeEmail, brand, orderSK, contactName, customerId) {
     var params = {
         Message: orderString, 
         Subject: "New glasses order",
@@ -411,6 +412,14 @@ async function postNewOrderNotification(orderString, storeEmail, brand, orderSK)
             'orderSK': {
                 DataType: 'String',
                 StringValue: orderSK
+            },
+            'contactName': {
+                DataType: 'String',
+                StringValue: contactName
+            },
+            'customerId': {
+                DataType: 'String',
+                StringValue: customerId ? customerId : "n.A."
             }
         }
     };
@@ -453,14 +462,14 @@ exports.create = async (event, context, callback) => {
     
         const bodyString = JSON.stringify(body)
     
-        const contactName = await getContactName(cognitoUserName, brand)
+        const {contactName, customerId} = await getContactNameAndCustomerId(cognitoUserName, brand)
 
-        console.log("writeSuccess: ", contactName)
+        console.log("contactName: ", contactName, ", customerId: ", customerId)
 
         const now = new Date()
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK)
-        const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, brand, orderSK)
+        const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, brand, orderSK, contactName, customerId)
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise
