@@ -97,6 +97,7 @@ async function createUserInDB(values) {
             "address": sanitize(values.address),
             "zipCode": sanitize(values.zipCode),
             "city": sanitize(values.city),
+            "customerId": sanitize(values.customerId),
             "telNr": sanitize(values.telNr),
             "maxDevices": values.maxDevices
         }
