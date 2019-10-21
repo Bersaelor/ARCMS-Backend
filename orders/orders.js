@@ -135,7 +135,6 @@ async function getContactNameAndCustomerId(cognitoUserName, brand) {
 
     return new Promise((resolve, reject) => {
         dynamoDb.query(params, (error, data) => {
-            console.log("Contactname query data: ", data)
             if (error) {
                 reject(error);
                 return;
@@ -143,8 +142,9 @@ async function getContactNameAndCustomerId(cognitoUserName, brand) {
                 reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
                 return;
             } else {
-                let contactName = `${data.Items.firstName ? data.Items.firstName : "?"} ${data.Items.lastName ? data.Items.lastName : "?"}`
-                resolve({contactName: contactName, customerId: data.Items.customerId});
+                let item = data.Items[0]
+                let contactName = `${item.firstName ? item.firstName : "?"} ${item.lastName ? item.lastName : "?"}`
+                resolve({ contactName: contactName, customerId: item.customerId });
             }
         });
     });
@@ -463,8 +463,6 @@ exports.create = async (event, context, callback) => {
         const bodyString = JSON.stringify(body)
     
         const {contactName, customerId} = await getContactNameAndCustomerId(cognitoUserName, brand)
-
-        console.log("contactName: ", contactName, ", customerId: ", customerId)
 
         const now = new Date()
         const orderSK = `${cognitoUserName}#${now.toISOString()}`

@@ -141,7 +141,7 @@ exports.newOrder = async (event, context, callback) => {
 
     console.log("Received order-notification from ", storeEmail, " for brand ", brand)
 
-    const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId) 
+    const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId)
     const mailToStorePromise = mailToStore(brand, storeEmail, order, orderSK) 
     const mailToManuSuccess = await mailToManufacturerPromise
     const mailToStoreSuccess = await mailToStorePromise
