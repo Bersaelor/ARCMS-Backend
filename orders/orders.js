@@ -33,7 +33,7 @@ async function loadAllOrdersFromDB(brand, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "id-sk2-index",
-        ProjectionExpression: "id, sk, sk2, contact, orderJSON",
+        ProjectionExpression: "id, sk, sk2, contact, customerId, orderJSON",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -68,9 +68,10 @@ async function loadOrderFromDB(brand, orderSK) {
     return dynamoDb.query(params).promise()
 }
 
-async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, orderSK) {
+async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, orderSK, customerId) {
     const email = orderSK.split('#')[0]
     const timeString = orderSK.split('#')[1]
+    const sanitize = (value) => ( value ? value : "n.A." ) 
 
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -79,8 +80,9 @@ async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, 
             "id": `${brand}#order`,
             "sk": orderSK,
             "sk2": `${timeString}#${email}`,
-            "contact": contactName,
-            "orderJSON": orderString
+            "contact": sanitize(contactName),
+            "orderJSON": orderString,
+            "customerId": sanitize(customerId)
         }
     };
 
@@ -167,6 +169,7 @@ function mapDBEntriesToOutput(items) {
             date: value.sk.substring(dividerPos+1, dividerPos.length),
             store: value.sk.substring(0, dividerPos),
             contact: sanitize(value.contact),
+            customerId: sanitize(value.customerId),
             content: JSON.parse(value.orderJSON)
         }
     })
@@ -466,7 +469,7 @@ exports.create = async (event, context, callback) => {
 
         const now = new Date()
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
-        const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK)
+        const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
         const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, brand, orderSK, contactName, customerId)
 
         const writeSuccess = await writeSuccessPromise

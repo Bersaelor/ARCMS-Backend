@@ -46,6 +46,10 @@ function localizeOrder(order, locale) {
     })
 }
 
+function doesOrderContainSpecialSize(order) {
+    return order.find(frame => frame.isBespokeSize === true) != undefined
+}
+
 async function mailToStore(brand, storeEmail, order, orderSK) {
     if(!manufacturerAdresses[brand]) {
         throw `There is no manufacturer address saved for brand ${brand}`
@@ -58,12 +62,14 @@ async function mailToStore(brand, storeEmail, order, orderSK) {
     const htmlTemplate = fs.readFileSync(`./email-notifications/store_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
     const downloadLink = appDownloadLink[brand]
+
     const htmlBody = Mustache.render(htmlTemplate, {
         ORDERS: localizedOrder, 
         LINK: link, 
         BRAND_EMAIL: manufacturerAdresses[brand],
         BRAND_NAME: brandName,
         ISTESTENVIRONMENT: process.env.STAGE != "prod",
+        SPECIALSIZEDISCLAIMER: doesOrderContainSpecialSize(order),
         DOWNLOADLINK: downloadLink,
     })
 
