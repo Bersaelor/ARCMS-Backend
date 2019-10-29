@@ -13,6 +13,7 @@ module.exports = {
         "OrderOption.BridgeWidth": "Bridge Width",
         "OrderOption.GlasWidth": "Glas Width",
         "OrderOption.GlasHeight": "Glas Height",
+        "OrderOption.PadType": "Pads",
         "OrderOption.TempleLength": "Temple Length",
     },
     de: {
@@ -27,8 +28,9 @@ module.exports = {
         "OrderOption.LensType": "Gläser",
         "OrderOption.OverallSize": "Größe",
         "OrderOption.BridgeWidth": "Brückenbreite",
-        "OrderOption.TempleLength": "Bügellänge",
         "OrderOption.GlasWidth": "Glasbreite",
         "OrderOption.GlasHeight": "Glashöhe",
+        "OrderOption.PadType": "Pads",
+        "OrderOption.TempleLength": "Bügellänge",
     }
 }
