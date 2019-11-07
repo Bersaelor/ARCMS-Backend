@@ -58,7 +58,22 @@ resources:
           StreamViewType: "NEW_AND_OLD_IMAGES"
         TableName: ${self:provider.environment.CANDIDATE_TABLE}
 
+
 functions:
+  collections:
+    handler: collection/collections.all
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Cached, public collections endpoint
+    package:
+      include:
+        - collection/collections.js
+    events:
+      - http:
+          path: collections
+          method: get
+          cors: true
+
   my-brands:
     handler: user/brands.get
     role: ${self:custom.users-role}
@@ -68,7 +83,6 @@ functions:
       include:
         - user/brands.js
         - brand_settings.json
-
     events:
       - http:
           path: user
