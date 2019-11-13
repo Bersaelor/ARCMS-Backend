@@ -60,17 +60,17 @@ resources:
 
 
 functions:
-  collections:
-    handler: collection/collections.all
+  categories:
+    handler: categories/categories.all
     role: ${self:custom.users-role}
     memorySize: 512
     description: Cached, public collections endpoint
     package:
       include:
-        - collection/collections.js
+        - categories/categories.js
     events:
       - http:
-          path: collections
+          path: categories
           method: get
           cors: true
 
