@@ -69,7 +69,7 @@ async function createCategoryInDB(values, brand) {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
             "id": `${brand}#category`,
-            "sk": values.name,
+            "sk": values.name.toLowerCase(),
             "image": sanitize(values.image),
             "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "n.A.",
             "localizedDetails": values.localizedDetails ? JSON.stringify(values.localizedDetails) : "n.A."
