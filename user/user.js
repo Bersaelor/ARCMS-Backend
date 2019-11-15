@@ -235,34 +235,45 @@ exports.createNew = async (event, context, callback) => {
 
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const body = JSON.parse(event.body)
-    const brand = body.brand;
-    if (!body.accessLvl && body.role) {
-        // translate accessLvl into role
-        body.accessLvl = body.role
-    }
-    const accessLvl = body.accessLvl
     const email = body.email.toLowerCase()
     const isUpdatingSelf = email == cognitoUserName 
-
+    const brand = body.brand;
+    // changing of ones own accessLvl is not allowed
+    if (isUpdatingSelf) {
+        console.log("User is updating his own entry, ignoring accessLvl")
+        body.accessLvl = undefined
+    } else if (!body.accessLvl && body.role) {
+        // translate role into accessLvl
+        body.accessLvl = body.role
+    }
+    var accessLvl = body.accessLvl
+    
     try {
         // TODO: Proper error messages for all kinds of missing body values
 
-        console.log("Checking whether current user is allowed to create user with accessLvl: ", accessLvl)
-        if (!accessLvl || (accessLvl !== process.env.ACCESS_STORE && accessLvl !== process.env.ACCESS_MANAGER)) {
-            console.error(`Access lvl is neither ${process.env.ACCESS_STORE} nor ${process.env.ACCESS_MANAGER}`)
-            const msg = `New Users need to have a valid access lvl of "${process.env.ACCESS_STORE}" or "${process.env.ACCESS_MANAGER}"`
-            callback(null, {
-                statusCode: 403,
-                headers: makeHeader('application/json' ),
-                body: JSON.stringify({ "message": msg })
-            });
-            return;
+        if (!isUpdatingSelf) {
+            console.log("Checking whether current user is allowed to create user with accessLvl: ", accessLvl)
+            if (!accessLvl || (accessLvl !== process.env.ACCESS_STORE && accessLvl !== process.env.ACCESS_MANAGER)) {
+                console.error(`Access lvl is neither ${process.env.ACCESS_STORE} nor ${process.env.ACCESS_MANAGER}`)
+                const msg = `New Users need to have a valid access lvl of "${process.env.ACCESS_STORE}" or "${process.env.ACCESS_MANAGER}"`
+                callback(null, {
+                    statusCode: 403,
+                    headers: makeHeader('application/json' ),
+                    body: JSON.stringify({ "message": msg })
+                });
+                return;
+            }
         }
 
         // check whether a new cognito user has to be created
         const isCognitoUserExistingPromise = isUpdatingSelf ? undefined : getIsCognitoUserExisting(email)
 
-        if (!isUpdatingSelf) {
+        if (isUpdatingSelf) {
+            // load the current accesslvl
+            const ownAccessLvl = await getAccessLvl(cognitoUserName, brand)
+            accessLvl = ownAccessLvl
+            body.accessLvl = ownAccessLvl
+        } else {
             // make sure the current cognito user has high enough access lvl
             const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
 
