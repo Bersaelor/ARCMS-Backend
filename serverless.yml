@@ -70,9 +70,26 @@ functions:
         - categories/categories.js
     events:
       - http:
-          path: categories
+          path: /{brand}/categories
           method: get
           cors: true
+
+  create-category:
+    handler: categories/categories.createNew
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Create new category with posted values should the current user have enough rights
+    package:
+      include:
+        - categories/categories.js
+    events:
+      - http:
+          path: /{brand}/categories
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
   my-brands:
     handler: user/brands.get
