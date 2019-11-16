@@ -24,6 +24,7 @@ provider:
     NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
     MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    IMAGE_BUCKEY: looc-cloud-images
     STAGE: ${self:custom.myStage}
     ACCESS_STORE: store
     ACCESS_MANAGER: manager
