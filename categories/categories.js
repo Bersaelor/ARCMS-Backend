@@ -79,6 +79,7 @@ function convertStoredCategory(storedCategory) {
     delete category.sk
     category.localizedTitles = JSON.parse(storedCategory.localizedTitles)
     category.localizedDetails = JSON.parse(storedCategory.localizedDetails)
+    category.image = "https://images.looc.io/" + storedCategory.image
     return category
 }
 
@@ -173,7 +174,9 @@ exports.createNew = async (event, context, callback) => {
             const now = new Date()
             const imageFileFolder = `${body.name}-${now.getTime()}`
             const imageFileName = `${imageFileFolder}.${fileExtension(imageUploadRequested)}`
-            imageURLPromise = getSignedImageUploadURL(`${imageFileFolder}/${imageFileName}`, imageType)
+            const imageKey = `${imageFileFolder}/${imageFileName}`
+            body.image = imageKey
+            imageURLPromise = getSignedImageUploadURL(imageKey, imageType)
         }
 
         const writeDBPromise = createCategoryInDB(body, brand)
