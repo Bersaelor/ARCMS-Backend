@@ -7,7 +7,7 @@
   "license": "proprietary",
   "private": true,
   "dependencies": {
-    "aws-sdk": "^2.471.0",
+    "aws-sdk": "2.488.0",
     "mustache": "3.0.1"
   },
   "devDependencies": {

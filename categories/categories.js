@@ -4,6 +4,7 @@
 
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const s3 = new AWS.S3();
 
 async function getAccessLvl(cognitoUserName, brand) {
     var params = {
@@ -53,6 +54,25 @@ async function getCategorys(brand) {
     return dynamoDb.query(params).promise()
 }
 
+async function getSignedImageUploadURL(key, type) {
+    var params = {
+        Bucket: process.env.IMAGE_BUCKET,
+        Key: key,
+        ContentType: type,
+        Expires: 600,
+        ACL: 'public-read',
+    }
+
+    console.log("params: ", params)
+
+    return new Promise(function (resolve, reject) {
+        s3.getSignedUrl('putObject', params, function (err, url) { 
+            if (err) reject(err)
+            else resolve(url); 
+        });
+    });
+}
+
 function convertStoredCategory(storedCategory) {
     var category = storedCategory
     category.name = storedCategory.sk
@@ -69,7 +89,7 @@ async function createCategoryInDB(values, brand) {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
             "id": `${brand}#category`,
-            "sk": values.name.toLowerCase(),
+            "sk": values.name,
             "image": sanitize(values.image),
             "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "n.A.",
             "localizedDetails": values.localizedDetails ? JSON.stringify(values.localizedDetails) : "n.A."
@@ -92,6 +112,10 @@ function makeHeader(content) {
     };
 }
 
+const fileExtension = (filename) => {
+    return filename.split('.').pop();
+}
+
 // Cached, public collections endpoint
 exports.all = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
@@ -112,7 +136,12 @@ exports.all = async (event, context, callback) => {
 exports.createNew = async (event, context, callback) => {
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
-    const body = JSON.parse(event.body)
+    var body = JSON.parse(event.body)
+
+    const imageUploadRequested = body.imageName
+    const imageType = body.imageType
+    delete body.imageType
+    delete body.imageName
 
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
@@ -125,6 +154,7 @@ exports.createNew = async (event, context, callback) => {
             });
             return;
         }
+        body.name = body.name.toLowerCase()
 
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise;
@@ -138,15 +168,29 @@ exports.createNew = async (event, context, callback) => {
             return;
         }
 
+        var imageURLPromise
+        if (imageUploadRequested) {
+            const now = new Date()
+            const imageFileFolder = `${body.name}-${now.getTime()}`
+            const imageFileName = `${imageFileFolder}.${fileExtension(imageUploadRequested)}`
+            imageURLPromise = getSignedImageUploadURL(`${imageFileFolder}/${imageFileName}`, imageType)
+        }
+
         const writeDBPromise = createCategoryInDB(body, brand)
 
+        const imageUploadURL = imageURLPromise ? await imageURLPromise : undefined
         const writeSuccess = await writeDBPromise
         console.log("write Category to db success: ", writeSuccess)
+
+        console.log("imageUploadURL: ", imageUploadURL)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json' ),
-            body: JSON.stringify({"message": "Category creation or update successful"})
+            body: JSON.stringify({
+                "message": "Category creation or update successful",
+                "uploadURL": imageUploadURL ? imageUploadURL : ""
+            })
         };
     
         callback(null, response);
