@@ -82,7 +82,7 @@ function convertStoredCategory(storedCategory) {
 }
 
 async function createCategoryInDB(values, brand) {
-    const sanitize = (value) => ( value ? value : "n.A." ) 
+    const sanitize = (value) => ( value ? value : "placeholder.png" ) 
 
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
