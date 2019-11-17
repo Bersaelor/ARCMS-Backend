@@ -98,6 +98,18 @@ async function createCategoryInDB(values, brand) {
     return dynamoDb.put(params).promise();
 }
 
+async function deleteCategoryFromDB(name, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {
+            "id": `${brand}#category`,
+            "sk": name
+        } 
+    };
+
+    return dynamoDb.delete(params).promise()
+}
+
 function accessLvlMayCreate(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
@@ -210,3 +222,54 @@ exports.createNew = async (event, context, callback) => {
         return;
     }
 };
+
+exports.delete = async (event, context, callback) => {
+    let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const id = event.pathParameters.id.toLowerCase()
+
+    if (!id || !brand) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected both a brand and a user-id, one is missing.`,
+        });
+        return;
+    }
+
+    console.log(cognitoUserName, " wants to delete category named: ", id, " from brand ", brand)
+    try {
+        // make sure the current cognito user has high enough access lvl
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
+
+        const ownAccessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreate(ownAccessLvl)) {
+            const msg = `User ${cognitoUserName} is not allowed to delete categories of ${brand}`
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const dbDeletionResponse = await deleteCategoryFromDB(id, brand)
+        console.log("dbDeletionResponse: ", dbDeletionResponse)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify({ "message": "Deletion of category " + id + " successful" })
+        };
+
+        callback(null, response);
+    } catch (error) {
+        console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+}
