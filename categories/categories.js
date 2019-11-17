@@ -137,6 +137,8 @@ exports.all = async (event, context, callback) => {
         return convertStoredCategory(cat)
     })
 
+    console.log("Returning ", categories.length, " categories from DynDB")
+
     callback(null, {
         statusCode: 200,
         headers: makeHeader('text/plain'),
