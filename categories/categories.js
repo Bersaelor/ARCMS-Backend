@@ -63,8 +63,6 @@ async function getSignedImageUploadURL(key, type) {
         ACL: 'public-read',
     }
 
-    console.log("params: ", params)
-
     return new Promise(function (resolve, reject) {
         s3.getSignedUrl('putObject', params, function (err, url) { 
             if (err) reject(err)
@@ -177,6 +175,12 @@ exports.createNew = async (event, context, callback) => {
             const imageKey = `${imageFileFolder}/${imageFileName}`
             body.image = imageKey
             imageURLPromise = getSignedImageUploadURL(imageKey, imageType)
+        } else if (body.image && body.image.startsWith("http")) {
+            // remove the host from as we store only the image key in the db
+            var url = new URL(body.image)
+            var path = url.pathname
+            if (path.startsWith("/")) path = path.slice(1)
+            body.image = path
         }
 
         const writeDBPromise = createCategoryInDB(body, brand)
@@ -184,8 +188,6 @@ exports.createNew = async (event, context, callback) => {
         const imageUploadURL = imageURLPromise ? await imageURLPromise : undefined
         const writeSuccess = await writeDBPromise
         console.log("write Category to db success: ", writeSuccess)
-
-        console.log("imageUploadURL: ", imageUploadURL)
 
         const response = {
             statusCode: 200,
