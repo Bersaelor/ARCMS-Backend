@@ -424,7 +424,7 @@ exports.delete = async (event, context, callback) => {
             return;
         }
         
-        const data = await getBrands(id)
+        const data = await brandsOfIdPromise
         let brands = data.Items.map((v) => v.sk.slice(0, -5))
         console.log(id, " is member of ", brands, " brands.")
         let deletableUserAccessLvl = data.Items.find(value => value.sk.slice(0, -5) === brand).accessLvl
@@ -453,7 +453,7 @@ exports.delete = async (event, context, callback) => {
 
         const userDeletionResponse = await dbDeletionPromise
         console.log("userDeletionResponse: ", userDeletionResponse)
-        const deviceDeletionResponse = await dbDeletionPromise
+        const deviceDeletionResponse = await deviceDeletionPromise
         console.log("deviceDeletionResponse: ", deviceDeletionResponse)
 
         if (cognitoDeletionPromise) {
