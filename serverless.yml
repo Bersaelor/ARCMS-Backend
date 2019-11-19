@@ -69,6 +69,7 @@ functions:
     package:
       include:
         - categories/categories.js
+        - shared/access_methods.js
     events:
       - http:
           path: /{brand}/categories
@@ -87,6 +88,7 @@ functions:
     package:
       include:
         - categories/categories.js
+        - shared/access_methods.js
     events:
       - http:
           path: /{brand}/categories
@@ -108,6 +110,7 @@ functions:
     package:
       include:
         - categories/categories.js
+        - shared/access_methods.js
     events:
       - http:
           path: /{brand}/categories/{id}
@@ -130,6 +133,7 @@ functions:
     package:
       include:
         - models/models.js
+        - shared/access_methods.js
     events:
       - http:
           path: /{brand}/category/{category}/models
@@ -149,6 +153,7 @@ functions:
     package:
       include:
         - models/models.js
+        - shared/access_methods.js
     events:
       - http:
           path: /{brand}/category/{category}/models
@@ -171,6 +176,7 @@ functions:
     package:
       include:
         - models/models.js
+        - shared/access_methods.js
     events:
       - http:
           path: /{brand}/category/{category}/models/{id}
@@ -212,6 +218,7 @@ functions:
     package:
       include:
         - user/user.js
+        - shared/access_methods.js
     events:
       - http:
           path: user
@@ -246,6 +253,7 @@ functions:
     package:
       include:
         - user/user.js
+        - shared/access_methods.js
     events:
       - http:
           path: user/{id}
@@ -267,6 +275,7 @@ functions:
     package:
       include:
         - brand/users.js
+        - shared/access_methods.js
     events:
       - http:
           path: users
@@ -339,6 +348,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     events:
       - http:
           path: orders
@@ -356,6 +366,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     events:
       - http:
           path: v2/orders
@@ -373,6 +384,7 @@ functions:
     package:
       include:
         - orders/convert.js
+        - shared/access_methods.js
 
   copy-orders:
     handler: orders/convert.copyFromTo
@@ -382,6 +394,7 @@ functions:
     package:
       include:
         - orders/convert.js
+        - shared/access_methods.js
 
   get-order:
     handler: orders/orders.order
@@ -391,6 +404,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     events:
       - http:
           path: order/{id}
@@ -408,6 +422,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     environment:
       snsArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
     events:

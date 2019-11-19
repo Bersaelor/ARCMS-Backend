@@ -5,6 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
+const { getAccessLvl } = require('../shared/access_methods')
 
 const defaultPerPage = 20;
 
@@ -87,38 +88,6 @@ async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, 
     };
 
     return dynamoDb.put(params).promise();
-}
-
-async function getAccessLvl(cognitoUserName, brand) {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "accessLvl",
-        KeyConditionExpression: "#id = :value and sk = :brand",
-        ExpressionAttributeNames:{
-            "#id": "id"
-        },
-        ExpressionAttributeValues: {
-            ":value": cognitoUserName,
-            ":brand": `${brand}#user`
-        }
-    };
-
-    return new Promise((resolve, reject) => {
-        dynamoDb.query(params, (error, data) => {
-            if (error) {
-                reject(error)
-                return;
-            } else if (data.Items == undefined || data.Items.length < 1) {
-                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !')
-                return;
-            } else if (data.Items[0].accessLvl == undefined ) {
-                reject('Entry' + data.Items[0] + 'has no accessLvl!');
-                return;
-            } else {
-                resolve(data.Items[0].accessLvl);
-            }
-        });
-    });
 }
 
 async function getContactNameAndCustomerId(cognitoUserName, brand) {

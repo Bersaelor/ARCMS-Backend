@@ -5,38 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 var cognitoProvider = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
-
-async function getAccessLvl(cognitoUserName, brand) {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "accessLvl",
-        KeyConditionExpression: "#id = :value and sk = :brand",
-        ExpressionAttributeNames:{
-            "#id": "id"
-        },
-        ExpressionAttributeValues: {
-            ":value": cognitoUserName,
-            ":brand": `${brand}#user`
-        }
-    };
-
-    return new Promise((resolve, reject) => {
-        dynamoDb.query(params, (error, data) => {
-            if (error) {
-                reject(error);
-                return;
-            } else if (data.Items == undefined || data.Items.length < 1) {
-                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
-                return;
-            } else if (data.Items[0].accessLvl == undefined ) {
-                reject('Entry' + data.Items[0] + 'has no accessLvl!');
-                return;
-            } else {
-                resolve(data.Items[0].accessLvl);
-            }
-        });
-    });
-}
+const { getAccessLvl, accessLvlMayCreate } = require('../shared/access_methods')
 
 async function getIsDBUserExisting(email, brand) {
     var params = {
@@ -67,10 +36,6 @@ async function getIsDBUserExisting(email, brand) {
             }
         });
     });
-}
-
-function accessLvlMayCreateUsers(accessLvl) {
-    return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
 
 function makeHeader(content) {
@@ -281,7 +246,7 @@ exports.createNew = async (event, context, callback) => {
             const isDBUserExistingPromise = getIsDBUserExisting(email, brand)
 
             const ownAccessLvl = await accessLvlPromise;
-            if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+            if (!accessLvlMayCreate(ownAccessLvl)) {
                 callback(null, {
                     statusCode: 403,
                     headers: makeHeader('text/plain'),
@@ -414,7 +379,7 @@ exports.delete = async (event, context, callback) => {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
 
         const ownAccessLvl = await accessLvlPromise;
-        if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+        if (!accessLvlMayCreate(ownAccessLvl)) {
             const msg = `User ${cognitoUserName} is not allowed to delete users of ${brand}`
             callback(null, {
                 statusCode: 403,
