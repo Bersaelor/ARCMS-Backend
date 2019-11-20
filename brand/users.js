@@ -5,6 +5,8 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
+const defaultPerPage = 20;
+
 function accessLvlMaySeeUsers(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
@@ -49,7 +51,7 @@ function makeHeader(content) {
     };
 }
 
-async function getUsers(brand) {
+async function getUsers(brand, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "sk-id-index",
@@ -60,10 +62,33 @@ async function getUsers(brand) {
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#user`,
-        }
+        },
+        Limit: perPage,
     };
 
-    return dynamoDb.query(params).promise().then( x => x.Items );
+    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
+
+    return dynamoDb.query(params).promise()
+}
+
+function paginate(orders, perPage, LastEvaluatedKey) {
+    if (LastEvaluatedKey) {
+        const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
+        return {
+            items: orders,
+            itemCount: orders.length,
+            fullPage: perPage,
+            hasMoreContent: LastEvaluatedKey !== undefined,
+            nextPageKey: base64Key 
+        }
+    } else {
+        return {
+            items: orders,
+            itemCount: orders.length,
+            fullPage: perPage,
+            hasMoreContent: false,
+        }
+    }
 }
 
 exports.all = async (event, context, callback) => {
@@ -90,8 +115,19 @@ exports.all = async (event, context, callback) => {
         // make sure the current cognito user has high enough access lvl to get see all users for this brand
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
 
+        var perPage = event.queryStringParameters.perPage ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
+        if (!perPage || perPage > 2 * defaultPerPage) {
+            perPage = defaultPerPage
+        }    
+
+        var PreviousLastEvaluatedKey
+        if (event.queryStringParameters.nextPageKey) {
+            let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
+            PreviousLastEvaluatedKey = JSON.parse(jsonString)
+        }
+
         // fetch the users for the brand
-        const usersPromise = getUsers(brand);
+        const usersPromise = getUsers(brand, perPage, PreviousLastEvaluatedKey);
 
         const accessLvl = await accessLvlPromise;
         if (!accessLvlMaySeeUsers(accessLvl)) {
@@ -102,13 +138,15 @@ exports.all = async (event, context, callback) => {
             });
             return;
         }
-        const users = await usersPromise;
+        const usersData = await usersPromise;
+        const LastEvaluatedKey = usersData.LastEvaluatedKey
+        const users = usersData.Items
         console.log("Query succeeded, found: ", users.length, " users");
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json' ),
-            body: JSON.stringify(users)
+            body: JSON.stringify(paginate(users, perPage, LastEvaluatedKey))
         };
     
         callback(null, response);

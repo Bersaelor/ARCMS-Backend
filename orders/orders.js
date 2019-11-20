@@ -295,7 +295,7 @@ exports.allPaginated = async (event, context, callback) => {
         perPage = 2 * defaultPerPage
     }
 
-    var LastEvaluatedKey = undefined
+    var LastEvaluatedKey
     if (event.queryStringParameters.nextPageKey) {
         let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
         LastEvaluatedKey = JSON.parse(jsonString)
