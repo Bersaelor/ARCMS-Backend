@@ -71,6 +71,26 @@ async function getUsers(brand, perPage, LastEvaluatedKey) {
     return dynamoDb.query(params).promise()
 }
 
+async function getLastUsed(brand, email) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "lastUsed",
+        KeyConditionExpression: "#id = :value and begins_with(sk, :brand)",
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${email}#device`,
+            ":brand": brand
+        },
+    };
+
+    return dynamoDb.query(params).promise().then( val => {
+        const lastUsedArray = val.Items.map( (item) => item.lastUsed ).sort()
+        return lastUsedArray.length > 0 ? lastUsedArray[lastUsedArray.length - 1] : undefined
+    });
+}
+
 function paginate(orders, perPage, LastEvaluatedKey) {
     if (LastEvaluatedKey) {
         const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
@@ -140,8 +160,19 @@ exports.all = async (event, context, callback) => {
         }
         const usersData = await usersPromise;
         const LastEvaluatedKey = usersData.LastEvaluatedKey
-        const users = usersData.Items
-        console.log("Query succeeded, found: ", users.length, " users");
+        var users = usersData.Items
+        console.log(`Query for brand ${brand} succeeded, found: ${users.length} users`);
+
+        const lastUsedPromises = users.map( (user, index) => {
+            return getLastUsed(brand, user.id).then( lastUsed => { 
+                return lastUsed ? { index: index, lastUsed: lastUsed} : undefined
+            })
+        })
+
+        let lastUsedData = await Promise.all(lastUsedPromises)
+        lastUsedData.forEach(value => {
+            if (value) users[value.index].lastUsed = value.lastUsed
+        })
 
         const response = {
             statusCode: 200,
@@ -152,7 +183,7 @@ exports.all = async (event, context, callback) => {
         callback(null, response);
 
     } catch(error) {
-        console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error('Query failed to load data. Error: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
