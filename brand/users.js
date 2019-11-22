@@ -51,18 +51,19 @@ function makeHeader(content) {
     };
 }
 
-async function getUsers(brand, perPage, LastEvaluatedKey) {
+async function getUsers(brand, perPage, LastEvaluatedKey, filter) {
+    const shouldFilter = filter && filter.length > 1
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "sk-id-index",
         ProjectionExpression: "id, accessLvl, company, firstName, lastName, address, zipCode, customerId, city, telNr,  maxDevices",
-        KeyConditionExpression: "#sk = :value",
+        KeyConditionExpression: shouldFilter ? "#sk = :value and begins_with(id, :filter)" : "#sk = :value",
         ExpressionAttributeNames:{
             "#sk": "sk"
         },
-        ExpressionAttributeValues: {
-            ":value": `${brand}#user`,
-        },
+        ExpressionAttributeValues: shouldFilter ?
+         { ":value": `${brand}#user`, ":filter": filter } 
+         : { ":value": `${brand}#user`, },
         Limit: perPage,
     };
 
@@ -121,6 +122,7 @@ exports.all = async (event, context, callback) => {
     }
 
     const brand = event.queryStringParameters.brand;
+    const filter = event.queryStringParameters.filter;
 
     if (!event.requestContext.authorizer) {
         callback(null, {
@@ -147,7 +149,7 @@ exports.all = async (event, context, callback) => {
         }
 
         // fetch the users for the brand
-        const usersPromise = getUsers(brand, perPage, PreviousLastEvaluatedKey);
+        const usersPromise = getUsers(brand, perPage, PreviousLastEvaluatedKey, filter);
 
         const accessLvl = await accessLvlPromise;
         if (!accessLvlMaySeeUsers(accessLvl)) {
