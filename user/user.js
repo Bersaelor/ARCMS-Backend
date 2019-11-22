@@ -195,7 +195,7 @@ async function getIsCognitoUserExisting(email) {
     });
 }
 
-async function createCognitoUser(email, firstName, lastName) {
+async function createCognitoUser(email, resend = false) {
     var params = {
         UserPoolId: 'eu-central-1_Qg8GXUJ2v', /* required */
         Username: email, /* required */
@@ -208,6 +208,8 @@ async function createCognitoUser(email, firstName, lastName) {
             }
         ]
     };
+
+    if (resend) params.MessageAction = "RESEND"
     return cognitoProvider.adminCreateUser(params).promise();
 }
 
@@ -296,7 +298,7 @@ exports.createNew = async (event, context, callback) => {
 
             var createCognitoPromise = null
             if (!isCognitoUserExisting) {
-                createCognitoPromise = createCognitoUser(email, body.firstName, body.lastName)
+                createCognitoPromise = createCognitoUser(email)
             } else {
                 console.log("User already exists in Cognito, no need to create again")
             }
@@ -331,6 +333,52 @@ exports.createNew = async (event, context, callback) => {
         return;
     }
 };
+
+exports.resendInvite = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const body = JSON.parse(event.body)
+
+    const brand = body.brand.toLowerCase()
+    const email = body.id.toLowerCase()
+
+    try {
+        // make sure the current cognito user has high enough access lvl
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
+
+        const ownAccessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('text/plain'),
+                body: `User ${cognitoUserName} is not allowed to resend invites for ${brand}`,
+            });
+            return;
+        }    
+
+        var createCognitoPromise = createCognitoUser(email, true)
+
+        const resendCognitoSuccess = await createCognitoPromise
+        console.log("createUserSuccess: ", resendCognitoSuccess)    
+
+        const msg = `Successfully sent a new invitation to ${email}`
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify({"message": msg})
+        };
+    
+        callback(null, response);
+    } catch(error) {
+        console.error('Failed to resend invitation to user: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+
+}
 
 exports.delete = async (event, context, callback) => {
 
@@ -382,7 +430,7 @@ exports.delete = async (event, context, callback) => {
 
         let dbDeletionPromise = deleteUserFromDB(id, brand)
         let deviceDeletionPromise = deleteDevicesFromDB(id, brand)
-        let cognitoDeletionPromise = undefined
+        let cognitoDeletionPromise
         if (brands.length == 1 && brands[0] == brand) {
             cognitoDeletionPromise = deleteUserFromCognito(id)
         } else {
