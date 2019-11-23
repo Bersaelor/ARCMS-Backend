@@ -25,6 +25,7 @@ provider:
     MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
     IMAGE_BUCKET: looc-cloud-images
+    MODEL_BUCKET: ar-glasses-models
     STAGE: ${self:custom.myStage}
     ACCESS_STORE: store
     ACCESS_MANAGER: manager

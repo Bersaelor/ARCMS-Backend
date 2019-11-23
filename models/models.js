@@ -7,22 +7,6 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
 
-async function getModels(brand, category) {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, localizedTitles, localizedDetails",
-        KeyConditionExpression: "#id = :value",
-        ExpressionAttributeNames:{
-            "#id": "id",
-        },
-        ExpressionAttributeValues: {
-            ":value": `${brand}#category`,
-        },
-    };
-
-    return dynamoDb.query(params).promise()
-}
-
 async function getSignedImageUploadURL(key, type) {
     var params = {
         Bucket: process.env.IMAGE_BUCKET,
@@ -40,14 +24,20 @@ async function getSignedImageUploadURL(key, type) {
     });
 }
 
-function convertStoredModel(storedModel) {
-    var category = storedModel
-    category.name = storedModel.sk
-    delete category.sk
-    category.localizedTitles = JSON.parse(storedModel.localizedTitles)
-    category.localizedDetails = JSON.parse(storedModel.localizedDetails)
-    category.image = "https://images.looc.io/" + storedModel.image
-    return category
+async function getSignedModelUploadURL(key) {
+    var params = {
+        Bucket: process.env.MODEL_BUCKET,
+        Key: key,
+        Expires: 600,
+        ACL: 'public-read',
+    }
+
+    return new Promise(function (resolve, reject) {
+        s3.getSignedUrl('putObject', params, function (err, url) { 
+            if (err) reject(err)
+            else resolve(url); 
+        });
+    });
 }
 
 async function createModelInDB(values, brand, category) {
@@ -60,7 +50,7 @@ async function createModelInDB(values, brand, category) {
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
             "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "n.A.",
-            "localizedDetails": values.localizedDetails ? JSON.stringify(values.localizedDetails) : "n.A."
+            "values": values.values ? JSON.stringify(values.values) : "n.A."
         }
     };
 
@@ -77,6 +67,34 @@ async function deleteModelFromDB(name, brand, category) {
     };
 
     return dynamoDb.delete(params).promise()
+}
+
+async function getModels(brand, category) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, image, localizedTitles, values",
+        KeyConditionExpression: "#id = :value begins_with(sk, :category)",
+        ExpressionAttributeNames:{
+            "#id": "id",
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#model`,
+            ":category": category
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+function convertStoredModel(storedModel) {
+    var category = storedModel
+    category.name = storedModel.sk
+    delete category.sk
+    category.localizedTitles = JSON.parse(storedModel.localizedTitles)
+    category.values = JSON.parse(storedModel.values)
+    category.image = "https://images.looc.io/" + storedModel.image
+    category.model = "https://models.looc.io/original/" + storedModel.image
+    return category
 }
 
 function makeHeader(content) {
@@ -124,6 +142,9 @@ exports.createNew = async (event, context, callback) => {
     delete body.imageType
     delete body.imageName
 
+    const modelUploadRequested = body.modelFile
+    delete body.modelFile
+
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
 
@@ -131,7 +152,7 @@ exports.createNew = async (event, context, callback) => {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('application/json' ),
-                body: JSON.stringify({ "message": "The new category needs to have a valid name" })
+                body: JSON.stringify({ "message": "The new model needs to have a valid name" })
             });
             return;
         }
@@ -139,7 +160,7 @@ exports.createNew = async (event, context, callback) => {
 
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise;
-        if (!accessLvl || !accessLvlMayCreate(accessLvl)) {
+        if (!accessLvlMayCreate(accessLvl)) {
             const msg = "This user isn't allowed to create or update categories"
             callback(null, {
                 statusCode: 403,
@@ -165,9 +186,23 @@ exports.createNew = async (event, context, callback) => {
             body.image = path
         }
 
+        var modelURLPromise
+        if (modelUploadRequested) {
+            const now = new Date()
+            const modelKey = `${body.name}-${now.getTime()}`
+            const modelFileName = `${modelKey}.${fileExtension(imageUploadRequested)}`
+            body.model = modelFileName
+            modelURLPromise = getSignedModelUploadURL("original/" + modelFileName)
+        } else if (body.modelFileName && body.modelFileName.startsWith("http")) {
+            // remove the host and folder as we store only the fileName in the db
+            var fileName = body.modelFileName.substring(body.modelFileName.lastIndexOf('/')+1);
+            body.modelFileName = fileName
+        }
+
         const writeDBPromise = createModelInDB(body, brand, category)
 
         const imageUploadURL = imageURLPromise ? await imageURLPromise : undefined
+        const modelUploadURL = modelURLPromise ? await modelURLPromise : undefined
         const writeSuccess = await writeDBPromise
         console.log("write model to db success: ", writeSuccess)
 
@@ -176,7 +211,8 @@ exports.createNew = async (event, context, callback) => {
             headers: makeHeader('application/json' ),
             body: JSON.stringify({
                 "message": "Model creation or update successful",
-                "uploadURL": imageUploadURL ? imageUploadURL : ""
+                "imageUploadURL": imageUploadURL ? imageUploadURL : "",
+                "modelUploadURL": modelUploadURL ? modelUploadURL : ""
             })
         };
     

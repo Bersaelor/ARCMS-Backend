@@ -38,5 +38,6 @@ exports.getAccessLvl = async (cognitoUserName, brand) => {
 }
 
 exports.accessLvlMayCreate = (accessLvl) => {
+    if (!accessLvl) return false
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }

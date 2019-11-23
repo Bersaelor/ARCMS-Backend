@@ -136,7 +136,7 @@ exports.createNew = async (event, context, callback) => {
 
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise;
-        if (!accessLvl || !accessLvlMayCreate(accessLvl)) {
+        if (!accessLvlMayCreate(accessLvl)) {
             const msg = "This user isn't allowed to create or update categories"
             callback(null, {
                 statusCode: 403,
