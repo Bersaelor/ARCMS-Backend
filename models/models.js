@@ -73,7 +73,7 @@ async function getModels(brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk, image, localizedTitles, values",
-        KeyConditionExpression: "#id = :value begins_with(sk, :category)",
+        KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
         ExpressionAttributeNames:{
             "#id": "id",
         },
