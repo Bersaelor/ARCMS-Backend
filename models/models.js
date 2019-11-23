@@ -50,7 +50,7 @@ async function createModelInDB(values, brand, category) {
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
             "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "n.A.",
-            "values": values.values ? JSON.stringify(values.values) : "n.A."
+            "props": values.props ? JSON.stringify(values.props) : "n.A."
         }
     };
 
@@ -72,7 +72,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModels(brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, localizedTitles, values",
+        ProjectionExpression: "sk, image, localizedTitles, props",
         KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -87,14 +87,14 @@ async function getModels(brand, category) {
 }
 
 function convertStoredModel(storedModel) {
-    var category = storedModel
-    category.name = storedModel.sk
-    delete category.sk
-    category.localizedTitles = JSON.parse(storedModel.localizedTitles)
-    category.values = JSON.parse(storedModel.values)
-    category.image = "https://images.looc.io/" + storedModel.image
-    category.model = "https://models.looc.io/original/" + storedModel.image
-    return category
+    var model = storedModel
+    model.name = storedModel.sk.split('#')[1]
+    delete model.sk
+    model.localizedTitles = JSON.parse(storedModel.localizedTitles)
+    model.props = JSON.parse(storedModel.props)
+    model.image = "https://images.looc.io/" + storedModel.image
+    model.model = "https://models.looc.io/original/" + storedModel.image
+    return model
 }
 
 function makeHeader(content) {
