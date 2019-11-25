@@ -194,7 +194,7 @@ exports.createNew = async (event, context, callback) => {
         if (modelUploadRequested) {
             const now = new Date()
             const modelKey = `${body.name}-${now.getTime()}`
-            const modelFileName = `${modelKey}.${fileExtension(imageUploadRequested)}`
+            const modelFileName = `${modelKey}.${fileExtension(modelUploadRequested)}`
             body.modelFile = modelFileName
             modelURLPromise = getSignedModelUploadURL("original/" + modelFileName)
         } else if (body.modelFileName && body.modelFileName.startsWith("http")) {
