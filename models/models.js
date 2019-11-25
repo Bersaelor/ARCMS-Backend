@@ -90,10 +90,14 @@ function convertStoredModel(storedModel) {
     var model = storedModel
     model.name = storedModel.sk.split('#')[1]
     delete model.sk
-    model.localizedTitles = JSON.parse(storedModel.localizedTitles)
-    model.props = JSON.parse(storedModel.props)
+    try {
+        model.localizedTitles = storedModel.localizedTitles ? JSON.parse(storedModel.localizedTitles) : undefined
+        model.props = storedModel.props ? JSON.parse(storedModel.props) : undefined    
+    } catch (error) {
+        console.log("Failed to convert json because: ", error)
+    }
     model.image = "https://images.looc.io/" + storedModel.image
-    model.model = "https://models.looc.io/original/" + storedModel.image
+    model.modelFile = "https://models.looc.io/original/" + storedModel.modelFile
     return model
 }
 
@@ -191,11 +195,11 @@ exports.createNew = async (event, context, callback) => {
             const now = new Date()
             const modelKey = `${body.name}-${now.getTime()}`
             const modelFileName = `${modelKey}.${fileExtension(imageUploadRequested)}`
-            body.model = modelFileName
+            body.modelFile = modelFileName
             modelURLPromise = getSignedModelUploadURL("original/" + modelFileName)
         } else if (body.modelFileName && body.modelFileName.startsWith("http")) {
             // remove the host and folder as we store only the fileName in the db
-            var fileName = body.modelFileName.substring(body.modelFileName.lastIndexOf('/')+1);
+            var fileName = body.modelFile.substring(body.modelFile.lastIndexOf('/')+1);
             body.modelFileName = fileName
         }
 
@@ -210,9 +214,9 @@ exports.createNew = async (event, context, callback) => {
             statusCode: 200,
             headers: makeHeader('application/json' ),
             body: JSON.stringify({
-                "message": "Model creation or update successful",
-                "imageUploadURL": imageUploadURL ? imageUploadURL : "",
-                "modelUploadURL": modelUploadURL ? modelUploadURL : ""
+                message: "Model creation or update successful",
+                imageUploadURL: imageUploadURL ? imageUploadURL : "",
+                modelUploadURL: modelUploadURL ? modelUploadURL : ""
             })
         };
     
