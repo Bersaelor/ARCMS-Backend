@@ -97,7 +97,7 @@ async function getModel(brand, category, id) {
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#model`,
-            ":catesearchKeygory": `${category}#${id}`
+            ":searchKey": `${category}#${id}`
         },
     };
 
