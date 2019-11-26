@@ -86,6 +86,24 @@ async function getModels(brand, category) {
     return dynamoDb.query(params).promise()
 }
 
+async function getModel(brand, category, id) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, image, localizedTitles, props",
+        KeyConditionExpression: "#id = :value and #sk = :searchKey",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#sk": "sk",
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#model`,
+            ":catesearchKeygory": `${category}#${id}`
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
 function convertStoredModel(storedModel) {
     var model = storedModel
     model.name = storedModel.sk.split('#')[1]
@@ -121,17 +139,80 @@ exports.all = async (event, context, callback) => {
 
     const data = await getModels(brand, category)
 
-    const categories = data.Items.map((cat) => {
+    const models = data.Items.map((cat) => {
         return convertStoredModel(cat)
     })
 
-    console.log("Returning ", categories.length, " models from DynDB")
+    console.log("Returning ", models.length, " models from DynDB")
 
     callback(null, {
         statusCode: 200,
         headers: makeHeader('text/plain'),
-        body: JSON.stringify(categories)
+        body: JSON.stringify(models)
     });
+};
+
+exports.get = async (event, context, callback) => {
+    let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const id = event.pathParameters.id.toLowerCase()
+    const category = event.pathParameters.category.toLowerCase()
+
+    if (!id || !brand || !category) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected both a brand, modelname and a category, one is missing.`,
+        });
+        return;
+    }
+
+    console.log(cognitoUserName, " wants to read model named: ", id, " from brand ", brand)
+    try {
+        // make sure the current cognito user has high enough access lvl
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
+        const dbLoadPromise = getModel(id, brand, category)
+
+        const ownAccessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreate(ownAccessLvl)) {
+            const msg = `User ${cognitoUserName} is not allowed to delete models of ${brand}`
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const dbLoadData = await dbLoadPromise
+        console.log("dbLoadPromise: ", dbLoadPromise)
+        const model = dbLoadData.Count > 0 ? dbLoadData.Items[0] : undefined
+
+        var response
+        if (model) {
+            response = {
+                statusCode: 200,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify(model)
+            };
+        } else {
+            response = {
+                statusCode: 404,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify({ message: `No model found with id ${id} for brand ${brand}` })
+            };
+        }
+
+        callback(null, response);
+    } catch (error) {
+        console.error('Query failed to delete. Error JSON: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 };
 
 exports.createNew = async (event, context, callback) => {
