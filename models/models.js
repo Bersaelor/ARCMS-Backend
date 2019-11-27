@@ -106,6 +106,7 @@ async function getModel(brand, category, id) {
 
 function convertStoredModel(storedModel) {
     var model = storedModel
+    model.category = storedModel.sk.split('#')[0]
     model.name = storedModel.sk.split('#')[1]
     delete model.sk
     try {
@@ -171,7 +172,7 @@ exports.get = async (event, context, callback) => {
     try {
         // make sure the current cognito user has high enough access lvl
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
-        const dbLoadPromise = getModel(id, brand, category)
+        const dbLoadPromise = getModel(brand, category, id)
 
         const ownAccessLvl = await accessLvlPromise;
         if (!accessLvlMayCreate(ownAccessLvl)) {
@@ -186,7 +187,7 @@ exports.get = async (event, context, callback) => {
 
         const dbLoadData = await dbLoadPromise
         console.log("dbLoadPromise: ", dbLoadPromise)
-        const model = dbLoadData.Count > 0 ? dbLoadData.Items[0] : undefined
+        const model = dbLoadData.Count > 0 ? convertStoredModel(dbLoadData.Items[0]) : undefined
 
         var response
         if (model) {
