@@ -49,8 +49,8 @@ async function createModelInDB(values, brand, category) {
             "id": `${brand}#model`,
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
-            "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "n.A.",
-            "props": values.props ? JSON.stringify(values.props) : "n.A."
+            "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "{}",
+            "props": values.props ? JSON.stringify(values.props) : "{}"
         }
     };
 
