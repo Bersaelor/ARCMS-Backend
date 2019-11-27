@@ -49,6 +49,7 @@ async function createModelInDB(values, brand, category) {
             "id": `${brand}#model`,
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
+            "modelFile": values.modelFile ? values.modelFile : "",
             "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "{}",
             "props": values.props ? JSON.stringify(values.props) : "{}"
         }
@@ -72,7 +73,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModels(brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, localizedTitles, props",
+        ProjectionExpression: "sk, image, modelFile, localizedTitles, props",
         KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -89,7 +90,7 @@ async function getModels(brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, localizedTitles, props",
+        ProjectionExpression: "sk, image, modelFile, localizedTitles, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -106,6 +107,8 @@ async function getModel(brand, category, id) {
 
 function convertStoredModel(storedModel) {
     var model = storedModel
+
+    console.log("storedModel: ", storedModel)
     model.category = storedModel.sk.split('#')[0]
     model.name = storedModel.sk.split('#')[1]
     delete model.sk
@@ -117,6 +120,8 @@ function convertStoredModel(storedModel) {
     }
     model.image = "https://images.looc.io/" + storedModel.image
     model.modelFile = "https://models.looc.io/original/" + storedModel.modelFile
+
+    console.log("model: ", model)
     return model
 }
 
@@ -282,7 +287,7 @@ exports.createNew = async (event, context, callback) => {
         } else if (body.modelFileName && body.modelFileName.startsWith("http")) {
             // remove the host and folder as we store only the fileName in the db
             var fileName = body.modelFile.substring(body.modelFile.lastIndexOf('/')+1);
-            body.modelFileName = fileName
+            body.modelFile = fileName
         }
 
         const writeDBPromise = createModelInDB(body, brand, category)
