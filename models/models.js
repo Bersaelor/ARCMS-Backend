@@ -107,8 +107,6 @@ async function getModel(brand, category, id) {
 
 function convertStoredModel(storedModel) {
     var model = storedModel
-
-    console.log("storedModel: ", storedModel)
     model.category = storedModel.sk.split('#')[0]
     model.name = storedModel.sk.split('#')[1]
     delete model.sk
@@ -120,8 +118,6 @@ function convertStoredModel(storedModel) {
     }
     model.image = "https://images.looc.io/" + storedModel.image
     model.modelFile = "https://models.looc.io/original/" + storedModel.modelFile
-
-    console.log("model: ", model)
     return model
 }
 
