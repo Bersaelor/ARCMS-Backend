@@ -24,6 +24,8 @@ provider:
     NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
     MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    IMAGE_BUCKET: looc-cloud-images
+    MODEL_BUCKET: ar-glasses-models
     STAGE: ${self:custom.myStage}
     ACCESS_STORE: store
     ACCESS_MANAGER: manager
@@ -58,7 +60,163 @@ resources:
           StreamViewType: "NEW_AND_OLD_IMAGES"
         TableName: ${self:provider.environment.CANDIDATE_TABLE}
 
+
 functions:
+  categories:
+    handler: categories/categories.all
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Cached, public collections endpoint
+    package:
+      include:
+        - categories/categories.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/categories
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+
+  create-category:
+    handler: categories/categories.createNew
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Create new category with posted values should the current user have enough rights
+    package:
+      include:
+        - categories/categories.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/categories
+          method: post
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  delete-category:
+    handler: categories/categories.delete
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Delete category should the current user have enough rights
+    package:
+      include:
+        - categories/categories.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/categories/{id}
+          method: delete
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                id: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  models:
+    handler: models/models.all
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Cached, public model endpoint
+    package:
+      include:
+        - models/models.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/category/{category}/models
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                category: true
+
+  get-model:
+    handler: models/models.get
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: get a single model should the current user have enough rights
+    package:
+      include:
+        - models/models.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/category/{category}/models/{id}
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                category: true
+                id: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  create-model:
+    handler: models/models.createNew
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Create new model with posted values should the current user have enough rights
+    package:
+      include:
+        - models/models.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/category/{category}/models
+          method: post
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                category: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  delete-model:
+    handler: models/models.delete
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Delete model should the current user have enough rights
+    package:
+      include:
+        - models/models.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/category/{category}/models/{id}
+          method: delete
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                category: true
+                id: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
   my-brands:
     handler: user/brands.get
     role: ${self:custom.users-role}
@@ -68,7 +226,6 @@ functions:
       include:
         - user/brands.js
         - brand_settings.json
-
     events:
       - http:
           path: user
@@ -86,6 +243,7 @@ functions:
     package:
       include:
         - user/user.js
+        - shared/access_methods.js
     events:
       - http:
           path: user
@@ -120,6 +278,7 @@ functions:
     package:
       include:
         - user/user.js
+        - shared/access_methods.js
     events:
       - http:
           path: user/{id}
@@ -141,6 +300,7 @@ functions:
     package:
       include:
         - brand/users.js
+        - shared/access_methods.js
     events:
       - http:
           path: users
@@ -213,6 +373,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     events:
       - http:
           path: orders
@@ -230,6 +391,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     events:
       - http:
           path: v2/orders
@@ -247,6 +409,7 @@ functions:
     package:
       include:
         - orders/convert.js
+        - shared/access_methods.js
 
   copy-orders:
     handler: orders/convert.copyFromTo
@@ -256,6 +419,7 @@ functions:
     package:
       include:
         - orders/convert.js
+        - shared/access_methods.js
 
   get-order:
     handler: orders/orders.order
@@ -265,6 +429,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     events:
       - http:
           path: order/{id}
@@ -282,6 +447,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/access_methods.js
     environment:
       snsArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
     events:

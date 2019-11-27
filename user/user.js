@@ -5,38 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 var cognitoProvider = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
-
-async function getAccessLvl(cognitoUserName, brand) {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "accessLvl",
-        KeyConditionExpression: "#id = :value and sk = :brand",
-        ExpressionAttributeNames:{
-            "#id": "id"
-        },
-        ExpressionAttributeValues: {
-            ":value": cognitoUserName,
-            ":brand": `${brand}#user`
-        }
-    };
-
-    return new Promise((resolve, reject) => {
-        dynamoDb.query(params, (error, data) => {
-            if (error) {
-                reject(error);
-                return;
-            } else if (data.Items == undefined || data.Items.length < 1) {
-                reject('No user named "' + cognitoUserName + '" for brand \'' + brand + '\' !');
-                return;
-            } else if (data.Items[0].accessLvl == undefined ) {
-                reject('Entry' + data.Items[0] + 'has no accessLvl!');
-                return;
-            } else {
-                resolve(data.Items[0].accessLvl);
-            }
-        });
-    });
-}
+const { getAccessLvl, accessLvlMayCreate } = require('../shared/access_methods')
 
 async function getIsDBUserExisting(email, brand) {
     var params = {
@@ -67,10 +36,6 @@ async function getIsDBUserExisting(email, brand) {
             }
         });
     });
-}
-
-function accessLvlMayCreateUsers(accessLvl) {
-    return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
 
 function makeHeader(content) {
@@ -235,34 +200,45 @@ exports.createNew = async (event, context, callback) => {
 
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const body = JSON.parse(event.body)
-    const brand = body.brand;
-    if (!body.accessLvl && body.role) {
-        // translate accessLvl into role
-        body.accessLvl = body.role
-    }
-    const accessLvl = body.accessLvl
     const email = body.email.toLowerCase()
     const isUpdatingSelf = email == cognitoUserName 
-
+    const brand = body.brand;
+    // changing of ones own accessLvl is not allowed
+    if (isUpdatingSelf) {
+        console.log("User is updating his own entry, ignoring accessLvl")
+        body.accessLvl = undefined
+    } else if (!body.accessLvl && body.role) {
+        // translate role into accessLvl
+        body.accessLvl = body.role
+    }
+    var accessLvl = body.accessLvl
+    
     try {
         // TODO: Proper error messages for all kinds of missing body values
 
-        console.log("Checking whether current user is allowed to create user with accessLvl: ", accessLvl)
-        if (!accessLvl || (accessLvl !== process.env.ACCESS_STORE && accessLvl !== process.env.ACCESS_MANAGER)) {
-            console.error(`Access lvl is neither ${process.env.ACCESS_STORE} nor ${process.env.ACCESS_MANAGER}`)
-            const msg = `New Users need to have a valid access lvl of "${process.env.ACCESS_STORE}" or "${process.env.ACCESS_MANAGER}"`
-            callback(null, {
-                statusCode: 403,
-                headers: makeHeader('application/json' ),
-                body: JSON.stringify({ "message": msg })
-            });
-            return;
+        if (!isUpdatingSelf) {
+            console.log("Checking whether current user is allowed to create user with accessLvl: ", accessLvl)
+            if (!accessLvl || (accessLvl !== process.env.ACCESS_STORE && accessLvl !== process.env.ACCESS_MANAGER)) {
+                console.error(`Access lvl is neither ${process.env.ACCESS_STORE} nor ${process.env.ACCESS_MANAGER}`)
+                const msg = `New Users need to have a valid access lvl of "${process.env.ACCESS_STORE}" or "${process.env.ACCESS_MANAGER}"`
+                callback(null, {
+                    statusCode: 403,
+                    headers: makeHeader('application/json' ),
+                    body: JSON.stringify({ "message": msg })
+                });
+                return;
+            }
         }
 
         // check whether a new cognito user has to be created
         const isCognitoUserExistingPromise = isUpdatingSelf ? undefined : getIsCognitoUserExisting(email)
 
-        if (!isUpdatingSelf) {
+        if (isUpdatingSelf) {
+            // load the current accesslvl
+            const ownAccessLvl = await getAccessLvl(cognitoUserName, brand)
+            accessLvl = ownAccessLvl
+            body.accessLvl = ownAccessLvl
+        } else {
             // make sure the current cognito user has high enough access lvl
             const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
 
@@ -270,7 +246,7 @@ exports.createNew = async (event, context, callback) => {
             const isDBUserExistingPromise = getIsDBUserExisting(email, brand)
 
             const ownAccessLvl = await accessLvlPromise;
-            if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+            if (!accessLvlMayCreate(ownAccessLvl)) {
                 callback(null, {
                     statusCode: 403,
                     headers: makeHeader('text/plain'),
@@ -403,7 +379,7 @@ exports.delete = async (event, context, callback) => {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
 
         const ownAccessLvl = await accessLvlPromise;
-        if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+        if (!accessLvlMayCreate(ownAccessLvl)) {
             const msg = `User ${cognitoUserName} is not allowed to delete users of ${brand}`
             callback(null, {
                 statusCode: 403,
@@ -413,7 +389,7 @@ exports.delete = async (event, context, callback) => {
             return;
         }
         
-        const data = await getBrands(id)
+        const data = await brandsOfIdPromise
         let brands = data.Items.map((v) => v.sk.slice(0, -5))
         console.log(id, " is member of ", brands, " brands.")
         let deletableUserAccessLvl = data.Items.find(value => value.sk.slice(0, -5) === brand).accessLvl
@@ -442,7 +418,7 @@ exports.delete = async (event, context, callback) => {
 
         const userDeletionResponse = await dbDeletionPromise
         console.log("userDeletionResponse: ", userDeletionResponse)
-        const deviceDeletionResponse = await dbDeletionPromise
+        const deviceDeletionResponse = await deviceDeletionPromise
         console.log("deviceDeletionResponse: ", deviceDeletionResponse)
 
         if (cognitoDeletionPromise) {
