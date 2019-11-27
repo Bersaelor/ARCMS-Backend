@@ -229,8 +229,9 @@ exports.createNew = async (event, context, callback) => {
     delete body.imageType
     delete body.imageName
 
-    const modelUploadRequested = body.modelFile
-    delete body.modelFile
+
+    const modelUploadRequested = body.modelFile && !body.modelFile.startsWith("http")
+    if (modelUploadRequested) delete body.modelFile
 
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
@@ -280,7 +281,7 @@ exports.createNew = async (event, context, callback) => {
             const modelFileName = `${modelKey}.${fileExtension(modelUploadRequested)}`
             body.modelFile = modelFileName
             modelURLPromise = getSignedModelUploadURL("original/" + modelFileName)
-        } else if (body.modelFileName && body.modelFileName.startsWith("http")) {
+        } else if (body.modelFile && body.modelFile.startsWith("http")) {
             // remove the host and folder as we store only the fileName in the db
             var fileName = body.modelFile.substring(body.modelFile.lastIndexOf('/')+1);
             body.modelFile = fileName
