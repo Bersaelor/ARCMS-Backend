@@ -50,7 +50,7 @@ async function createModelInDB(values, brand, category) {
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
             "modelFile": values.modelFile ? values.modelFile : "",
-            "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "{}",
+            "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
             "props": values.props ? JSON.stringify(values.props) : "{}"
         }
     };
@@ -73,7 +73,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModels(brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, localizedTitles, props",
+        ProjectionExpression: "sk, image, modelFile, localizedNames, props",
         KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -90,7 +90,7 @@ async function getModels(brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, localizedTitles, props",
+        ProjectionExpression: "sk, image, modelFile, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -111,7 +111,7 @@ function convertStoredModel(storedModel) {
     model.name = storedModel.sk.split('#')[1]
     delete model.sk
     try {
-        model.localizedTitles = storedModel.localizedTitles ? JSON.parse(storedModel.localizedTitles) : undefined
+        model.localizedNames = storedModel.localizedNames ? JSON.parse(storedModel.localizedNames) : undefined
         model.props = storedModel.props ? JSON.parse(storedModel.props) : undefined    
     } catch (error) {
         console.log("Failed to convert json because: ", error)
