@@ -322,7 +322,7 @@ exports.resendInvite = async (event, context, callback) => {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
 
         const ownAccessLvl = await accessLvlPromise;
-        if (!accessLvlMayCreateUsers(ownAccessLvl)) {
+        if (!accessLvlMayCreate(ownAccessLvl)) {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('text/plain'),

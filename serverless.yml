@@ -261,6 +261,7 @@ functions:
     package:
       include:
         - user/user.js
+        - shared/access_methods.js
     events:
       - http:
           path: user/resend/
