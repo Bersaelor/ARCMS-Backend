@@ -210,8 +210,25 @@ exports.check = async (event, context, callback) => {
         var neededDevices = usedDevices + (isExistingDevice ? 0 : 1)
         const maxDevices = await maxDevicesPromise;
 
-        var createDevicePromise = null
-        var updateLastUsedPromise = null
+        var createDevicePromise
+        var updateLastUsedPromise
+        var deleteOldDevicePromise
+
+        if (neededDevices > maxDevices) {
+            // more devices needed then max available, check if we can remove some old devices
+            const twoDaysAgo = (new Date()).addDays(-2)
+            const oldestDevice = devices.sort( (a, b) => {
+                return a.lastUsed > b.lastUsed ? 1 : -1
+            })[0]
+            console.log("Oldest Device found: ", oldestDevice)
+            if (oldestDevice.lastUsed < twoDaysAgo.toISOString()) {
+                console.log("Deleting device as it is last used twoDaysAgo or more")
+                deleteOldDevicePromise = deleteDevice(cognitoUserName, oldestDevice.id, brand)
+                usedDevices -= 1
+                neededDevices -= 1
+            }
+        }
+
         if (isExistingDevice) {
             updateLastUsedPromise = createDeviceInDB(cognitoUserName, brand, body)
         } else if (!isExistingDevice && neededDevices <= maxDevices) {
@@ -219,11 +236,8 @@ exports.check = async (event, context, callback) => {
             usedDevices += 1
         }
 
-        const createDeviceSuccess = (createDevicePromise) ? await createDevicePromise : "not needed"
-        const updateDeviceSuccess = (updateLastUsedPromise) ? await updateLastUsedPromise : "not needed"
-        console.log("createDeviceSuccess: ", createDeviceSuccess, ", updateDeviceSuccess: ", updateDeviceSuccess)
-
         let nextMonth = (new Date()).addDays(30);
+
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
@@ -234,6 +248,11 @@ exports.check = async (event, context, callback) => {
                  "maxDevices": maxDevices,
             })
         };
+
+        const createDeviceSuccess = (createDevicePromise) ? await createDevicePromise : "not needed"
+        const updateDeviceSuccess = (updateLastUsedPromise) ? await updateLastUsedPromise : "not needed"
+        const deleteOldDeviceSuccess = (deleteOldDevicePromise) ? await deleteOldDevicePromise : "not needed"
+        console.log("createDeviceSuccess: ", createDeviceSuccess, ", updateDeviceSuccess: ", updateDeviceSuccess, ", deleteOldDeviceSuccess:", deleteOldDeviceSuccess)
     
         callback(null, response);
     } catch(err) {
