@@ -230,7 +230,7 @@ exports.createNew = async (event, context, callback) => {
     delete body.imageName
 
 
-    const modelUploadRequested = body.modelFile && !body.modelFile.startsWith("http")
+    const modelUploadRequested = body.modelFile && !body.modelFile.startsWith("http") ? body.modelFile : false
     if (modelUploadRequested) delete body.modelFile
 
     try {
