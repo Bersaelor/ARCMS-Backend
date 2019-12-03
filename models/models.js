@@ -29,11 +29,25 @@ async function getSignedModelUploadURL(key) {
         Bucket: process.env.MODEL_BUCKET,
         Key: key,
         Expires: 600,
-        ACL: 'public-read',
     }
 
     return new Promise(function (resolve, reject) {
         s3.getSignedUrl('putObject', params, function (err, url) { 
+            if (err) reject(err)
+            else resolve(url); 
+        });
+    });
+}
+
+async function getSignedModelDownloadURL(key) {
+    var params = {
+        Bucket: process.env.MODEL_BUCKET,
+        Key: key,
+        Expires: 600,
+    }
+
+    return new Promise(function (resolve, reject) {
+        s3.getSignedUrl('getObject', params, function (err, url) { 
             if (err) reject(err)
             else resolve(url); 
         });
@@ -117,7 +131,6 @@ function convertStoredModel(storedModel) {
         console.log("Failed to convert json because: ", error)
     }
     model.image = "https://images.looc.io/" + storedModel.image
-    model.modelFile = "https://models.looc.io/original/" + storedModel.modelFile
     return model
 }
 
@@ -187,8 +200,11 @@ exports.get = async (event, context, callback) => {
         }
 
         const dbLoadData = await dbLoadPromise
-        console.log("dbLoadPromise: ", dbLoadPromise)
         const model = dbLoadData.Count > 0 ? convertStoredModel(dbLoadData.Items[0]) : undefined
+        if (model && model.modelFile) {
+            const modelDownloadURL = await getSignedModelDownloadURL("original/" + model.modelFile)
+            if (modelDownloadURL) model.modelFile = modelDownloadURL    
+        }
 
         var response
         if (model) {
@@ -283,7 +299,8 @@ exports.createNew = async (event, context, callback) => {
             modelURLPromise = getSignedModelUploadURL("original/" + modelFileName)
         } else if (body.modelFile && body.modelFile.startsWith("http")) {
             // remove the host and folder as we store only the fileName in the db
-            var fileName = body.modelFile.substring(body.modelFile.lastIndexOf('/')+1);
+            const pathname = (new URL(body.modelFile)).pathname
+            var fileName = pathname.substring(pathname.lastIndexOf('/')+1);
             body.modelFile = fileName
         }
 
