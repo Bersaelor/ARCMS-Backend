@@ -6,6 +6,7 @@ const AWS = require('aws-sdk');
 const path = require('path');
 const s3 = new AWS.S3();
 const fs = require("fs");
+const { spawn } = require('child_process');
 
 function download(bucket, key, downloadPath) {
     return new Promise((resolve, reject) => {
@@ -20,7 +21,26 @@ function download(bucket, key, downloadPath) {
 }
 
 function convert(downloadPath, uploadPath) {
-    fs.renameSync(downloadPath, uploadPath)
+    return new Promise((resolve, reject) => {
+        const bash = spawn('COLLADA2GLTF-bin', [downloadPath, uploadPath])
+        bash.stdout.on('data', data => {
+            console.log(`stdout: ${data}`);
+        });
+
+        bash.stderr.on('data', data => {
+            console.log(`stderr: ${data}`);
+            reject(data);
+        });
+
+        bash.on('close', code => {
+            console.log(`child process exited with code ${code}`);
+            if (code === 0) {
+                resolve(uploadPath);
+            } else {
+                reject(`Exit code ${code}`);
+            }
+        });
+    })
 }
 
 function upload(bucket, key, uploadPath) {
@@ -50,8 +70,10 @@ exports.convert = async (event, context, callback) => {
         try {
             console.log(`downloadPath: ${downloadPath}, uploadPath: ${uploadPath}`)
 
+            process.env.PATH = `${process.env.PATH}:${process.env.LAMBDA_TASK_ROOT}/models`;
+
             await download(bucket, key, downloadPath)
-            convert(downloadPath, uploadPath)
+            await convert(downloadPath, uploadPath)
             const uploadRes = await upload(bucket, `original/${fileName}.gltf`, uploadPath)
 
             console.log("Upload result: ", uploadRes)
