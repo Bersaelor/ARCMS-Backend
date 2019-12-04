@@ -479,3 +479,21 @@ functions:
         - node_modules/mustache/mustache.min.js
     events:
       - sns: ${self:provider.environment.NEWORDERTOPIC}
+
+  convert-to-gltf:
+    handler: models/gltfConversion.convert
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Convert new files deposited into s3/original
+    package:
+      include:
+        - models/gltfConversion.js
+        - models/COLLADA2GLTF-bin
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .dae
+        existing: true
