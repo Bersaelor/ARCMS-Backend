@@ -13,7 +13,7 @@ function startInstance(file) {
     /usr/bin/chmod +x /tmp/ec2-init.sh
     /tmp/ec2-init.sh ${ file }
     `
-    const base64Script = new Buffer(init_script).toString('base64')
+    const base64Script = Buffer.from(init_script).toString('base64')
 
     var params = {
         ImageId: "ami-0d4c3eabb9e72650a",
