@@ -13,6 +13,8 @@ function startInstance(file) {
     /usr/bin/chmod +x /tmp/ec2-init.sh
     /tmp/ec2-init.sh ${ file }
     `
+    const base64Script = new Buffer(init_script).toString('base64')
+
     var params = {
         ImageId: "ami-0d4c3eabb9e72650a",
         InstanceType: "t2.micro",
@@ -24,7 +26,7 @@ function startInstance(file) {
             Arn: "arn:aws:iam::338756162532:instance-profile/EC2Convert3DModelw"
         },
         InstanceInitiatedShutdownBehavior: "terminate",
-        UserData: init_script
+        UserData: base64Script
     };
 
     console.log("params: ", params)
