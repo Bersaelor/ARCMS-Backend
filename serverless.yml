@@ -13,6 +13,7 @@ custom:
       prod: "This is production environment"
       dev: "This is development environment"
   users-role: arn:aws:iam::338756162532:role/ARCMSLambda
+  ec2-role: arn:aws:iam::338756162532:role/ARCMSLambda-EC2
   region: ${opt:region, self:provider.region}
 
 provider:
@@ -484,7 +485,7 @@ functions:
     handler: models/gltfConversion.convert
     role: ${self:custom.users-role}
     memorySize: 512
-    description: Convert new files deposited into s3/original
+    description: Convert dae files deposited into s3/original
     package:
       include:
         - models/gltfConversion.js
@@ -496,4 +497,21 @@ functions:
         rules:
           - prefix: original/
           - suffix: .dae
+        existing: true
+
+  convert-to-usdz:
+    handler: models/usdzConversion.convert
+    role: ${self:custom.ec2-role}
+    memorySize: 512
+    description: Convert gltf files deposited into s3/original
+    package:
+      include:
+        - models/usdzConversion.js
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .gltf
         existing: true
