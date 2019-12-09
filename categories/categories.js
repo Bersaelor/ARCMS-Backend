@@ -77,7 +77,8 @@ async function updateCategoryStatus(status, name, brand) {
         ExpressionAttributeNames: {'#s' : 'status'},
         ExpressionAttributeValues: {
             ':value' : status,
-        }
+        },
+        ReturnValues: "ALL_NEW"
     };
 
     return dynamoDb.update(params).promise()
@@ -238,13 +239,15 @@ exports.setStatus = async (event, context, callback) => {
         }
 
         const updateSuccess = await updateCategoryStatus(status, name, brand)
-        console.log("Update Category in db success: ", updateSuccess)
+        console.log("Set status ", status ," of Category ", name ," in db success: ", updateSuccess)
+        const category = convertStoredCategory(updateSuccess.Attributes)
 
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json' ),
             body: JSON.stringify({
-                "message": "Category status update successful"
+                "message": "Category status update successful",
+                "item": category
             })
         };
     
