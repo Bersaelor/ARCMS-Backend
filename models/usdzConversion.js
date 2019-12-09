@@ -29,8 +29,6 @@ function startInstance(file) {
         UserData: base64Script
     };
 
-    console.log("params: ", params)
-
     return new Promise((resolve, reject) => {
         let request = ec2.runInstances(params, (error, data) => {
             if (error) reject(error); 
@@ -48,7 +46,7 @@ exports.convert = async (event, context, callback) => {
 
         try {
             const response = await startInstance(path.basename(key))
-            console.log("Success: ", response)
+            console.log("Success: ", response.Instances, " Instances created")
         } catch(error) {
             console.log("Failed: ", error)
             return callback(error)
