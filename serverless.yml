@@ -515,3 +515,20 @@ functions:
           - prefix: original/
           - suffix: .gltf
         existing: true
+
+  update-after-conversion:
+    handler: models/models.updateAfterFileConversion
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Update the metadata in the DB when a model file has finished converting
+    package:
+      include:
+        - models/models.js
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: arkit/
+          - suffix: .usdz
+        existing: true

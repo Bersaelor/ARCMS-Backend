@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
-const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
+const { getAccessLvl , accessLvlMayCreate } = require('../shared/access_methods')
 
 async function getSignedImageUploadURL(key, type) {
     var params = {
@@ -383,5 +383,20 @@ exports.delete = async (event, context, callback) => {
             body: `Encountered error ${error}`,
         });
         return;
+    }
+}
+
+// Update the metadata in the DB when a model file has finished converting
+exports.updateAfterFileConversion = async (event, context, callback) => {
+    for (const index in event.Records) {
+        const record = event.Records[index]
+        const bucket = record.s3.bucket.name
+        const key = record.s3.object.key
+        const parsedPath = path.parse(key)
+        const fileName = parsedPath.name
+
+        console.log("New USDZ file ", fileName, " has been created in S3")
+
+        callback(null, {msg: "Success"})
     }
 }
