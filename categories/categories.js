@@ -10,10 +10,11 @@ const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
 async function getCategorys(brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, localizedTitles, localizedDetails",
+        ProjectionExpression: "sk, image, #s, localizedTitles, localizedDetails",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id",
+            "#s": "status"
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#category`,
@@ -59,12 +60,27 @@ async function createCategoryInDB(values, brand) {
             "id": `${brand}#category`,
             "sk": values.name,
             "image": sanitize(values.image),
+            "status": values.status ? values.status : "unpublished",
             "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "n.A.",
             "localizedDetails": values.localizedDetails ? JSON.stringify(values.localizedDetails) : "n.A."
         }
     };
 
     return dynamoDb.put(params).promise();
+}
+
+async function updateCategoryStatus(status, name, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#category`, sk: name },
+        UpdateExpression: 'set #s = :value',
+        ExpressionAttributeNames: {'#s' : 'status'},
+        ExpressionAttributeValues: {
+            ':value' : status,
+        }
+    };
+
+    return dynamoDb.update(params).promise()
 }
 
 async function deleteCategoryFromDB(name, brand) {
@@ -162,11 +178,11 @@ exports.createNew = async (event, context, callback) => {
             body.image = path
         }
 
-        const writeDBPromise = createCategoryInDB(body, brand)
+        const updateDBPromise = createCategoryInDB(body, brand)
 
         const imageUploadURL = imageURLPromise ? await imageURLPromise : undefined
-        const writeSuccess = await writeDBPromise
-        console.log("write Category to db success: ", writeSuccess)
+        const updateSuccess = await updateDBPromise
+        console.log("write Category to db success: ", updateSuccess)
 
         const response = {
             statusCode: 200,
@@ -182,6 +198,60 @@ exports.createNew = async (event, context, callback) => {
     } catch(error) {
         console.error('Failed to create category: ', JSON.stringify(error, null, 2));
         callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+};
+
+exports.setStatus = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const name = event.pathParameters.category.toLowerCase()
+    var body = JSON.parse(event.body)
+
+    try {
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
+
+        if (!body.status || (body.status !== "unpublished" && body.status !== "testing" && body.status !== "published")) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": "The new status should be valid" })
+            });
+            return;
+        }
+        const status = body.status
+
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to create or update categories"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const updateSuccess = await updateCategoryStatus(status, name, brand)
+        console.log("Update Category in db success: ", updateSuccess)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                "message": "Category status update successful"
+            })
+        };
+    
+        callback(null, response);
+    } catch(error) {
+        console.error('Failed to update category: ', JSON.stringify(error, null, 2));
+        callback(error, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
             body: `Encountered error ${error}`,
