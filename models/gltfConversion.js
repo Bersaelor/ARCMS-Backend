@@ -74,7 +74,7 @@ exports.convert = async (event, context, callback) => {
 
             await download(bucket, key, downloadPath)
             await convert(downloadPath, uploadPath)
-            const uploadRes = await upload(bucket, `original/${fileName}.gltf`, uploadPath)
+            const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
 
             console.log("Upload result: ", uploadRes)
 

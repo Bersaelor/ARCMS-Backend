@@ -217,7 +217,7 @@ exports.get = async (event, context, callback) => {
         const dbLoadData = await dbLoadPromise
         const model = dbLoadData.Count > 0 ? convertStoredModel(dbLoadData.Items[0]) : undefined
         if (model && model.modelFile) {
-            const modelDownloadURL = await getSignedModelDownloadURL("original/" + model.modelFile)
+            const modelDownloadURL = await getSignedModelDownloadURL(model.modelFile)
             if (modelDownloadURL) model.modelFile = modelDownloadURL    
         }
 
@@ -366,10 +366,11 @@ exports.createNew = async (event, context, callback) => {
         var modelURLPromise
         if (modelUploadRequested) {
             const now = new Date()
-            const modelKey = `${body.name}-${now.getTime()}`
-            const modelFileName = `${modelKey}.${fileExtension(modelUploadRequested)}`
-            body.modelFile = modelFileName
-            modelURLPromise = getSignedModelUploadURL("original/" + modelFileName)
+            const modelAndVersion = `${body.name}-${now.getTime()}`
+            const modelFileName = `${modelAndVersion}.${fileExtension(modelUploadRequested)}`
+            const modelKey = `original/${brand}/${category}/${modelFileName}`
+            body.modelFile = modelKey
+            modelURLPromise = getSignedModelUploadURL(modelKey)
         } else if (body.modelFile && body.modelFile.startsWith("http")) {
             // remove the host and folder as we store only the fileName in the db
             const pathname = (new URL(body.modelFile)).pathname

@@ -45,7 +45,7 @@ exports.convert = async (event, context, callback) => {
         console.log(`${key} was added to models bucket, starting EC2 instance to convert it to usdz`)
 
         try {
-            const response = await startInstance(path.basename(key))
+            const response = await startInstance(key)
             console.log("Success: ", response.Instances, " Instances created")
         } catch(error) {
             console.log("Failed: ", error)
