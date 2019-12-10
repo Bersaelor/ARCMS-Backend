@@ -144,7 +144,7 @@ function makeHeader(content) {
 }
 
 const fileExtension = (filename) => {
-    return filename.'.').pop();
+    return filename.split('.').pop();		
 }
 
 // Cached, public collections endpoint
