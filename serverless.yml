@@ -570,6 +570,7 @@ functions:
     package:
       include:
         - models/models.js
+        - shared/access_methods.js
     events:
       - s3:
         bucket: ar-glasses-models
