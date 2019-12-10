@@ -124,8 +124,7 @@ functions:
                 brand: true
           authorizer:
             name: authorizer
-            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
-
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2vx
 
   delete-category:
     handler: categories/categories.delete
@@ -183,6 +182,30 @@ functions:
       - http:
           path: /{brand}/category/{category}/models/{id}
           method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                category: true
+                id: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  set-model-status:
+    handler: models/models.setStatus
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: set publish/unpublish status on models
+    package:
+      include:
+        - models/models.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/category/{category}/models/{id}/setStatus
+          method: post
           cors: true
           request:
             parameters:

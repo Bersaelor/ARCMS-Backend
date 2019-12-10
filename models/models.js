@@ -72,6 +72,21 @@ async function createModelInDB(values, brand, category) {
     return dynamoDb.put(params).promise();
 }
 
+async function updateModelStatus(status, name, brand, category) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#model`, sk: `${category}#${name}` },
+        UpdateExpression: 'set #s = :value',
+        ExpressionAttributeNames: {'#s' : 'status'},
+        ExpressionAttributeValues: {
+            ':value' : status,
+        },
+        ReturnValues: "ALL_NEW"
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
 async function deleteModelFromDB(name, brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -232,6 +247,64 @@ exports.get = async (event, context, callback) => {
         return;
     }
 };
+
+exports.setStatus = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const category = event.pathParameters.category.toLowerCase()
+    const modelName = event.pathParameters.id.toLowerCase()
+
+    var body = JSON.parse(event.body)
+
+    try {
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
+
+        if (!body.status || (body.status !== "unpublished" && body.status !== "testing" && body.status !== "published")) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": "The new status should be valid" })
+            });
+            return;
+        }
+        const status = body.status
+
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to create or update categories"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const updateSuccess = await updateModelStatus(status, modelName, brand, category)
+        console.log("Set status ", status ," of model ", modelName ," in db success: ", updateSuccess)
+        const model = convertStoredModel(updateSuccess.Attributes)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                "message": "Model status update successful",
+                "item": model
+            })
+        };
+    
+        callback(null, response);
+    } catch(error) {
+        console.error('Failed to update model: ', JSON.stringify(error, null, 2));
+        callback(error, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+}
 
 exports.createNew = async (event, context, callback) => {
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
