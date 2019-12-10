@@ -3,7 +3,6 @@
 'use strict';
 
 const AWS = require('aws-sdk'); 
-const path = require('path');
 const ec2 = new AWS.EC2();
 
 function startInstance(file) {
