@@ -116,10 +116,11 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModels(brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, usdzFile, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
         KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
         ExpressionAttributeNames:{
             "#id": "id",
+            "#s": "status"
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#model`,
