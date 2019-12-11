@@ -88,6 +88,19 @@ async function updateModelStatus(status, name, brand, category) {
     return dynamoDb.update(params).promise()
 }
 
+async function updateModelUSDZFile(fileName, name, brand, category) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#model`, sk: `${category}#${name}` },
+        UpdateExpression: 'set usdzFile = :value',
+        ExpressionAttributeValues: {
+            ':value' : fileName,
+        },
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
 async function deleteModelFromDB(name, brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -103,7 +116,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModels(brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, usdzFile, localizedNames, props",
         KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -120,7 +133,7 @@ async function getModels(brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, usdzFile, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -463,15 +476,44 @@ exports.delete = async (event, context, callback) => {
 
 // Update the metadata in the DB when a model file has finished converting
 exports.updateAfterFileConversion = async (event, context, callback) => {
-    for (const index in event.Records) {
-        const record = event.Records[index]
-        const bucket = record.s3.bucket.name
-        const key = record.s3.object.key
-        const parsedPath = path.parse(key)
-        const fileName = parsedPath.name
+    try {
+        for (const index in event.Records) {
+            const record = event.Records[index]
+            const key = record.s3.object.key
+            const brand = key.split('/')[1]
+            const category = key.split('/')[2]
+            const parsedPath = path.parse(key)
+            const file = parsedPath.base
+            const modelId = parsedPath.name.split('-')[0]
+    
+            console.log(`New USDZ file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
+    
+            const modelData = await getModel(brand, category, modelId)
 
-        console.log("New USDZ file ", fileName, " has been created in S3")
+            if (!modelData || !modelData.Items || modelData.Items.length == 0) {
+                const msg = `Failed to find model with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
 
-        callback(null, {msg: "Success"})
+            const model = modelData.Items[0]
+            const originalModelFilename = path.parse(model.modelFile).name
+
+            console.log("originalModelFilename: ", originalModelFilename)
+            if (originalModelFilename !== parsedPath.name) {
+                const msg = `Saved originalModelFilename: ${originalModelFilename} is different then ${file}, not saving`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const updateSuccess = await updateModelUSDZFile(key, modelId, brand, category)
+            console.log("Updating usdzFile to ", key, " in db success: ", updateSuccess)    
+
+            callback(null, {msg: "Success"})
+        }
+    } catch (error) {
+        callback(error, {msg: `Failed to save data because of ${error.toString()}`})
     }
 }
