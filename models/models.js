@@ -295,6 +295,16 @@ exports.setStatus = async (event, context, callback) => {
             return;
         }
 
+        if (!brand || !category || !modelName || modelName === "undefined") {
+            const msg = "To update the status brand, category and modelName need to be in the path"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
         const updateSuccess = await updateModelStatus(status, modelName, brand, category)
         console.log("Set status ", status ," of model ", modelName ," in db success: ", updateSuccess)
         const model = convertStoredModel(updateSuccess.Attributes)
