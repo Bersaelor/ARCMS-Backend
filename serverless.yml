@@ -536,6 +536,7 @@ functions:
       include:
         - models/gltfConversion.js
         - models/COLLADA2GLTF-bin
+        - node_modules/xml2js
     events:
       - s3:
         bucket: ar-glasses-models

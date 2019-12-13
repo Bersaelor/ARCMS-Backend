@@ -4,8 +4,11 @@
 
 const AWS = require('aws-sdk'); 
 const path = require('path');
+const util = require('util');
 const s3 = new AWS.S3();
 const fs = require("fs");
+const xml2js = require('xml2js');
+const readline = require('readline');
 const { spawn } = require('child_process');
 
 function download(bucket, key, downloadPath) {
@@ -18,6 +21,38 @@ function download(bucket, key, downloadPath) {
         fileStream.on('close', () => { resolve(downloadPath); });
         s3Stream.pipe(fileStream);
     });
+}
+
+async function loadXML(path) {
+    return new Promise((resolve, reject) => {
+        const parser = new xml2js.Parser(); // {explicitArray : false}
+        fs.readFile(path, function(err, data) {
+            if (err) { reject(err); return }
+            parser.parseString(data, function (err, result) {
+                if (err) { reject(err); return }
+                resolve(result)
+            });
+        });
+    });
+}
+
+async function saveXML(obj, path) {
+    return new Promise((resolve, reject) => {
+        const builder = new xml2js.Builder();
+        const xml = builder.buildObject(obj);
+        fs.writeFile(path, xml, function(err) {
+            if (err) { reject(err); return }
+            else resolve()
+        });
+    });
+}
+
+async function fixEmptyNodes(daePath, output) {
+    let xmlObj = await loadXML(daePath)
+    console.log('Done parsing xml');
+    console.log(util.inspect(xmlObj.COLLADA, false, null))
+    await saveXML(xmlObj, output)
+    console.log('Done saving xml to', output);
 }
 
 function convert(downloadPath, uploadPath) {
@@ -93,7 +128,9 @@ exports.convert = async (event, context, callback) => {
         const parsedPath = path.parse(event.file)
         const fileName = parsedPath.name
         const uploadPath = `models/tests/${fileName}.gltf`
-        await convert(event.file, uploadPath)
+        const fixedDaePath = `models/tests/${fileName}_fixed.dae`
+        await fixEmptyNodes(event.file, fixedDaePath)
+        await convert(fixedDaePath, uploadPath)
         console.log("Conversion of ", event.file, " finished")
     }
 }
