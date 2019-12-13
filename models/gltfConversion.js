@@ -48,16 +48,32 @@ async function saveXML(obj, path) {
     });
 }
 
-function traverseNodes(object) {
-    if (object.$.id === "BRIDGE_TO_LEFT" && object.instance_geometry) {
-        console.log("Found instance_geometry in BRIDGE_TO_LEFT:\n ", JSON.stringify(object.instance_geometry))
+function fixHelperNodesByAddingGeometry(object) {
+    const helperNodeNames = [
+        "BRIDGE_TO_LEFT",
+        "BRIDGE_TO_RIGHT",
+        "LEFT_TO_TEMPLE",
+        "RIGHT_TO_TEMPLE",
+        "LEFT_TO_PAD",
+        "RIGHT_TO_PAD"
+    ]
+
+    if (object.$ && object.$.id && helperNodeNames.includes(object.$.id)) {
+        if (object.instance_geometry) {
+            console.log(`${object.$.id} already has an instance_geometry, no need to add`)
+        } else {
+            console.log(`Adding instance_geometry to ${object.$.id}`)
+            object.instance_geometry = instanceGeometry
+        }
     }
+}
+
+function traverseNodes(object, transformNode) {
+    transformNode(object)
 
     if (!object.node || !object.node.length || object.node.length === 0) return
-    console.log("Checking children nodes of ", object.$.name)
     object.node.forEach(child => {
-        console.log("Child: ", child)
-        traverseNodes(child)
+        traverseNodes(child, transformNode)
     });
 }
 
@@ -73,16 +89,12 @@ async function fixEmptyNodes(daePath, output) {
         if (hasTetraGeometry) {
             console.log(`Collada file ${daePath} already contains a tetra-mesh, no need to add`)
         } else {
-            xmlObj.COLLADA.library_geometries[0].geometry.forEach(element => {
-                console.log("Geometry:\n ", JSON.stringify(element))
-            });        
+            xmlObj.COLLADA.library_geometries[0].geometry.push(tetraGeometry)
         }
 
         // add the tetra instance geometry to all empty nodes
         const visualScene = xmlObj.COLLADA.library_visual_scenes[0].visual_scene[0]
-        console.log("visualScene ", visualScene)
-        traverseNodes(visualScene)
-
+        traverseNodes(visualScene, fixHelperNodesByAddingGeometry)
     } catch (error) {
         console.error("Failed to make sense of the parsed COLLADA-XML, problem was: ", error)
     }
