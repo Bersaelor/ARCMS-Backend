@@ -537,7 +537,7 @@ functions:
         - models/gltfConversion.js
         - models/tetraHedron.js
         - models/COLLADA2GLTF-bin
-        - node_modules/xml2js
+        - node_modules/xml2js/**
     events:
       - s3:
         bucket: ar-glasses-models
