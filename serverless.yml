@@ -530,7 +530,8 @@ functions:
   convert-to-gltf:
     handler: models/gltfConversion.convert
     role: ${self:custom.users-role}
-    memorySize: 512
+    memorySize: 1024
+    timeout: 30
     description: Convert dae files deposited into s3/original
     package:
       include:
