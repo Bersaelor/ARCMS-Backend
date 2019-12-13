@@ -22,7 +22,10 @@ function download(bucket, key, downloadPath) {
 
 function convert(downloadPath, uploadPath) {
     return new Promise((resolve, reject) => {
-        const bash = spawn('COLLADA2GLTF-bin', [downloadPath, uploadPath])
+        const isMacOS = process.platform === "darwin";
+        const exeName = isMacOS ? 'models/COLLADA2GLTF-macos' : 'COLLADA2GLTF-bin'
+        console.log(`Spawning ${exeName} with arguments ${[downloadPath, uploadPath]}`)
+        const bash = spawn(exeName, [downloadPath, uploadPath])
         bash.stdout.on('data', data => {
             console.log(`stdout: ${data}`);
         });
@@ -57,31 +60,40 @@ function upload(bucket, key, uploadPath) {
 }
 
 exports.convert = async (event, context, callback) => {
-    for (const index in event.Records) {
-        const record = event.Records[index]
-        const bucket = record.s3.bucket.name
-        const key = record.s3.object.key
-        const parsedPath = path.parse(key)
-        const fileName = parsedPath.name
-        const extension = parsedPath.ext
-        const downloadPath = `/tmp/${fileName}${extension}`
-        const uploadPath = `/tmp/${fileName}.gltf`
-
-        try {
-            console.log(`downloadPath: ${downloadPath}, uploadPath: ${uploadPath}`)
-
-            process.env.PATH = `${process.env.PATH}:${process.env.LAMBDA_TASK_ROOT}/models`;
-
-            await download(bucket, key, downloadPath)
-            await convert(downloadPath, uploadPath)
-            const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
-
-            console.log("Upload result: ", uploadRes)
-
-            callback(null, {msg: "Success"})
-        } catch(error) {
-            console.error(error.code, "-", error.message)
-            return callback(error)
+    if (event.Records) {
+        for (const index in event.Records) {
+            const record = event.Records[index]
+            const bucket = record.s3.bucket.name
+            const key = record.s3.object.key
+            const parsedPath = path.parse(key)
+            const fileName = parsedPath.name
+            const extension = parsedPath.ext
+            const downloadPath = `/tmp/${fileName}${extension}`
+            const uploadPath = `/tmp/${fileName}.gltf`
+    
+            try {
+                console.log(`downloadPath: ${downloadPath}, uploadPath: ${uploadPath}`)
+    
+                process.env.PATH = `${process.env.PATH}:${process.env.LAMBDA_TASK_ROOT}/models`;
+    
+                await download(bucket, key, downloadPath)
+                await convert(downloadPath, uploadPath)
+                const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
+    
+                console.log("Upload result: ", uploadRes)
+    
+                callback(null, {msg: "Success"})
+            } catch(error) {
+                console.error(error.code, "-", error.message)
+                return callback(error)
+            }
         }
+    } else if (event.convertUSDZ && event.file) {
+        // test the file conversion locally
+        const parsedPath = path.parse(event.file)
+        const fileName = parsedPath.name
+        const uploadPath = `models/tests/${fileName}.gltf`
+        await convert(event.file, uploadPath)
+        console.log("Conversion of ", event.file, " finished")
     }
 }
