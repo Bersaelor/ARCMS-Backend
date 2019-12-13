@@ -152,6 +152,7 @@ exports.convert = async (event, context, callback) => {
             const fileName = parsedPath.name
             const extension = parsedPath.ext
             const downloadPath = `/tmp/${fileName}${extension}`
+            const fixedDaePath = `/tmp/${fileName}_fixed.dae`
             const uploadPath = `/tmp/${fileName}.gltf`
     
             try {
@@ -160,7 +161,8 @@ exports.convert = async (event, context, callback) => {
                 process.env.PATH = `${process.env.PATH}:${process.env.LAMBDA_TASK_ROOT}/models`;
     
                 await download(bucket, key, downloadPath)
-                await convert(downloadPath, uploadPath)
+                await fixEmptyNodes(downloadPath, fixedDaePath)
+                await convert(fixedDaePath, uploadPath)
                 const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
     
                 console.log("Upload result: ", uploadRes)

@@ -538,6 +538,25 @@ functions:
         - models/tetraHedron.js
         - models/COLLADA2GLTF-bin
         - node_modules/xml2js/**
+        - '!node_modules/xml2js/README.md'
+        - node_modules/xmlbuilder/**
+        - node_modules/sax/**
+        - node_modules/es-abstract/**
+        - node_modules/es-to-primitive/**
+        - node_modules/function-bind/**
+        - node_modules/has-symbols/**
+        - node_modules/has/**
+        - node_modules/is-callable/**
+        - node_modules/is-regex/**
+        - node_modules/util.promisify/**
+        - node_modules/define-properties/**
+        - node_modules/object-inspect/**
+        - node_modules/object-keys/**
+        - node_modules/object.assign/**
+        - node_modules/object.getownpropertydescriptors/**
+        - node_modules/string.prototype.trimleft/**
+        - node_modules/string.prototype.trimright/**
+
     events:
       - s3:
         bucket: ar-glasses-models
