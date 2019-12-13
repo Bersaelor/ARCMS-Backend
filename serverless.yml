@@ -535,6 +535,7 @@ functions:
     package:
       include:
         - models/gltfConversion.js
+        - models/tetraHedron.js
         - models/COLLADA2GLTF-bin
         - node_modules/xml2js
     events:

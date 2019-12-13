@@ -10,6 +10,7 @@ const fs = require("fs");
 const xml2js = require('xml2js');
 const readline = require('readline');
 const { spawn } = require('child_process');
+const { tetraGeometry , instanceGeometry } = require('./tetraHedron')
 
 function download(bucket, key, downloadPath) {
     return new Promise((resolve, reject) => {
@@ -47,12 +48,47 @@ async function saveXML(obj, path) {
     });
 }
 
+function traverseNodes(object) {
+    if (object.$.id === "BRIDGE_TO_LEFT" && object.instance_geometry) {
+        console.log("Found instance_geometry in BRIDGE_TO_LEFT:\n ", JSON.stringify(object.instance_geometry))
+    }
+
+    if (!object.node || !object.node.length || object.node.length === 0) return
+    console.log("Checking children nodes of ", object.$.name)
+    object.node.forEach(child => {
+        console.log("Child: ", child)
+        traverseNodes(child)
+    });
+}
+
 async function fixEmptyNodes(daePath, output) {
-    let xmlObj = await loadXML(daePath)
-    console.log('Done parsing xml');
-    console.log(util.inspect(xmlObj.COLLADA, false, null))
+    var xmlObj = await loadXML(daePath)
+    console.log('Done parsing xml from ', daePath);
+
+    try {
+        // add the tetra-mesh to the geometries
+        const hasTetraGeometry = xmlObj.COLLADA.library_geometries[0].geometry.find(element => {
+            return element.$.id === "tetra-mesh"
+        })
+        if (hasTetraGeometry) {
+            console.log(`Collada file ${daePath} already contains a tetra-mesh, no need to add`)
+        } else {
+            xmlObj.COLLADA.library_geometries[0].geometry.forEach(element => {
+                console.log("Geometry:\n ", JSON.stringify(element))
+            });        
+        }
+
+        // add the tetra instance geometry to all empty nodes
+        const visualScene = xmlObj.COLLADA.library_visual_scenes[0].visual_scene[0]
+        console.log("visualScene ", visualScene)
+        traverseNodes(visualScene)
+
+    } catch (error) {
+        console.error("Failed to make sense of the parsed COLLADA-XML, problem was: ", error)
+    }
+
     await saveXML(xmlObj, output)
-    console.log('Done saving xml to', output);
+    console.log('Done saving xml to ', output);
 }
 
 function convert(downloadPath, uploadPath) {
