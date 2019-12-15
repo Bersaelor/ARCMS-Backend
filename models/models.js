@@ -5,7 +5,8 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
-const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
+const { getAccessLvl , accessLvlMayCreate } = require('../shared/access_methods')
+const path = require('path');
 
 async function getSignedImageUploadURL(key, type) {
     var params = {
@@ -29,11 +30,25 @@ async function getSignedModelUploadURL(key) {
         Bucket: process.env.MODEL_BUCKET,
         Key: key,
         Expires: 600,
-        ACL: 'public-read',
     }
 
     return new Promise(function (resolve, reject) {
         s3.getSignedUrl('putObject', params, function (err, url) { 
+            if (err) reject(err)
+            else resolve(url); 
+        });
+    });
+}
+
+async function getSignedModelDownloadURL(key) {
+    var params = {
+        Bucket: process.env.MODEL_BUCKET,
+        Key: key,
+        Expires: 600,
+    }
+
+    return new Promise(function (resolve, reject) {
+        s3.getSignedUrl('getObject', params, function (err, url) { 
             if (err) reject(err)
             else resolve(url); 
         });
@@ -50,12 +65,40 @@ async function createModelInDB(values, brand, category) {
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
             "modelFile": values.modelFile ? values.modelFile : "",
-            "localizedTitles": values.localizedTitles ? JSON.stringify(values.localizedTitles) : "{}",
+            "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
             "props": values.props ? JSON.stringify(values.props) : "{}"
         }
     };
 
     return dynamoDb.put(params).promise();
+}
+
+async function updateModelStatus(status, name, brand, category) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#model`, sk: `${category}#${name}` },
+        UpdateExpression: 'set #s = :value',
+        ExpressionAttributeNames: {'#s' : 'status'},
+        ExpressionAttributeValues: {
+            ':value' : status,
+        },
+        ReturnValues: "ALL_NEW"
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
+async function updateModelUSDZFile(fileName, name, brand, category) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#model`, sk: `${category}#${name}` },
+        UpdateExpression: 'set usdzFile = :value',
+        ExpressionAttributeValues: {
+            ':value' : fileName,
+        },
+    };
+
+    return dynamoDb.update(params).promise()
 }
 
 async function deleteModelFromDB(name, brand, category) {
@@ -73,10 +116,11 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModels(brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, localizedTitles, props",
+        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
         KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
         ExpressionAttributeNames:{
             "#id": "id",
+            "#s": "status"
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#model`,
@@ -90,7 +134,7 @@ async function getModels(brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, localizedTitles, props",
+        ProjectionExpression: "sk, image, modelFile, usdzFile, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -111,13 +155,12 @@ function convertStoredModel(storedModel) {
     model.name = storedModel.sk.split('#')[1]
     delete model.sk
     try {
-        model.localizedTitles = storedModel.localizedTitles ? JSON.parse(storedModel.localizedTitles) : undefined
+        model.localizedNames = storedModel.localizedNames ? JSON.parse(storedModel.localizedNames) : undefined
         model.props = storedModel.props ? JSON.parse(storedModel.props) : undefined    
     } catch (error) {
         console.log("Failed to convert json because: ", error)
     }
     model.image = "https://images.looc.io/" + storedModel.image
-    model.modelFile = "https://models.looc.io/original/" + storedModel.modelFile
     return model
 }
 
@@ -131,7 +174,7 @@ function makeHeader(content) {
 }
 
 const fileExtension = (filename) => {
-    return filename.split('.').pop();
+    return filename.split('.').pop();		
 }
 
 // Cached, public collections endpoint
@@ -187,8 +230,11 @@ exports.get = async (event, context, callback) => {
         }
 
         const dbLoadData = await dbLoadPromise
-        console.log("dbLoadPromise: ", dbLoadPromise)
         const model = dbLoadData.Count > 0 ? convertStoredModel(dbLoadData.Items[0]) : undefined
+        if (model && model.modelFile) {
+            const modelDownloadURL = await getSignedModelDownloadURL(model.modelFile)
+            if (modelDownloadURL) model.modelFile = modelDownloadURL    
+        }
 
         var response
         if (model) {
@@ -217,6 +263,74 @@ exports.get = async (event, context, callback) => {
     }
 };
 
+exports.setStatus = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const category = event.pathParameters.category.toLowerCase()
+    const modelName = event.pathParameters.id.toLowerCase()
+
+    var body = JSON.parse(event.body)
+
+    try {
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
+
+        if (!body.status || (body.status !== "unpublished" && body.status !== "testing" && body.status !== "published")) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": "The new status should be valid" })
+            });
+            return;
+        }
+        const status = body.status
+
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to create or update categories"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        if (!brand || !category || !modelName || modelName === "undefined") {
+            const msg = "To update the status brand, category and modelName need to be in the path"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const updateSuccess = await updateModelStatus(status, modelName, brand, category)
+        console.log("Set status ", status ," of model ", modelName ," in db success: ", updateSuccess)
+        const model = convertStoredModel(updateSuccess.Attributes)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                "message": "Model status update successful",
+                "item": model
+            })
+        };
+    
+        callback(null, response);
+    } catch(error) {
+        console.error('Failed to update model: ', JSON.stringify(error, null, 2));
+        callback(error, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+}
+
 exports.createNew = async (event, context, callback) => {
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
@@ -229,8 +343,9 @@ exports.createNew = async (event, context, callback) => {
     delete body.imageType
     delete body.imageName
 
-    const modelUploadRequested = body.modelFile
-    delete body.modelFile
+
+    const modelUploadRequested = body.modelFile && !body.modelFile.startsWith("http") ? body.modelFile : false
+    if (modelUploadRequested) delete body.modelFile
 
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
@@ -276,13 +391,15 @@ exports.createNew = async (event, context, callback) => {
         var modelURLPromise
         if (modelUploadRequested) {
             const now = new Date()
-            const modelKey = `${body.name}-${now.getTime()}`
-            const modelFileName = `${modelKey}.${fileExtension(modelUploadRequested)}`
-            body.modelFile = modelFileName
-            modelURLPromise = getSignedModelUploadURL("original/" + modelFileName)
-        } else if (body.modelFileName && body.modelFileName.startsWith("http")) {
+            const modelAndVersion = `${body.name}-${now.getTime()}`
+            const modelFileName = `${modelAndVersion}.${fileExtension(modelUploadRequested)}`
+            const modelKey = `original/${brand}/${category}/${modelFileName}`
+            body.modelFile = modelKey
+            modelURLPromise = getSignedModelUploadURL(modelKey)
+        } else if (body.modelFile && body.modelFile.startsWith("http")) {
             // remove the host and folder as we store only the fileName in the db
-            var fileName = body.modelFile.substring(body.modelFile.lastIndexOf('/')+1);
+            const pathname = (new URL(body.modelFile)).pathname
+            var fileName = pathname.substring(pathname.lastIndexOf('/')+1);
             body.modelFile = fileName
         }
 
@@ -365,5 +482,49 @@ exports.delete = async (event, context, callback) => {
             body: `Encountered error ${error}`,
         });
         return;
+    }
+}
+
+// Update the metadata in the DB when a model file has finished converting
+exports.updateAfterFileConversion = async (event, context, callback) => {
+    try {
+        for (const index in event.Records) {
+            const record = event.Records[index]
+            const key = record.s3.object.key
+            const brand = key.split('/')[1]
+            const category = key.split('/')[2]
+            const parsedPath = path.parse(key)
+            const file = parsedPath.base
+            const modelId = parsedPath.name.split('-')[0]
+    
+            console.log(`New USDZ file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
+    
+            const modelData = await getModel(brand, category, modelId)
+
+            if (!modelData || !modelData.Items || modelData.Items.length == 0) {
+                const msg = `Failed to find model with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const model = modelData.Items[0]
+            const originalModelFilename = path.parse(model.modelFile).name
+
+            console.log("originalModelFilename: ", originalModelFilename)
+            if (originalModelFilename !== parsedPath.name) {
+                const msg = `Saved originalModelFilename: ${originalModelFilename} is different then ${file}, not saving`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const updateSuccess = await updateModelUSDZFile(key, modelId, brand, category)
+            console.log("Updating usdzFile to ", key, " in db success: ", updateSuccess)    
+
+            callback(null, {msg: "Success"})
+        }
+    } catch (error) {
+        callback(error, {msg: `Failed to save data because of ${error.toString()}`})
     }
 }

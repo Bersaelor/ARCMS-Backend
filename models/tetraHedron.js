@@ -1,0 +1,7 @@
+/*jslint node: true */
+
+'use strict';
+
+exports.tetraGeometry = {"$":{"id":"tetra-mesh","name":"tetra"},"mesh":[{"source":[{"$":{"id":"tetra-mesh-positions"},"float_array":[{"_":"-1.99002e-7 -2.64761e-7 0 1.79846e-7 0 2.3423e-7 -1.99002e-7 2.64761e-7 0 2.18158e-7 0 -2.60784e-7","$":{"id":"tetra-mesh-positions-array","count":"12"}}],"technique_common":[{"accessor":[{"$":{"source":"#tetra-mesh-positions-array","count":"4","stride":"3"},"param":[{"$":{"name":"X","type":"float"}},{"$":{"name":"Y","type":"float"}},{"$":{"name":"Z","type":"float"}}]}]}]},{"$":{"id":"tetra-mesh-normals"},"float_array":[{"_":"-0.5037989 0 0.863821 0.5553424 0.8305104 0.04298061 0.5553423 -0.8305105 0.04298061 -0.549077 0 -0.8357717","$":{"id":"tetra-mesh-normals-array","count":"12"}}],"technique_common":[{"accessor":[{"$":{"source":"#tetra-mesh-normals-array","count":"4","stride":"3"},"param":[{"$":{"name":"X","type":"float"}},{"$":{"name":"Y","type":"float"}},{"$":{"name":"Z","type":"float"}}]}]}]}],"vertices":[{"$":{"id":"tetra-mesh-vertices"},"input":[{"$":{"semantic":"POSITION","source":"#tetra-mesh-positions"}}]}],"triangles":[{"$":{"count":"4"},"input":[{"$":{"semantic":"VERTEX","source":"#tetra-mesh-vertices","offset":"0"}},{"$":{"semantic":"NORMAL","source":"#tetra-mesh-normals","offset":"1"}}],"p":["0 0 1 0 2 0 2 1 1 1 3 1 3 2 1 2 0 2 2 3 3 3 0 3"]}]}]}
+
+exports.instanceGeometry = [{"$":{"url":"#tetra-mesh","name":"tetra"}}]

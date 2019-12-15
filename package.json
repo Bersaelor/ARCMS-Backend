@@ -8,13 +8,15 @@
   "private": true,
   "dependencies": {
     "aws-sdk": "2.488.0",
-    "mustache": "3.0.1"
+    "mustache": "3.0.1",
+    "xml2js": "^0.4.22"
   },
   "devDependencies": {
     "run-local-lambda": "^1.1.1"
   },
   "scripts": {
     "test-my-brands": "sls invoke local -f my-brands -p user/tests/event.json",
-    "test-new-order-email": "sls invoke local -f send-new-order-mails -p email-notifications/tests/event.json" 
+    "test-new-order-email": "sls invoke local -f send-new-order-mails -p email-notifications/tests/event.json",
+    "test-gltf": "sls invoke local -f convert-to-gltf -p models/tests/conversionTest.json"
   }
 }
