@@ -25,6 +25,23 @@ async function getCategorys(brand) {
     return dynamoDb.query(params).promise()
 }
 
+async function getAllModels(brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#s": "status"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#model`,
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
 async function getSignedImageUploadURL(key, type) {
     var params = {
         Bucket: process.env.IMAGE_BUCKET,
@@ -135,20 +152,29 @@ exports.appData = async (event, context, callback) => {
     const testing = event.queryStringParameters && event.queryStringParameters.testing;
     const showTestingContent = testing && testing === "true"
 
-    const data = await getCategorys(brand)
+    const catPromise = getCategorys(brand)
+    const modelPromise = getAllModels(brand)
 
-    const categories = data.Items.filter(cat => {
+    const catData = await catPromise
+    const categories = catData.Items.filter(cat => {
         return cat.status === "published" || (showTestingContent && cat.status === "testing")
     }).map((cat) => {
         return convertStoredCategory(cat)
     })
 
-    console.log("Returning ", categories.length, " categories from DynDB for brand ", brand, " showTestingContent: ", showTestingContent)
+    const modelData = await modelPromise
+    const models = modelData.Items.filter(model => {
+        return model.status === "published" || (showTestingContent && model.status === "testing")
+    }).map((cat) => {
+        return convertStoredModel(cat)
+    })
+
+    console.log(`Returning ${categories.length} categories and ${models.length} models from DynDB for brand ${brand} showTestingContent: ${showTestingContent}`)
 
     callback(null, {
         statusCode: 200,
         headers: makeHeader('application/json', 60*60*24),
-        body: JSON.stringify(categories)
+        body: JSON.stringify({categories: categories, models: models})
     });
 };
 
