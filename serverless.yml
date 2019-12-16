@@ -63,6 +63,25 @@ resources:
 
 
 functions:
+  appData:
+    handler: categories/categories.appData
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Cached, public endpoint with categories and models
+    package:
+      include:
+        - categories/categories.js
+        - shared/access_methods.js
+    events:
+      - http:
+          path: /{brand}/app-data
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+
   categories:
     handler: categories/categories.all
     role: ${self:custom.users-role}
@@ -81,6 +100,9 @@ functions:
             parameters:
               paths:
                 brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
   create-category:
     handler: categories/categories.createNew

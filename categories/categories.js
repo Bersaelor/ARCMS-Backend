@@ -96,11 +96,11 @@ async function deleteCategoryFromDB(name, brand) {
     return dynamoDb.delete(params).promise()
 }
 
-function makeHeader(content) {
+function makeHeader(content, maxAge = 60) {
     return { 
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
-        'Cache-Control': 'max-age=10,must-revalidate',
+        'Cache-Control': `max-age=${maxAge},must-revalidate`,
         'Content-Type': content
     };
 }
@@ -119,11 +119,30 @@ exports.all = async (event, context, callback) => {
         return convertStoredCategory(cat)
     })
 
-    console.log("Returning ", categories.length, " categories from DynDB")
+    console.log("Returning ", categories.length, " categories from DynDB for brand ", brand)
 
     callback(null, {
         statusCode: 200,
-        headers: makeHeader('text/plain'),
+        headers: makeHeader('application/json', 0),
+        body: JSON.stringify(categories)
+    });
+};
+
+// Cached, public endpoint with categories and models
+exports.appData = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+
+    const data = await getCategorys(brand)
+
+    const categories = data.Items.map((cat) => {
+        return convertStoredCategory(cat)
+    })
+
+    console.log("Returning ", categories.length, " categories from DynDB for brand ", brand)
+
+    callback(null, {
+        statusCode: 200,
+        headers: makeHeader('text/plain', 60*60*24),
         body: JSON.stringify(categories)
     });
 };
