@@ -6,6 +6,7 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
+const { convertStoredModel } = require('../shared/convert_models')
 
 async function getCategorys(brand) {
     var params = {
@@ -131,18 +132,22 @@ exports.all = async (event, context, callback) => {
 // Cached, public endpoint with categories and models
 exports.appData = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
+    const testing = event.queryStringParameters && event.queryStringParameters.testing;
+    const showTestingContent = testing && testing === "true"
 
     const data = await getCategorys(brand)
 
-    const categories = data.Items.map((cat) => {
+    const categories = data.Items.filter(cat => {
+        return cat.status === "published" || (showTestingContent && cat.status === "testing")
+    }).map((cat) => {
         return convertStoredCategory(cat)
     })
 
-    console.log("Returning ", categories.length, " categories from DynDB for brand ", brand)
+    console.log("Returning ", categories.length, " categories from DynDB for brand ", brand, " showTestingContent: ", showTestingContent)
 
     callback(null, {
         statusCode: 200,
-        headers: makeHeader('text/plain', 60*60*24),
+        headers: makeHeader('application/json', 60*60*24),
         body: JSON.stringify(categories)
     });
 };
@@ -163,7 +168,7 @@ exports.createNew = async (event, context, callback) => {
         if (!body.name) {
             callback(null, {
                 statusCode: 403,
-                headers: makeHeader('application/json' ),
+                headers: makeHeader('application/json'),
                 body: JSON.stringify({ "message": "The new category needs to have a valid name" })
             });
             return;

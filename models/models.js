@@ -6,6 +6,7 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const { getAccessLvl , accessLvlMayCreate } = require('../shared/access_methods')
+const { convertStoredModel } = require('../shared/convert_models')
 const path = require('path');
 
 async function getSignedImageUploadURL(key, type) {
@@ -147,21 +148,6 @@ async function getModel(brand, category, id) {
     };
 
     return dynamoDb.query(params).promise()
-}
-
-function convertStoredModel(storedModel) {
-    var model = storedModel
-    model.category = storedModel.sk.split('#')[0]
-    model.name = storedModel.sk.split('#')[1]
-    delete model.sk
-    try {
-        model.localizedNames = storedModel.localizedNames ? JSON.parse(storedModel.localizedNames) : undefined
-        model.props = storedModel.props ? JSON.parse(storedModel.props) : undefined    
-    } catch (error) {
-        console.log("Failed to convert json because: ", error)
-    }
-    model.image = "https://images.looc.io/" + storedModel.image
-    return model
 }
 
 function makeHeader(content) {

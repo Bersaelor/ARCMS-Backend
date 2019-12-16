@@ -71,7 +71,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/app-data
@@ -90,7 +90,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/categories
@@ -112,7 +112,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/categories
@@ -134,7 +134,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/setStatus
@@ -156,7 +156,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/categories/{id}
@@ -179,7 +179,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models
@@ -199,7 +199,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models/{id}
@@ -223,7 +223,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models/{id}/setStatus
@@ -247,7 +247,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models
@@ -270,7 +270,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models/{id}
@@ -614,7 +614,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - s3:
         bucket: ar-glasses-models
