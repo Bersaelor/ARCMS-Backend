@@ -82,6 +82,28 @@ functions:
               paths:
                 brand: true
 
+  refresh-app-data:
+    handler: categories/categories.refreshAppData
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Refresh the cached appdata of categories and models manually before it's expired
+    package:
+      include:
+        - categories/categories.js
+        - shared/**
+    events:
+      - http:
+          path: /{brand}/refresh-app-data
+          method: post
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
   categories:
     handler: categories/categories.all
     role: ${self:custom.users-role}

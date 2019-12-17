@@ -5,6 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
+const cloudfront = new AWS.CloudFront;
 const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
 const { convertStoredModel } = require('../shared/convert_models')
 
@@ -114,6 +115,28 @@ async function deleteCategoryFromDB(name, brand) {
     return dynamoDb.delete(params).promise()
 }
 
+async function invalidateAppDataCache(brand) {
+    return new Promise((resolve, reject) => {
+        const now = new Date()
+        const params = { 
+            DistributionId: "E2B3LFAX7VM8JV",
+            InvalidationBatch: {
+                CallerReference: `${now.getTime()}`,
+                Paths: {
+                  Quantity: '1',
+                  Items: [
+                    `/${brand}/app-data`,
+                  ]
+                }
+            }
+        }
+        cloudfront.createInvalidation(params, (err, data) => {
+            if (err) reject(err)
+            else resolve(data)
+        })
+    });
+}
+
 function makeHeader(content, maxAge = 60) {
     return { 
         'Access-Control-Allow-Origin': '*',
@@ -173,9 +196,51 @@ exports.appData = async (event, context, callback) => {
 
     callback(null, {
         statusCode: 200,
-        headers: makeHeader('application/json', 60*60*24),
+        headers: makeHeader('application/json', 60*60*24*7),
         body: JSON.stringify({categories: categories, models: models})
     });
+};
+
+// Refresh the cached appdata of categories and models manually before it's expired
+exports.refreshAppData = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+
+    try {
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await getAccessLvl(cognitoUserName, brand);
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to create or update categories"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const invalidationData = await invalidateAppDataCache(brand)
+
+        console.log("Invalidation of ", brand, " result is: ", invalidationData)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                "message": "AppData Cache refreshing successful" 
+            })
+        };
+
+        callback(null, response);
+    } catch(error) {
+        console.error('Failed to create category: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 };
 
 exports.createNew = async (event, context, callback) => {
