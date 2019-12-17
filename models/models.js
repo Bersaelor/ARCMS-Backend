@@ -135,11 +135,12 @@ async function getModels(brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, usdzFile, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
             "#sk": "sk",
+            "#s": "status"
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#model`,
