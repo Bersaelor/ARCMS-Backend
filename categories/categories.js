@@ -196,7 +196,7 @@ exports.appData = async (event, context, callback) => {
 
     callback(null, {
         statusCode: 200,
-        headers: makeHeader('application/json', 60*60*24*7),
+        headers: makeHeader('application/json', testing ? 0 : 60*60*24*7),
         body: JSON.stringify({categories: categories, models: models})
     });
 };
