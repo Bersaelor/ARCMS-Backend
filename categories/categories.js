@@ -185,19 +185,23 @@ exports.appData = async (event, context, callback) => {
         return convertStoredCategory(cat)
     })
 
+    const categoryNames = categories.map(cat => cat.name)
+
     const modelData = await modelPromise
     const models = modelData.Items.filter(model => {
         return model.status === "published" || (showTestingContent && model.status === "testing")
-    }).map((cat) => {
-        return convertStoredModel(cat)
+    }).map(model => {
+        return convertStoredModel(model)
+    }).filter(model => {
+        return categoryNames.includes(model.category)
     })
 
     console.log(`Returning ${categories.length} categories and ${models.length} models from DynDB for brand ${brand} showTestingContent: ${showTestingContent}`)
 
     callback(null, {
         statusCode: 200,
-        headers: makeHeader('application/json', testing ? 0 : 60*60*24*7),
-        body: JSON.stringify({categories: categories, models: models})
+        headers: makeHeader('application/json', testing ? 0 : 60 * 60 * 24 * 7),
+        body: JSON.stringify({ categories: categories, models: models })
     });
 };
 
