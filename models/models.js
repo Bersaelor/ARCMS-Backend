@@ -67,9 +67,11 @@ async function createModelInDB(values, brand, category) {
             "image": sanitize(values.image),
             "modelFile": values.modelFile ? values.modelFile : "",
             "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
-            "props": values.props ? JSON.stringify(values.props) : "{}"
+            "props": values.props ? JSON.stringify(values.props) : "{}",
         }
     };
+    if (values.status) { params.Item.status = values.status }
+    if (values.usdzFile) { params.Item.usdzFile = values.usdzFile }
 
     return dynamoDb.put(params).promise();
 }
@@ -347,6 +349,8 @@ exports.createNew = async (event, context, callback) => {
         }
         body.name = body.name.toLowerCase()
 
+        const existingModelPromise = getModel(brand, category, body.name)
+
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise;
         if (!accessLvlMayCreate(accessLvl)) {
@@ -383,11 +387,17 @@ exports.createNew = async (event, context, callback) => {
             const modelKey = `original/${brand}/${category}/${modelFileName}`
             body.modelFile = modelKey
             modelURLPromise = getSignedModelUploadURL(modelKey)
-        } else if (body.modelFile && body.modelFile.startsWith("http")) {
-            // remove the host and folder as we store only the fileName in the db
-            const pathname = (new URL(body.modelFile)).pathname
-            var fileName = pathname.substring(pathname.lastIndexOf('/')+1);
-            body.modelFile = fileName
+        }
+
+        const existingModelData = await existingModelPromise
+        const existingModel = existingModelData.Count > 0 ? existingModelData.Items[0] : undefined
+        if (existingModel) {
+            // copy the existing models values which shouldn't be overwritten
+            if (existingModel.status) body.status = existingModel.status
+            if (!modelUploadRequested) {
+                if (existingModel.modelFile) body.modelFile = existingModel.modelFile                
+                if (existingModel.usdzFile) body.usdzFile = existingModel.usdzFile                
+            }
         }
 
         const writeDBPromise = createModelInDB(body, brand, category)
