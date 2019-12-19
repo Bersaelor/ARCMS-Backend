@@ -494,7 +494,7 @@ exports.updateAfterFileConversion = async (event, context, callback) => {
             const file = parsedPath.base
             const modelId = parsedPath.name.split('-')[0]
     
-            console.log(`New USDZ file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
+            console.log(`New encrypted USDZ file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
     
             const modelData = await getModel(brand, category, modelId)
 
