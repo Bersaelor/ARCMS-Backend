@@ -6,6 +6,7 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const { getAccessLvl , accessLvlMayCreate } = require('../shared/access_methods')
+const { convertStoredModel } = require('../shared/convert_models')
 const path = require('path');
 
 async function getSignedImageUploadURL(key, type) {
@@ -66,9 +67,11 @@ async function createModelInDB(values, brand, category) {
             "image": sanitize(values.image),
             "modelFile": values.modelFile ? values.modelFile : "",
             "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
-            "props": values.props ? JSON.stringify(values.props) : "{}"
+            "props": values.props ? JSON.stringify(values.props) : "{}",
         }
     };
+    if (values.status) { params.Item.status = values.status }
+    if (values.usdzFile) { params.Item.usdzFile = values.usdzFile }
 
     return dynamoDb.put(params).promise();
 }
@@ -134,11 +137,12 @@ async function getModels(brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, usdzFile, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
             "#sk": "sk",
+            "#s": "status"
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#model`,
@@ -147,21 +151,6 @@ async function getModel(brand, category, id) {
     };
 
     return dynamoDb.query(params).promise()
-}
-
-function convertStoredModel(storedModel) {
-    var model = storedModel
-    model.category = storedModel.sk.split('#')[0]
-    model.name = storedModel.sk.split('#')[1]
-    delete model.sk
-    try {
-        model.localizedNames = storedModel.localizedNames ? JSON.parse(storedModel.localizedNames) : undefined
-        model.props = storedModel.props ? JSON.parse(storedModel.props) : undefined    
-    } catch (error) {
-        console.log("Failed to convert json because: ", error)
-    }
-    model.image = "https://images.looc.io/" + storedModel.image
-    return model
 }
 
 function makeHeader(content) {
@@ -360,6 +349,8 @@ exports.createNew = async (event, context, callback) => {
         }
         body.name = body.name.toLowerCase()
 
+        const existingModelPromise = getModel(brand, category, body.name)
+
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise;
         if (!accessLvlMayCreate(accessLvl)) {
@@ -396,11 +387,17 @@ exports.createNew = async (event, context, callback) => {
             const modelKey = `original/${brand}/${category}/${modelFileName}`
             body.modelFile = modelKey
             modelURLPromise = getSignedModelUploadURL(modelKey)
-        } else if (body.modelFile && body.modelFile.startsWith("http")) {
-            // remove the host and folder as we store only the fileName in the db
-            const pathname = (new URL(body.modelFile)).pathname
-            var fileName = pathname.substring(pathname.lastIndexOf('/')+1);
-            body.modelFile = fileName
+        }
+
+        const existingModelData = await existingModelPromise
+        const existingModel = existingModelData.Count > 0 ? existingModelData.Items[0] : undefined
+        if (existingModel) {
+            // copy the existing models values which shouldn't be overwritten
+            if (existingModel.status) body.status = existingModel.status
+            if (!modelUploadRequested) {
+                if (existingModel.modelFile) body.modelFile = existingModel.modelFile                
+                if (existingModel.usdzFile) body.usdzFile = existingModel.usdzFile                
+            }
         }
 
         const writeDBPromise = createModelInDB(body, brand, category)
@@ -497,7 +494,7 @@ exports.updateAfterFileConversion = async (event, context, callback) => {
             const file = parsedPath.base
             const modelId = parsedPath.name.split('-')[0]
     
-            console.log(`New USDZ file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
+            console.log(`New encrypted USDZ file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
     
             const modelData = await getModel(brand, category, modelId)
 

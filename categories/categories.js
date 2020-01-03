@@ -5,7 +5,9 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
+const cloudfront = new AWS.CloudFront;
 const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
+const { convertStoredModel } = require('../shared/convert_models')
 
 async function getCategorys(brand) {
     var params = {
@@ -18,6 +20,23 @@ async function getCategorys(brand) {
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#category`,
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+async function getAllModels(brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#s": "status"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#model`,
         },
     };
 
@@ -96,11 +115,33 @@ async function deleteCategoryFromDB(name, brand) {
     return dynamoDb.delete(params).promise()
 }
 
-function makeHeader(content) {
+async function invalidateAppDataCache(brand) {
+    return new Promise((resolve, reject) => {
+        const now = new Date()
+        const params = { 
+            DistributionId: "E2B3LFAX7VM8JV",
+            InvalidationBatch: {
+                CallerReference: `${now.getTime()}`,
+                Paths: {
+                  Quantity: '1',
+                  Items: [
+                    `/${brand}/app-data`,
+                  ]
+                }
+            }
+        }
+        cloudfront.createInvalidation(params, (err, data) => {
+            if (err) reject(err)
+            else resolve(data)
+        })
+    });
+}
+
+function makeHeader(content, maxAge = 60) {
     return { 
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
-        'Cache-Control': 'max-age=10,must-revalidate',
+        'Cache-Control': `max-age=${maxAge},must-revalidate`,
         'Content-Type': content
     };
 }
@@ -119,13 +160,91 @@ exports.all = async (event, context, callback) => {
         return convertStoredCategory(cat)
     })
 
-    console.log("Returning ", categories.length, " categories from DynDB")
+    console.log("Returning ", categories.length, " categories from DynDB for brand ", brand)
 
     callback(null, {
         statusCode: 200,
-        headers: makeHeader('text/plain'),
+        headers: makeHeader('application/json', 0),
         body: JSON.stringify(categories)
     });
+};
+
+// Cached, public endpoint with categories and models
+exports.appData = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+    const testing = event.queryStringParameters && event.queryStringParameters.testing;
+    const showTestingContent = testing && testing === "true"
+
+    const catPromise = getCategorys(brand)
+    const modelPromise = getAllModels(brand)
+
+    const catData = await catPromise
+    const categories = catData.Items.filter(cat => {
+        return cat.status === "published" || (showTestingContent && cat.status === "testing")
+    }).map((cat) => {
+        return convertStoredCategory(cat)
+    })
+
+    const categoryNames = categories.map(cat => cat.name)
+
+    const modelData = await modelPromise
+    const models = modelData.Items.filter(model => {
+        return model.status === "published" || (showTestingContent && model.status === "testing")
+    }).map(model => {
+        return convertStoredModel(model)
+    }).filter(model => {
+        return categoryNames.includes(model.category)
+    })
+
+    console.log(`Returning ${categories.length} categories and ${models.length} models from DynDB for brand ${brand} showTestingContent: ${showTestingContent}`)
+
+    callback(null, {
+        statusCode: 200,
+        headers: makeHeader('application/json', testing ? 0 : 60 * 60 * 24 * 7),
+        body: JSON.stringify({ categories: categories, models: models })
+    });
+};
+
+// Refresh the cached appdata of categories and models manually before it's expired
+exports.refreshAppData = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+
+    try {
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await getAccessLvl(cognitoUserName, brand);
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to create or update categories"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const invalidationData = await invalidateAppDataCache(brand)
+
+        console.log("Invalidation of ", brand, " result is: ", invalidationData)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                "message": "AppData Cache refreshing successful" 
+            })
+        };
+
+        callback(null, response);
+    } catch(error) {
+        console.error('Failed to create category: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 };
 
 exports.createNew = async (event, context, callback) => {
@@ -144,7 +263,7 @@ exports.createNew = async (event, context, callback) => {
         if (!body.name) {
             callback(null, {
                 statusCode: 403,
-                headers: makeHeader('application/json' ),
+                headers: makeHeader('application/json'),
                 body: JSON.stringify({ "message": "The new category needs to have a valid name" })
             });
             return;

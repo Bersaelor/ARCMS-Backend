@@ -63,6 +63,47 @@ resources:
 
 
 functions:
+  appData:
+    handler: categories/categories.appData
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Cached, public endpoint with categories and models
+    package:
+      include:
+        - categories/categories.js
+        - shared/**
+    events:
+      - http:
+          path: /{brand}/app-data
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+
+  refresh-app-data:
+    handler: categories/categories.refreshAppData
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Refresh the cached appdata of categories and models manually before it's expired
+    package:
+      include:
+        - categories/categories.js
+        - shared/**
+    events:
+      - http:
+          path: /{brand}/refresh-app-data
+          method: post
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
   categories:
     handler: categories/categories.all
     role: ${self:custom.users-role}
@@ -71,7 +112,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/categories
@@ -81,6 +122,9 @@ functions:
             parameters:
               paths:
                 brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
   create-category:
     handler: categories/categories.createNew
@@ -90,7 +134,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/categories
@@ -112,7 +156,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/setStatus
@@ -134,7 +178,7 @@ functions:
     package:
       include:
         - categories/categories.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/categories/{id}
@@ -157,7 +201,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models
@@ -177,7 +221,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models/{id}
@@ -201,7 +245,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models/{id}/setStatus
@@ -225,7 +269,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models
@@ -248,7 +292,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/models/{id}
@@ -592,7 +636,7 @@ functions:
     package:
       include:
         - models/models.js
-        - shared/access_methods.js
+        - shared/**
     events:
       - s3:
         bucket: ar-glasses-models
