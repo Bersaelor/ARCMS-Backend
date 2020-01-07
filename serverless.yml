@@ -643,5 +643,5 @@ functions:
         event: s3:ObjectCreated:*
         rules:
           - prefix: arkit/
-          - suffix: .usdz
+          - suffix: .ark
         existing: true
