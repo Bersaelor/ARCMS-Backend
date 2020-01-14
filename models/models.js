@@ -7,6 +7,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const { getAccessLvl , accessLvlMayCreate } = require('../shared/access_methods')
 const { convertStoredModel } = require('../shared/convert_models')
+const { getModels } = require('../shared/get_dyndb_models')
 const path = require('path');
 
 async function getSignedImageUploadURL(key, type) {
@@ -114,24 +115,6 @@ async function deleteModelFromDB(name, brand, category) {
     };
 
     return dynamoDb.delete(params).promise()
-}
-
-async function getModels(brand, category) {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
-        KeyConditionExpression: "#id = :value and begins_with(sk, :category)",
-        ExpressionAttributeNames:{
-            "#id": "id",
-            "#s": "status"
-        },
-        ExpressionAttributeValues: {
-            ":value": `${brand}#model`,
-            ":category": category
-        },
-    };
-
-    return dynamoDb.query(params).promise()
 }
 
 async function getModel(brand, category, id) {
