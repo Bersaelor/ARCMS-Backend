@@ -52,6 +52,19 @@ function getS3Content(bucket, continuationToken) {
     return s3.listObjectsV2(params).promise()
 }
 
+function deleteObjects(bucket, keys) {
+    var params = {
+        Bucket: bucket,
+        Delete: {
+            Objects: keys.map(key => {
+                return { Key: key }
+            })
+        },
+    }
+
+    return s3.deleteObjects(params).promise()
+}
+
 // Delete images and models from S3 that are no longer used for any dynamodb entities
 exports.cleanOldModelsAndImages = async (event, context, callback) => {
     const brands = Object.keys(brandSettings)
@@ -80,26 +93,35 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             array.forEach(image => currentImages.add(image))
         })
 
-        console.log("currentImages ", currentImages)
-        console.log("currentModelFiles ", currentModelFiles)
-
         let imagesInS3Data = await imagesInS3Promise
         if (imagesInS3Data.IsTruncated) { console.log("More images are in S3, but haven't been loaded as maximum was hit") }
         let imageKeys = imagesInS3Data.Contents.map(object => object.Key)
+        var imageFileKeysToDelete = []
         imageKeys.forEach(imageKey => {
             if (!currentImages.has(imageKey)) {
-                console.log("Image ", imageKey, " should be deleted")
+                imageFileKeysToDelete.push(imageKey)
             }
         })
+        console.log("Deleting images ", imageFileKeysToDelete)
+        let deleteImagesPromise = deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete)
 
         let modelsInS3Data = await modelsInS3Promise
         if (modelsInS3Data.IsTruncated) { console.log("More models are in S3, but haven't been loaded as maximum was hit") }
         let modelKeys = modelsInS3Data.Contents.map(object => object.Key)
+        var modelFileKeysToDelete = []
         modelKeys.forEach( modelKey => {
             if (!currentModelFiles.has(modelKey)) {
-                console.log("File ", modelKey, " should be deleted")
+                modelFileKeysToDelete.push(modelKey)
             }
         })
+        console.log("Deleting files ", modelFileKeysToDelete)
+        let deleteModelsPromise = deleteObjects(process.env.MODEL_BUCKET, modelFileKeysToDelete)
+
+        let deleteImageResult = await deleteImagesPromise
+        let deleteModelsResult = await deleteModelsPromise
+
+        console.log("deleteImageResult: ", deleteImageResult)
+        console.log("deleteModelsResult: ", deleteModelsResult)
 
         callback(null, {
             statusCode: 200,
