@@ -3,9 +3,7 @@
 'use strict';
 
 const AWS = require('aws-sdk'); 
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
-const { convertStoredModel } = require('../shared/convert_models')
 const { getAllModels, getCategorys } = require('../shared/get_dyndb_models')
 const brandSettings = require('../brand_settings.json')
 
@@ -41,6 +39,19 @@ function fetchAllCategories(brands) {
     return Promise.all(categoryFetches)
 }
 
+function getS3Content(bucket, continuationToken) {
+    var params = {
+        Bucket: bucket,
+        MaxKeys: 1000,
+    }
+
+    if (continuationToken) {
+        params.ContinuationToken = continuationToken
+    }
+
+    return s3.listObjectsV2(params).promise()
+}
+
 // Delete images and models from S3 that are no longer used for any dynamodb entities
 exports.cleanOldModelsAndImages = async (event, context, callback) => {
     const brands = Object.keys(brandSettings)
@@ -49,6 +60,8 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         console.log("Fetching Models and Categories for: ", brands)
         let modelsPromise = fetchAllModels(brands)
         let categoryPromise = fetchAllCategories(brands)
+        let imagesInS3Promise = getS3Content(process.env.IMAGE_BUCKET, null)
+        let modelsInS3Promise = getS3Content(process.env.MODEL_BUCKET, null)
 
         let currentImages = new Set()
         let currentModelFiles = new Set()
@@ -69,6 +82,24 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
 
         console.log("currentImages ", currentImages)
         console.log("currentModelFiles ", currentModelFiles)
+
+        let imagesInS3Data = await imagesInS3Promise
+        if (imagesInS3Data.IsTruncated) { console.log("More images are in S3, but haven't been loaded as maximum was hit") }
+        let imageKeys = imagesInS3Data.Contents.map(object => object.Key)
+        imageKeys.forEach(imageKey => {
+            if (!currentImages.has(imageKey)) {
+                console.log("Image ", imageKey, " should be deleted")
+            }
+        })
+
+        let modelsInS3Data = await modelsInS3Promise
+        if (modelsInS3Data.IsTruncated) { console.log("More models are in S3, but haven't been loaded as maximum was hit") }
+        let modelKeys = modelsInS3Data.Contents.map(object => object.Key)
+        modelKeys.forEach( modelKey => {
+            if (!currentModelFiles.has(modelKey)) {
+                console.log("File ", modelKey, " should be deleted")
+            }
+        })
 
         callback(null, {
             statusCode: 200,
