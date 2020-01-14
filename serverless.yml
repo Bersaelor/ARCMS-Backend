@@ -650,8 +650,10 @@ functions:
     handler: cleanup/cleanup.cleanOldModelsAndImages
     role: ${self:custom.users-role}
     memorySize: 512
+    timeout: 300
     description: Delete images and models from S3 that are no longer used for any dynamodb entities
     package:
       include:
         - cleanup/cleanup.js
         - shared/**
+        - brand_settings.json
