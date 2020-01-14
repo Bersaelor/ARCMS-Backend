@@ -8,40 +8,7 @@ const s3 = new AWS.S3();
 const cloudfront = new AWS.CloudFront;
 const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
 const { convertStoredModel } = require('../shared/convert_models')
-
-async function getCategorys(brand) {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, #s, localizedTitles, localizedDetails",
-        KeyConditionExpression: "#id = :value",
-        ExpressionAttributeNames:{
-            "#id": "id",
-            "#s": "status"
-        },
-        ExpressionAttributeValues: {
-            ":value": `${brand}#category`,
-        },
-    };
-
-    return dynamoDb.query(params).promise()
-}
-
-async function getAllModels(brand) {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
-        KeyConditionExpression: "#id = :value",
-        ExpressionAttributeNames:{
-            "#id": "id",
-            "#s": "status"
-        },
-        ExpressionAttributeValues: {
-            ":value": `${brand}#model`,
-        },
-    };
-
-    return dynamoDb.query(params).promise()
-}
+const { getAllModels, getCategorys } = require('../shared/get_dyndb_models')
 
 async function getSignedImageUploadURL(key, type) {
     var params = {

@@ -22,3 +22,37 @@ exports.getModels = async (brand, category) => {
 
     return dynamoDb.query(params).promise()
 }
+
+exports.getAllModels = async (brand) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#s": "status"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#model`,
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+exports.getCategorys = async (brand) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, image, #s, localizedTitles, localizedDetails",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#s": "status"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#category`,
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
