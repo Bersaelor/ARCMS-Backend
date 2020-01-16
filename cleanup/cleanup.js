@@ -18,6 +18,9 @@ function makeHeader(content) {
 function fetchAllModels(brands) {
     let modelFetches = brands.map(brand => {
         return getAllModels(brand).then(data => {
+            if (data.LastEvaluatedKey) {
+                throw `Models for ${brand} exceed fetchLimit for query, please run multiple queries`
+            }
             return data.Items.map(model => {
                 return {
                     'image': model.image,
@@ -33,6 +36,9 @@ function fetchAllModels(brands) {
 function fetchAllCategories(brands) {
     let categoryFetches = brands.map ( brand => {
         return getCategorys(brand).then(data => {
+            if (data.LastEvaluatedKey) {
+                throw `Categories for ${brand} exceed fetchLimit for query, please run multiple queries`
+            }
             return data.Items.map(category => category.image)
         })
     })
@@ -103,7 +109,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             }
         })
         console.log("Deleting images ", imageFileKeysToDelete)
-        let deleteImagesPromise = deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete)
+        let deleteImagesPromise = imageFileKeysToDelete.length > 0 ? deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete) : undefined
 
         let modelsInS3Data = await modelsInS3Promise
         if (modelsInS3Data.IsTruncated) { console.log("More models are in S3, but haven't been loaded as maximum was hit") }
@@ -115,10 +121,10 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             }
         })
         console.log("Deleting files ", modelFileKeysToDelete)
-        let deleteModelsPromise = deleteObjects(process.env.MODEL_BUCKET, modelFileKeysToDelete)
+        let deleteModelsPromise = modelFileKeysToDelete.length > 0 ? deleteObjects(process.env.MODEL_BUCKET, modelFileKeysToDelete) : undefined
 
-        let deleteImageResult = await deleteImagesPromise
-        let deleteModelsResult = await deleteModelsPromise
+        let deleteImageResult = deleteImagesPromise ? await deleteImagesPromise : "Not needed"
+        let deleteModelsResult = deleteModelsPromise ? await deleteModelsPromise : "Not needed"
 
         console.log("deleteImageResult: ", deleteImageResult)
         console.log("deleteModelsResult: ", deleteModelsResult)
@@ -126,7 +132,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         callback(null, {
             statusCode: 200,
             headers: makeHeader('text/plain'),
-            body: JSON.stringify(models)
+            body: JSON.stringify(`Deleted ${deleteImageResult} images and ${deleteModelsResult} models`)
         });
     
     } catch(err) {
