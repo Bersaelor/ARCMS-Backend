@@ -67,6 +67,7 @@ async function createModelInDB(values, brand, category) {
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
             "modelFile": values.modelFile ? values.modelFile : "",
+            "dxfFile": values.dxfFile ? values.dxfFile : "",
             "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
             "props": values.props ? JSON.stringify(values.props) : "{}",
         }
@@ -120,7 +121,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, usdzFile, #s, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, dxfFile, usdzFile, #s, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -206,6 +207,10 @@ exports.get = async (event, context, callback) => {
         if (model && model.modelFile) {
             const modelDownloadURL = await getSignedModelDownloadURL(model.modelFile)
             if (modelDownloadURL) model.modelFile = modelDownloadURL    
+        }
+        if (model && model.dxfFile) {
+            const dxfDownloadURL = await getSignedModelDownloadURL(model.dxfFile)
+            if (dxfDownloadURL) model.dxfFile = dxfDownloadURL    
         }
 
         var response
@@ -315,9 +320,11 @@ exports.createNew = async (event, context, callback) => {
     delete body.imageType
     delete body.imageName
 
-
     const modelUploadRequested = body.modelFile && !body.modelFile.startsWith("http") ? body.modelFile : false
     if (modelUploadRequested) delete body.modelFile
+
+    const dxfUploadRequested = body.dxfFile && !body.dxfFile.startsWith("http") ? body.dxfFile : false
+    if (dxfUploadRequested) delete body.dxfFile
 
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
@@ -372,6 +379,16 @@ exports.createNew = async (event, context, callback) => {
             modelURLPromise = getSignedModelUploadURL(modelKey)
         }
 
+        var dxfURLPromise
+        if (dxfUploadRequested) {
+            const now = new Date()
+            const modelAndVersion = `${body.name}-${now.getTime()}`
+            const modelFileName = `${modelAndVersion}.${fileExtension(dxfUploadRequested)}`
+            const modelKey = `original/${brand}/${category}/${modelFileName}`
+            body.dxfFile = modelKey
+            dxfURLPromise = getSignedModelUploadURL(modelKey)
+        }
+
         const existingModelData = await existingModelPromise
         const existingModel = existingModelData.Count > 0 ? existingModelData.Items[0] : undefined
         if (existingModel) {
@@ -381,12 +398,16 @@ exports.createNew = async (event, context, callback) => {
                 if (existingModel.modelFile) body.modelFile = existingModel.modelFile                
                 if (existingModel.usdzFile) body.usdzFile = existingModel.usdzFile                
             }
+            if (!dxfUploadRequested) {
+                if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
+            }
         }
 
         const writeDBPromise = createModelInDB(body, brand, category)
 
         const imageUploadURL = imageURLPromise ? await imageURLPromise : undefined
         const modelUploadURL = modelURLPromise ? await modelURLPromise : undefined
+        const dxfUploadURL = dxfURLPromise ? await dxfURLPromise : undefined
         const writeSuccess = await writeDBPromise
         console.log("write model to db success: ", writeSuccess)
 
@@ -396,7 +417,8 @@ exports.createNew = async (event, context, callback) => {
             body: JSON.stringify({
                 message: "Model creation or update successful",
                 imageUploadURL: imageUploadURL ? imageUploadURL : "",
-                modelUploadURL: modelUploadURL ? modelUploadURL : ""
+                modelUploadURL: modelUploadURL ? modelUploadURL : "",
+                dxfUploadURL: dxfUploadURL ? dxfUploadURL : ""
             })
         };
     
