@@ -67,11 +67,11 @@ async function createModelInDB(values, brand, category) {
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
             "modelFile": values.modelFile ? values.modelFile : "",
-            "dxfFile": values.dxfFile ? values.dxfFile : "",
             "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
             "props": values.props ? JSON.stringify(values.props) : "{}",
         }
     };
+    if (values.dxfFile) { params.Item.dxfFile = values.dxfFile }
     if (values.status) { params.Item.status = values.status }
     if (values.usdzFile) { params.Item.usdzFile = values.usdzFile }
 
