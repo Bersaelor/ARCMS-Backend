@@ -18,7 +18,7 @@ function startInstance(file, sizeInMB) {
     var instanceType = "t2.micro"
 
     var params = {
-        ImageId: "ami-0d4c3eabb9e72650a",
+        ImageId: "ami-0cc0a36f626a4fdf5",
         InstanceType: instanceType,
         KeyName: "Convert3DEC2Pair",
         MaxCount: 1,
