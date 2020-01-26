@@ -15,7 +15,7 @@ function startInstance(file, sizeInMB) {
     /tmp/dxf2svg-init.sh ${ file }
     `
     const base64Script = Buffer.from(init_script).toString('base64')
-    var instanceType = "t2.small"
+    var instanceType = "t2.micro"
 
     var params = {
         ImageId: "ami-0d4c3eabb9e72650a",
