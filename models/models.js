@@ -10,6 +10,13 @@ const { convertStoredModel } = require('../shared/convert_models')
 const { getModels } = require('../shared/get_dyndb_models')
 const path = require('path');
 
+function urlPath(urlString) {
+    if (!urlString) return undefined
+    let url = new URL(urlString)
+    let pathName = url.pathname
+    return pathName.startsWith("/") ? pathName.substring(1, pathName.length) : pathName
+}
+
 async function getSignedImageUploadURL(key, type) {
     var params = {
         Bucket: process.env.IMAGE_BUCKET,
@@ -322,9 +329,11 @@ exports.createNew = async (event, context, callback) => {
 
     const modelUploadRequested = body.modelFile && !body.modelFile.startsWith("http") ? body.modelFile : false
     if (modelUploadRequested) delete body.modelFile
+    else body.modelFile = urlPath(body.modelFile)
 
     const dxfUploadRequested = body.dxfFile && !body.dxfFile.startsWith("http") ? body.dxfFile : false
     if (dxfUploadRequested) delete body.dxfFile
+    else body.dxfFile = urlPath(body.dxfFile)
 
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
@@ -402,6 +411,8 @@ exports.createNew = async (event, context, callback) => {
                 if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
                 if (existingModel.svgFile) body.svgFile = existingModel.svgFile
             }
+        } else if (body.svgFile && body.svgFile.startsWith("http")) {
+            body.svgFile = urlPath(body.svgFile)
         }
 
         const writeDBPromise = createModelInDB(body, brand, category)
