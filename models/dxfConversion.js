@@ -5,15 +5,15 @@
 const AWS = require('aws-sdk'); 
 const ec2 = new AWS.EC2();
 
-function startInstance(file, sizeInMB) {
-    const init_script = `
-    #!/bin/bash
-    /usr/bin/apt-get update
-    /usr/bin/apt-get -y install awscli
-    /usr/bin/aws s3 cp s3://ec2-looc-storage/dxf2svg-init.sh /tmp/ 
-    /bin/chmod +x /tmp/dxf2svg-init.sh
-    /tmp/dxf2svg-init.sh ${ file }
-    `
+function startInstance(file) {
+    const init_script = `#!/bin/bash -x
+echo Initializing DXFConversion
+apt-get update
+apt-get -y install awscli
+aws s3 cp s3://ec2-looc-storage/dxf2svg-init.sh /tmp/ 
+chmod +x /tmp/dxf2svg-init.sh
+/tmp/dxf2svg-init.sh ${ file }
+`
     const base64Script = Buffer.from(init_script).toString('base64')
     var instanceType = "t2.micro"
 
@@ -43,14 +43,11 @@ exports.convert = async (event, context, callback) => {
     for (const index in event.Records) {
         const record = event.Records[index]
         const key = record.s3.object.key
-        const sizeInMB = record.s3.object.size / (1024 * 1024)
 
-        console.log("sizeInMB: ", sizeInMB)
-
-        console.log(`${key} was added to models bucket, starting EC2 instance to convert it to usdz`)
+        console.log(`${key} was added to models bucket, starting EC2 instance to convert it to svg`)
 
         try {
-            const response = await startInstance(key, sizeInMB)
+            const response = await startInstance(key)
             console.log("Success: ", response.Instances, " Instances created")
         } catch(error) {
             console.log("Failed: ", error)
