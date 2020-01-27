@@ -72,6 +72,7 @@ async function createModelInDB(values, brand, category) {
         }
     };
     if (values.dxfFile) { params.Item.dxfFile = values.dxfFile }
+    if (values.svgFile) { params.Item.svgFile = values.svgFile }
     if (values.status) { params.Item.status = values.status }
     if (values.usdzFile) { params.Item.usdzFile = values.usdzFile }
 
@@ -93,11 +94,11 @@ async function updateModelStatus(status, name, brand, category) {
     return dynamoDb.update(params).promise()
 }
 
-async function updateModelUSDZFile(fileName, name, brand, category) {
+async function updateModel(value, fileName, name, brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Key: {id: `${brand}#model`, sk: `${category}#${name}` },
-        UpdateExpression: 'set usdzFile = :value',
+        UpdateExpression: `set ${value} = :value`,
         ExpressionAttributeValues: {
             ':value' : fileName,
         },
@@ -121,7 +122,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, dxfFile, usdzFile, #s, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, dxfFile, svgFile, usdzFile, #s, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -204,14 +205,13 @@ exports.get = async (event, context, callback) => {
 
         const dbLoadData = await dbLoadPromise
         const model = dbLoadData.Count > 0 ? convertStoredModel(dbLoadData.Items[0]) : undefined
-        if (model && model.modelFile) {
-            const modelDownloadURL = await getSignedModelDownloadURL(model.modelFile)
-            if (modelDownloadURL) model.modelFile = modelDownloadURL    
-        }
-        if (model && model.dxfFile) {
-            const dxfDownloadURL = await getSignedModelDownloadURL(model.dxfFile)
-            if (dxfDownloadURL) model.dxfFile = dxfDownloadURL    
-        }
+        let values = ["modelFile", "dxfFile", "svgFile"];
+        await Promise.all(values.map(async value => {
+            if (model && model[value]) {
+                const modelDownloadURL = await getSignedModelDownloadURL(model[value])
+                if (modelDownloadURL) model[value] = modelDownloadURL    
+            }    
+        }))
 
         var response
         if (model) {
@@ -400,6 +400,7 @@ exports.createNew = async (event, context, callback) => {
             }
             if (!dxfUploadRequested) {
                 if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
+                if (existingModel.svgFile) body.svgFile = existingModel.svgFile
             }
         }
 
@@ -523,7 +524,7 @@ exports.updateAfterFileConversion = async (event, context, callback) => {
                 return
             }
 
-            const updateSuccess = await updateModelUSDZFile(key, modelId, brand, category)
+            const updateSuccess = await updateModel("usdzFile", key, modelId, brand, category)
             console.log("Updating usdzFile to ", key, " in db success: ", updateSuccess)    
 
             callback(null, {msg: "Success"})
@@ -532,3 +533,50 @@ exports.updateAfterFileConversion = async (event, context, callback) => {
         callback(error, {msg: `Failed to save data because of ${error.toString()}`})
     }
 }
+
+// Update the metadata in the DB when a models svg has finished converting
+exports.updateModelSVG = async (event, context, callback) => {
+    try {
+        for (const index in event.Records) {
+            const record = event.Records[index]
+            const key = record.s3.object.key
+            const brand = key.split('/')[1]
+            const category = key.split('/')[2]
+            const parsedPath = path.parse(key)
+            const file = parsedPath.base
+            const dashSeparated = parsedPath.name.split('-')
+            dashSeparated.pop() // pop the timestamp
+            const modelId = dashSeparated.join('-')
+
+            console.log(`New encrypted svg file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
+    
+            const modelData = await getModel(brand, category, modelId)
+
+            if (!modelData || !modelData.Items || modelData.Items.length == 0) {
+                const msg = `Failed to find model with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const model = modelData.Items[0]
+            const dxfFilename = path.parse(model.dxfFile).name
+
+            console.log("originalDXFFilename: ", dxfFilename)
+            if (dxfFilename !== parsedPath.name) {
+                const msg = `Saved originalModelFilename: ${dxfFilename} is different then ${file}, not saving`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const updateSuccess = await updateModel("svgFile", key, modelId, brand, category)
+            console.log("Updating svgFile to ", key, " in db success: ", updateSuccess)    
+
+            callback(null, {msg: "Success"})
+        }
+    } catch (error) {
+        callback(error, {msg: `Failed to save data because of ${error.toString()}`})
+    }
+}
+
