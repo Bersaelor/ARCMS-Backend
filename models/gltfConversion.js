@@ -12,6 +12,18 @@ const readline = require('readline');
 const { spawn } = require('child_process');
 const { tetraGeometry , instanceGeometry } = require('./tetraHedron')
 
+function cleanup(files) {
+    const promises = files.map(file => {
+        return new Promise((resolve, reject) => {
+            fs.unlink(file, (err) => {
+                if (err) reject(err)
+                else resolve()
+            })
+        });
+    });
+    return Promise.all(promises)
+}
+
 function download(bucket, key, downloadPath) {
     return new Promise((resolve, reject) => {
         const params = { Bucket: bucket, Key: key }
@@ -164,9 +176,9 @@ exports.convert = async (event, context, callback) => {
                 await fixEmptyNodes(downloadPath, fixedDaePath)
                 await convert(fixedDaePath, uploadPath)
                 const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
-    
                 console.log("Upload result: ", uploadRes)
-    
+                await cleanup([downloadPath, fixedDaePath, uploadPath])
+                
                 callback(null, {msg: "Success"})
             } catch(error) {
                 console.error(error.code, "-", error.message)
