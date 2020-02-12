@@ -64,6 +64,7 @@ async function createUserInDB(values) {
             "city": sanitize(values.city),
             "customerId": sanitize(values.customerId),
             "telNr": sanitize(values.telNr),
+            "mailCC": sanitize(values.mailCC),
             "maxDevices": values.maxDevices
         }
     };
