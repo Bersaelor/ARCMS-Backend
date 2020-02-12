@@ -50,7 +50,7 @@ function doesOrderContainSpecialSize(order) {
     return order.find(frame => frame.isBespokeSize === true) != undefined
 }
 
-async function mailToStore(brand, storeEmail, order, orderSK) {
+async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
     if(!manufacturerAdresses[brand]) {
         throw `There is no manufacturer address saved for brand ${brand}`
     }
@@ -73,7 +73,9 @@ async function mailToStore(brand, storeEmail, order, orderSK) {
         DOWNLOADLINK: downloadLink,
     })
 
-    return sendMail(manufacturerAdresses[brand], storeEmail, subject, htmlBody)
+    let ccs = ccMail && ccMail.split(";")
+
+    return sendMail(manufacturerAdresses[brand], storeEmail, ccs, subject, htmlBody)
 }
 
 async function mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId) {
@@ -97,13 +99,13 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK, customerCon
         DOWNLOADLINK: downloadLink,
     })
     const sender = "no_reply@looc.io"
-    return sendMail(sender, manufacturerAdresses[brand], subject, htmlBody)
+    return sendMail(sender, manufacturerAdresses[brand], [], subject, htmlBody)
 }
 
-async function sendMail(sender, to, subject, htmlBody) {
+async function sendMail(sender, to, cc, subject, htmlBody) {
     const fromBase64 = Buffer.from(sender).toString('base64');
 
-    const sesParams = {
+    var sesParams = {
         Destination: {
             ToAddresses: [to],
         },
@@ -122,13 +124,13 @@ async function sendMail(sender, to, subject, htmlBody) {
         Source: `=?utf-8?B?${fromBase64}?= <${sender}>`,
     };
 
+    if (cc && cc.length > 0) sesParams.Destination.CcAddresses = cc
+
     return SES.sendEmail(sesParams).promise();
 }
 
 // Send email notifications when new order is received
 exports.newOrder = async (event, context, callback) => {
-
-    // console.log(JSON.stringify(event, null, 2))
 
     const firstRecord = event.Records[0]
     if (!firstRecord || !firstRecord.Sns) {
@@ -137,6 +139,7 @@ exports.newOrder = async (event, context, callback) => {
     const message = firstRecord.Sns
     const order = JSON.parse(message.Message)
     const storeEmail = message.MessageAttributes.storeEmail.Value
+    const ccMail = message.MessageAttributes.ccMail && message.MessageAttributes.ccMail.Value
     const brand = message.MessageAttributes.brand.Value
     const orderSK = message.MessageAttributes.orderSK.Value
     const customerContact = message.MessageAttributes.contactName.Value
@@ -148,7 +151,7 @@ exports.newOrder = async (event, context, callback) => {
     console.log("Received order-notification from ", storeEmail, " for brand ", brand)
 
     const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId)
-    const mailToStorePromise = mailToStore(brand, storeEmail, order, orderSK) 
+    const mailToStorePromise = mailToStore(brand, storeEmail, ccMail, order, orderSK) 
     const mailToManuSuccess = await mailToManufacturerPromise
     const mailToStoreSuccess = await mailToStorePromise
 
