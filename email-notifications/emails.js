@@ -73,7 +73,7 @@ async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
         DOWNLOADLINK: downloadLink,
     })
 
-    let ccs = ccMail && ccMail.split(";")
+    let ccs = ccMail && ccMail.trim().split(";")
 
     return sendMail(manufacturerAdresses[brand], storeEmail, ccs, subject, htmlBody)
 }

@@ -348,7 +348,7 @@ async function postNewOrderNotification(orderString, storeEmail, ccMail, brand, 
             },
             'ccMail': {
                 DataType: 'String',
-                StringValue: ccMail
+                StringValue: ccMail ? ccMail : "   "
             },
             'brand': {
                 DataType: 'String',
