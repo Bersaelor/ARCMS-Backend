@@ -628,6 +628,23 @@ functions:
           - suffix: .gltf
         existing: true
 
+  dxf2svg:
+    handler: models/dxfConversion.convert
+    role: ${self:custom.ec2-role}
+    memorySize: 512
+    description: Convert dxf files deposited into s3/original to svg
+    package:
+      include:
+        - models/dxfConversion.js
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .dxf
+        existing: true
+
   update-after-conversion:
     handler: models/models.updateAfterFileConversion
     role: ${self:custom.users-role}
@@ -644,6 +661,24 @@ functions:
         rules:
           - prefix: arkit/
           - suffix: .ark
+        existing: true
+
+  update-model-svg:
+    handler: models/models.updateModelSVG
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Update the metadata in the DB when a models svg has finished converting
+    package:
+      include:
+        - models/models.js
+        - shared/**
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .svg
         existing: true
 
   cleanup-job:

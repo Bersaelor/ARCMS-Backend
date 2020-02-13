@@ -25,7 +25,9 @@ function fetchAllModels(brands) {
                 return {
                     'image': model.image,
                     'modelFile': model.modelFile,
-                    'usdzFile': model.usdzFile
+                    'usdzFile': model.usdzFile,
+                    'dxfFile': model.dxfFile,
+                    'svgFile': model.svgFile
                 }
             })
         })
@@ -91,6 +93,8 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
                 currentImages.add(model.image)
                 currentModelFiles.add(model.modelFile)
                 currentModelFiles.add(model.usdzFile)
+                currentModelFiles.add(model.dxfFile)
+                currentModelFiles.add(model.svgFile)
             })
         })
 
