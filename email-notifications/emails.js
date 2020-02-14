@@ -73,7 +73,7 @@ async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
         DOWNLOADLINK: downloadLink,
     })
 
-    let ccs = ccMail && ccMail.trim().split(";")
+    let ccs = ccMail && ccMail.replace(/\s/g,'').split(";")
 
     return sendMail(manufacturerAdresses[brand], storeEmail, ccs, subject, htmlBody)
 }
@@ -102,6 +102,11 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK, customerCon
     return sendMail(sender, manufacturerAdresses[brand], [], subject, htmlBody)
 }
 
+function validateEmail(email) {
+    var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(email);
+}
+
 async function sendMail(sender, to, cc, subject, htmlBody) {
     const fromBase64 = Buffer.from(sender).toString('base64');
 
@@ -124,7 +129,11 @@ async function sendMail(sender, to, cc, subject, htmlBody) {
         Source: `=?utf-8?B?${fromBase64}?= <${sender}>`,
     };
 
-    if (cc && cc.length > 0) sesParams.Destination.CcAddresses = cc
+    let ccMails = cc && cc.filter(e => validateEmail(e))
+    if (ccMails && ccMails.length > 0) {
+        sesParams.Destination.CcAddresses = ccMails
+        console.log("Sending cc's to ", ccMails)
+    }
 
     return SES.sendEmail(sesParams).promise();
 }
