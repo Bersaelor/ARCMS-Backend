@@ -22,6 +22,7 @@ provider:
   region: eu-central-1
   environment:
     NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
+    REQUESTDXFTOPIC: create-dxf-for-order-${self:custom.myStage}
     MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
     IMAGE_BUCKET: looc-cloud-images
@@ -556,7 +557,8 @@ functions:
         - orders/orders.js
         - shared/access_methods.js
     environment:
-      snsArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
+      emailSNSArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
+      dxfFileRequestArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.REQUESTDXFTOPIC}" ] ]  }
     events:
       - http:
           path: order/create
@@ -585,4 +587,17 @@ functions:
         - node_modules/mustache/mustache.min.js
     events:
       - sns: ${self:provider.environment.NEWORDERTOPIC}
+
+  create-dxf-files:
+    handler: email-notifications/dxffilemail.newRequest
+    role: ${self:custom.users-role}
+    memorySize: 2048
+    timeout: 300
+    description: Send email with a number of created dxf files for the ordered frames
+    package:
+      include:
+        - email-notifications/**
+        - '!email-notifications/tests/**'
+    events:
+      - sns: ${self:provider.environment.REQUESTDXFTOPIC}
 

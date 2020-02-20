@@ -340,7 +340,7 @@ async function postNewOrderNotification(orderString, storeEmail, ccMail, brand, 
     var params = {
         Message: orderString, 
         Subject: "New glasses order",
-        TopicArn: process.env.snsArn,
+        TopicArn: process.env.emailSNSArn,
         MessageAttributes: {
             'storeEmail': {
                 DataType: 'String',
@@ -365,6 +365,25 @@ async function postNewOrderNotification(orderString, storeEmail, ccMail, brand, 
             'customerId': {
                 DataType: 'String',
                 StringValue: customerId ? customerId : "n.A."
+            }
+        }
+    };
+    return sns.publish(params).promise()
+}
+
+async function postConvertDxfRequestNotification(orderString, brand, orderSK) {
+    var params = {
+        Message: orderString, 
+        Subject: "Request to convert DXF for new order",
+        TopicArn: process.env.dxfFileRequestArn,
+        MessageAttributes: {
+            'brand': {
+                DataType: 'String',
+                StringValue: brand
+            },
+            'orderSK': {
+                DataType: 'String',
+                StringValue: orderSK
             }
         }
     };
@@ -413,9 +432,11 @@ exports.create = async (event, context, callback) => {
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
         const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, mailCC, brand, orderSK, contactName, customerId)
+        const sendDXFCreationRequestPromise = postConvertDxfRequestNotification(bodyString, brand, orderSK)
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise
+        const dxfCreationRequestSuccess = await sendDXFCreationRequestPromise
         console.log("writeSuccess: ", writeSuccess, ", notificationSuccess: ", notificationSuccess)
 
         const response = {
