@@ -9,6 +9,10 @@ const { getAccessLvl } = require('../shared/access_methods')
 
 const defaultPerPage = 20;
 
+const manufacturerWithDXFConversions = {
+    "grafix": true
+}
+
 async function loadUserOrdersFromDB(brand, email, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -372,6 +376,8 @@ async function postNewOrderNotification(orderString, storeEmail, ccMail, brand, 
 }
 
 async function postConvertDxfRequestNotification(orderString, brand, orderSK) {
+    if (!orderString) return
+    
     var params = {
         Message: orderString, 
         Subject: "Request to convert DXF for new order",
@@ -388,6 +394,44 @@ async function postConvertDxfRequestNotification(orderString, brand, orderSK) {
         }
     };
     return sns.publish(params).promise()
+}
+
+function findSize(frame, name) {
+    const details = frame.frameOrderDetailItems
+    if (!details) return undefined
+    const item = details.find(el => el.titleTerm === name)
+    return item.chosenSize
+}
+
+function unique(frames) {
+    var temp = {}
+    frames.forEach(frame => {
+        temp[`${frame.title}-${frame.bridgeWidth}-${frame.glasWidth}-${frame.glasHeight}`] = frame
+    })
+    return Object.values(temp)
+}
+
+function extractNecessaryModels(orderBody) {
+    if (!Array.isArray(orderBody)) {
+        console.error("Expected the order body to be an Array of frames!")
+        return []
+    }
+
+    var frames = orderBody.map(frame => {
+        const bridgeWidth = findSize(frame, 'OrderOption.BridgeWidth')
+        const glasWidth = findSize(frame, 'OrderOption.GlasWidth')
+        const glasHeight = findSize(frame, 'OrderOption.GlasHeight')
+        if (!frame.title || !bridgeWidth || !glasWidth || !glasHeight) return null
+        return { 
+            title: frame.title,
+            bridgeWidth: bridgeWidth,
+            glasWidth: glasWidth,
+            glasHeight: glasHeight
+        }
+    })
+    frames = frames.filter(el => el !== null)
+
+    return unique(frames)
 }
 
 // Create and save a new order
@@ -432,11 +476,16 @@ exports.create = async (event, context, callback) => {
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
         const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, mailCC, brand, orderSK, contactName, customerId)
-        const sendDXFCreationRequestPromise = postConvertDxfRequestNotification(bodyString, brand, orderSK)
+        if (manufacturerWithDXFConversions[brand]) {
+            const necessaryModels = extractNecessaryModels(body)
+            console.log("necessaryModels for which a dxf needs to be created: ", necessaryModels)
+            const sendDXFCreationRequestPromise = postConvertDxfRequestNotification(JSON.stringify(necessaryModels), brand, orderSK)
+            const dxfCreationRequestSuccess = await sendDXFCreationRequestPromise    
+            console.log("dxfCreationRequestSuccess: ", dxfCreationRequestSuccess)
+        }
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise
-        const dxfCreationRequestSuccess = await sendDXFCreationRequestPromise
         console.log("writeSuccess: ", writeSuccess, ", notificationSuccess: ", notificationSuccess)
 
         const response = {
