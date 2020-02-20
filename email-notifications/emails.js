@@ -10,7 +10,7 @@ const strings = require('./locales.js');
 
 const manufacturerAdresses = {
     "grafix": "order@grafix-eyewear.com",
-    "domevtro": "konrad@looc.io"
+    "domvetro": "konrad@looc.io"
 }
 
 const manufacturerLanguages = {
@@ -99,7 +99,9 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK, customerCon
         DOWNLOADLINK: downloadLink,
     })
     const sender = "no_reply@looc.io"
-    return sendMail(sender, manufacturerAdresses[brand], [], subject, htmlBody)
+
+    let manufacturerMail = storeEmail === "konrad@looc.io" ? "konrad@looc.io" : manufacturerAdresses[brand]
+    return sendMail(sender, manufacturerMail, [], subject, htmlBody)
 }
 
 function validateEmail(email) {
