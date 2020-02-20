@@ -15,15 +15,16 @@ exports.newRequest = async (event, context, callback) => {
         throw "Failed to get firstRecord or Sns entry"
     }
     const message = firstRecord.Sns
-    const order = JSON.parse(message.Message)
+    const frames = JSON.parse(message.Message)
     const brand = message.MessageAttributes.brand.Value
     const orderSK = message.MessageAttributes.orderSK.Value
-    if (!order || !brand || !orderSK) {
+    if (!frames || !brand || !orderSK || !Array.isArray(frames)) {
         throw "Failed to get bodyJSON, brand, orderSK entry"
     }
 
     console.log("Received order-notification ", orderSK, " for brand ", brand, " need to create DXF models")
 
+    console.log("frames: ", frames)
     // const mailToManufacturerPromise = mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId)
     // const mailToStorePromise = mailToStore(brand, storeEmail, ccMail, order, orderSK) 
     // const mailToManuSuccess = await mailToManufacturerPromise

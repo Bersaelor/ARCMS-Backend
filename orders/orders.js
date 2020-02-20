@@ -477,11 +477,18 @@ exports.create = async (event, context, callback) => {
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
         const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, mailCC, brand, orderSK, contactName, customerId)
         if (manufacturerWithDXFConversions[brand]) {
+            // extract the unique frame combinations from the list and split conversion jobs into chunks of 10
             const necessaryModels = extractNecessaryModels(body)
-            console.log("necessaryModels for which a dxf needs to be created: ", necessaryModels)
-            const sendDXFCreationRequestPromise = postConvertDxfRequestNotification(JSON.stringify(necessaryModels), brand, orderSK)
-            const dxfCreationRequestSuccess = await sendDXFCreationRequestPromise    
-            console.log("dxfCreationRequestSuccess: ", dxfCreationRequestSuccess)
+            if (necessaryModels.length > 0) {
+                var fetchPromises = []
+                var i, j, chunk = 10;
+                for (i = 0, j = necessaryModels.length; i < j; i += chunk) {
+                    let slice = necessaryModels.slice(i, i + chunk);
+                    fetchPromises.push(postConvertDxfRequestNotification(JSON.stringify(slice), brand, orderSK))
+                }
+                const dxfCreationRequestSuccess = await Promise.all(fetchPromises) 
+                console.log("dxfCreationRequestSuccess: ", dxfCreationRequestSuccess)
+            }
         }
 
         const writeSuccess = await writeSuccessPromise
