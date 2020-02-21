@@ -510,6 +510,7 @@ functions:
       include:
         - orders/orders.js
         - shared/access_methods.js
+        - brand_settings.json
     events:
       - http:
           path: v2/orders
@@ -538,6 +539,7 @@ functions:
       include:
         - orders/orders.js
         - shared/access_methods.js
+        - brand_settings.json
     events:
       - http:
           path: order/{id}
@@ -556,6 +558,7 @@ functions:
       include:
         - orders/orders.js
         - shared/access_methods.js
+        - brand_settings.json
     environment:
       emailSNSArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
       dxfFileRequestArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.REQUESTDXFTOPIC}" ] ]  }
@@ -585,6 +588,7 @@ functions:
         - email-notifications/**
         - '!email-notifications/tests/**'
         - node_modules/mustache/mustache.min.js
+        - brand_settings.json
     events:
       - sns: ${self:provider.environment.NEWORDERTOPIC}
 

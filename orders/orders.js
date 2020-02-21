@@ -6,12 +6,9 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
 const { getAccessLvl } = require('../shared/access_methods')
+const brandSettings = require('../brand_settings.json')
 
 const defaultPerPage = 20;
-
-const manufacturerWithDXFConversions = {
-    "grafix": true
-}
 
 async function loadUserOrdersFromDB(brand, email, perPage, LastEvaluatedKey) {
     var params = {
@@ -477,7 +474,7 @@ exports.create = async (event, context, callback) => {
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
         const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, mailCC, brand, orderSK, contactName, customerId)
-        if (manufacturerWithDXFConversions[brand]) {
+        if (brandSettings[brand].wantsDXFConversion) {
             // extract the unique frame combinations from the list and split conversion jobs into chunks of 10
             const necessaryModels = extractNecessaryModels(body)
             if (necessaryModels.length > 0) {
