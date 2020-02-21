@@ -605,9 +605,20 @@ functions:
         - email-notifications/locales.js
         - '!email-notifications/tests/**'
         - brand_settings.json
-        - node_modules/makerjs/dist/*
-        - node_modules/xml2js/lib/*
-        - node_modules/dxf/lib/*
+        - node_modules/makerjs/**
+        - node_modules/bezier-js/**
+        - node_modules/clone/**
+        - node_modules/graham_scan/**
+        - node_modules/kdbush/**
+        - node_modules/xml2js/**
+        - node_modules/sax/**
+        - node_modules/xmlbuilder/**
+        - node_modules/dxf/**
+        - node_modules/commander/**
+        - node_modules/lodash/**
+        - node_modules/pretty-data/**
+        - node_modules/round10/**
+        - node_modules/vecks/**
     events:
       - sns: ${self:provider.environment.REQUESTDXFTOPIC}
 

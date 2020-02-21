@@ -7,7 +7,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const strings = require('./locales.js');
 const brandSettings = require('../brand_settings.json')
-import { makeModelParts, combineModel } from './DXFAnalyzer'
+// import { makeModelParts, combineModel } from './DXFAnalyzer'
 
 async function getModel(brand, category, modelName) {
     var params = {
@@ -29,7 +29,7 @@ async function getModel(brand, category, modelName) {
 
 async function getFile(key) {
     const params = { Bucket: process.env.MODEL_BUCKET, Key: key }
-    return s3.getObject().promise()
+    return s3.getObject(params).promise()
 }
 
 // Send email with a number of created dxf files for the ordered frames
@@ -56,13 +56,13 @@ exports.newRequest = async (event, context, callback) => {
         const svgFile = modelData.Items[0].svgFile
         const dxfPromise = getFile(dxfFile)
         const svgPromise = getFile(svgFile)
-        const svgString = await svgPromise
-        const dxfString = await dxfPromise
-        const modelParts = await makeModelParts(dxfString, svgString)
+        const svgString = (await svgPromise).Body.toString('utf-8')
+        const dxfString = (await dxfPromise).Body.toString('utf-8')
+        // const modelParts = await makeModelParts(dxfString, svgString)
         // const model = combineModel(modelParts, bridgeSize, glasWidth, glasHeight, defaultSizes)
         // const renderOptions = { usePOLYLINE: true }
         // const dxf = makerjs.exporter.toDXF(model, renderOptions)
-        console.log(`For ${frame.name} we found model parts: `, modelParts)
+        console.log(`For ${frame.name} we found model svgString: `, svgString)
     })
 
     const fetchDataSuccess = await Promise.all(fetchDataPromises)
