@@ -406,7 +406,7 @@ function findSize(frame, name) {
 function unique(frames) {
     var temp = {}
     frames.forEach(frame => {
-        temp[`${frame.title}-${frame.bridgeWidth}-${frame.glasWidth}-${frame.glasHeight}`] = frame
+        temp[`${frame.category}-${frame.name}-${frame.bridgeWidth}-${frame.glasWidth}-${frame.glasHeight}`] = frame
     })
     return Object.values(temp)
 }
@@ -421,9 +421,10 @@ function extractNecessaryModels(orderBody) {
         const bridgeWidth = findSize(frame, 'OrderOption.BridgeWidth')
         const glasWidth = findSize(frame, 'OrderOption.GlasWidth')
         const glasHeight = findSize(frame, 'OrderOption.GlasHeight')
-        if (!frame.title || !bridgeWidth || !glasWidth || !glasHeight) return null
-        return { 
-            title: frame.title,
+        if (!frame.cmsName || !frame.category || !bridgeWidth || !glasWidth || !glasHeight) return null
+        return {
+            name: frame.cmsName,
+            category: frame.category,
             bridgeWidth: bridgeWidth,
             glasWidth: glasWidth,
             glasHeight: glasHeight

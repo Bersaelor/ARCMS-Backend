@@ -3,9 +3,29 @@
 'use strict';
 
 const AWS = require('aws-sdk'); 
-const SES = new AWS.SES({ region: 'eu-west-1' });
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const s3 = new AWS.S3();
 const fs = require("fs");
 const strings = require('./locales.js');
+
+async function getModel(brand, category, modelName) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, dxfFile, svgFile, props",
+        KeyConditionExpression: "#id = :value and #sk = :searchKey",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#sk": "sk",
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#model`,
+            ":searchKey": `${category}#${modelName}`
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
 
 // Send email with a number of created dxf files for the ordered frames
 exports.newRequest = async (event, context, callback) => {
