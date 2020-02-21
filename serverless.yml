@@ -600,8 +600,14 @@ functions:
     description: Send email with a number of created dxf files for the ordered frames
     package:
       include:
-        - email-notifications/**
+        - email-notifications/dxffilemail.js
+        - email-notifications/DXFAnalyzer.js
+        - email-notifications/locales.js
         - '!email-notifications/tests/**'
+        - brand_settings.json
+        - node_modules/makerjs/dist/*
+        - node_modules/xml2js/lib/*
+        - node_modules/dxf/lib/*
     events:
       - sns: ${self:provider.environment.REQUESTDXFTOPIC}
 
