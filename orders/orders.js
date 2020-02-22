@@ -216,37 +216,6 @@ exports.order = async (event, context, callback) => {
     }
 };
 
-// Get all orders for the current user or brand depending on the accessLvl
-exports.all = async (event, context, callback) => {
-    if (event.queryStringParameters.brand == undefined) {
-        callback(null, {
-            statusCode: 403,
-            headers: makeHeader('text/plain'),
-            body: `Missing query parameter 'brand'`,
-        });
-    }
-
-    const brand = event.queryStringParameters.brand;
-
-    if (!event.requestContext.authorizer) {
-        callback(null, {
-            statusCode: 403,
-            headers: makeHeader('text/plain'),
-            body: `Cognito Authorization missing`,
-        });
-    }
-
-    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
-
-    const askingForStoreOnly = event.queryStringParameters.store && event.queryStringParameters.store === "true"
-
-    if (askingForStoreOnly) {
-        await replyWithUserOrders(brand, cognitoUserName, defaultPerPage, callback)
-    } else {
-        await replyWithAllOrders(brand, cognitoUserName, defaultPerPage, callback)
-    }
-};
-
 // Get all orders for the current user or a specified third user depending on the accessLvl
 exports.allPaginated = async (event, context, callback) => {
     if (event.queryStringParameters.brand == undefined) {

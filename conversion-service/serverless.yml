@@ -1,0 +1,160 @@
+service: S3Events # NOTE: update this with your service name
+#app: your-app-name
+#tenant: your-tenant-name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+
+custom:
+  myStage: ${opt:stage, self:provider.stage}
+  myEnvironment:
+    MESSAGE:
+      prod: "This is production environment"
+      dev: "This is development environment"
+  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
+  ec2-role: arn:aws:iam::338756162532:role/ARCMSLambda-EC2
+
+provider:
+  name: aws
+  stage: dev
+  runtime: nodejs10.x
+  region: eu-central-1
+  environment:
+    NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
+    MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
+    CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    IMAGE_BUCKET: looc-cloud-images
+    MODEL_BUCKET: ar-glasses-models
+    STAGE: ${self:custom.myStage}
+    ACCESS_STORE: store
+    ACCESS_MANAGER: manager
+    ACCESS_ADMIN: admin
+
+package:
+  individually: true
+  exclude:
+    - "**/*"
+    - node_modules/**
+
+functions:
+  convert-to-gltf:
+    handler: models/gltfConversion.convert
+    role: ${self:custom.users-role}
+    memorySize: 1024
+    timeout: 30
+    description: Convert dae files deposited into s3/original
+    package:
+      include:
+        - models/gltfConversion.js
+        - models/tetraHedron.js
+        - models/COLLADA2GLTF-bin
+        - node_modules/xml2js/**
+        - '!node_modules/xml2js/README.md'
+        - node_modules/xmlbuilder/**
+        - node_modules/sax/**
+        - node_modules/es-abstract/**
+        - node_modules/es-to-primitive/**
+        - node_modules/function-bind/**
+        - node_modules/has-symbols/**
+        - node_modules/has/**
+        - node_modules/is-callable/**
+        - node_modules/is-regex/**
+        - node_modules/util.promisify/**
+        - node_modules/define-properties/**
+        - node_modules/object-inspect/**
+        - node_modules/object-keys/**
+        - node_modules/object.assign/**
+        - node_modules/object.getownpropertydescriptors/**
+        - node_modules/string.prototype.trimleft/**
+        - node_modules/string.prototype.trimright/**
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .dae
+        existing: true
+
+  convert-to-usdz:
+    handler: models/usdzConversion.convert
+    role: ${self:custom.ec2-role}
+    memorySize: 512
+    description: Convert gltf files deposited into s3/original
+    package:
+      include:
+        - models/usdzConversion.js
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .gltf
+        existing: true
+
+  update-after-conversion:
+    handler: models/models.updateAfterFileConversion
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Update the metadata in the DB when a model file has finished converting
+    package:
+      include:
+        - models/models.js
+        - shared/**
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: arkit/
+          - suffix: .ark
+        existing: true
+
+  dxf2svg:
+    handler: models/dxfConversion.convert
+    role: ${self:custom.ec2-role}
+    memorySize: 512
+    description: Convert dxf files deposited into s3/original to svg
+    package:
+      include:
+        - models/dxfConversion.js
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .dxf
+        existing: true
+
+  update-model-svg:
+    handler: models/models.updateModelSVG
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Update the metadata in the DB when a models svg has finished converting
+    package:
+      include:
+        - models/models.js
+        - shared/**
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: original/
+          - suffix: .svg
+        existing: true
+
+  cleanup-job:
+    handler: cleanup/cleanup.cleanOldModelsAndImages
+    role: ${self:custom.users-role}
+    memorySize: 512
+    timeout: 300
+    description: Delete images and models from S3 that are no longer used for any dynamodb entities
+    package:
+      include:
+        - cleanup/cleanup.js
+        - shared/**
+        - brand_settings.json
