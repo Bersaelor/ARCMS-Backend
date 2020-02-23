@@ -603,7 +603,6 @@ functions:
         - email-notifications/dxffilemail.js
         - email-notifications/DXFAnalyzer.js
         - email-notifications/locales.js
-        - '!email-notifications/tests/**'
         - brand_settings.json
         - node_modules/makerjs/**
         - node_modules/bezier-js/**
@@ -614,6 +613,7 @@ functions:
         - node_modules/sax/**
         - node_modules/xmlbuilder/**
         - node_modules/dxf/**
+        - '!node_modules/dxf/test/**'
         - node_modules/commander/**
         - node_modules/lodash/**
         - node_modules/pretty-data/**
