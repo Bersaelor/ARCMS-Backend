@@ -8,7 +8,7 @@ const s3 = new AWS.S3();
 const strings = require('./locales.js');
 const brandSettings = require('../brand_settings.json')
 const makerjs = require('makerjs');
-import { makeModelParts, combineModel } from './DXFAnalyzer'
+const { makeModelParts, combineModel } = require('./DXFAnalyzer.js');
 
 async function getModel(brand, category, modelName) {
     var params = {
@@ -36,8 +36,6 @@ async function getFile(key) {
 // Send email with a number of created dxf files for the ordered frames
 exports.newRequest = async (event, context, callback) => {
 
-    console.log("event:", JSON.stringify(event))
-
     const firstRecord = event.Records[0]
     if (!firstRecord || !firstRecord.Sns) {
         throw "Failed to get firstRecord or Sns entry"
@@ -50,11 +48,13 @@ exports.newRequest = async (event, context, callback) => {
         throw "Failed to get bodyJSON, brand, orderSK entry"
     }
 
-    console.log("Received order-notification ", orderSK, " for brand ", brand, " need to create DXF models")
+    console.log("Received dxf creation request ", orderSK, " for brand ", brand, " need to create DXF models")
 
     const fetchDataPromises = frames.map(async frame => {
         let modelData = await getModel(brand, frame.category, frame.name)
-        if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].dxfFile || !modelData.Items[0].svgFile) return undefined
+        if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].dxfFile || !modelData.Items[0].svgFile) return undefined
+        const props = JSON.parse(modelData.Items[0].props)
+        if (!props.defaultBridgeSize || !props.defaultGlasWidth || !props.defaultGlasHeight) return undefined
         const dxfFile = modelData.Items[0].dxfFile
         const svgFile = modelData.Items[0].svgFile
         const dxfPromise = getFile(dxfFile)
@@ -62,11 +62,15 @@ exports.newRequest = async (event, context, callback) => {
         const svgString = (await svgPromise).Body.toString('utf-8')
         const dxfString = (await dxfPromise).Body.toString('utf-8')
         const modelParts = await makeModelParts(dxfString, svgString)
-        // const model = combineModel(modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, defaultSizes)
+
+        // const model = combineModel(
+        //     modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, 
+        //     { bridgeSize: props.defaultBridgeSize, glasWidth: props.defaultGlasWidth, glasHeight: props.defaultGlasHeight }
+        // )
         // const renderOptions = { usePOLYLINE: true }
         // const dxf = makerjs.exporter.toDXF(model, renderOptions)
         // console.log("dxf: ", dxf)
-        console.log(`For ${frame.name} we found model svgString: `, svgString)
+        console.log(`For ${frame.name} we found model modelParts: `, modelParts)
     })
 
     const fetchDataSuccess = await Promise.all(fetchDataPromises)

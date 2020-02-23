@@ -7,14 +7,13 @@ const { Helper, entityToBoundsAndElement, colors } = require('dxf');
 const tol = 0.0001
 const minPadX = 0.2
 
-var rgbToHex = function (rgb: number) {
+function rgbToHex(rgb: number) {
     var hex = Number(rgb).toString(16);
     if (hex.length < 2) {
         hex = "0" + hex;
     }
     return hex;
-};
-
+}
 function rgbToColorAttribute(rgb: Array<number>) {
     if (rgb[0] === 255 && rgb[1] === 255 && rgb[2] === 255) {
         return '#000000)';
