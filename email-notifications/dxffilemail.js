@@ -7,7 +7,8 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const strings = require('./locales.js');
 const brandSettings = require('../brand_settings.json')
-// import { makeModelParts, combineModel } from './DXFAnalyzer'
+const makerjs = require('makerjs');
+import { makeModelParts, combineModel } from './DXFAnalyzer'
 
 async function getModel(brand, category, modelName) {
     var params = {
@@ -35,6 +36,8 @@ async function getFile(key) {
 // Send email with a number of created dxf files for the ordered frames
 exports.newRequest = async (event, context, callback) => {
 
+    console.log("event:", JSON.stringify(event))
+
     const firstRecord = event.Records[0]
     if (!firstRecord || !firstRecord.Sns) {
         throw "Failed to get firstRecord or Sns entry"
@@ -58,10 +61,11 @@ exports.newRequest = async (event, context, callback) => {
         const svgPromise = getFile(svgFile)
         const svgString = (await svgPromise).Body.toString('utf-8')
         const dxfString = (await dxfPromise).Body.toString('utf-8')
-        // const modelParts = await makeModelParts(dxfString, svgString)
-        // const model = combineModel(modelParts, bridgeSize, glasWidth, glasHeight, defaultSizes)
+        const modelParts = await makeModelParts(dxfString, svgString)
+        // const model = combineModel(modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, defaultSizes)
         // const renderOptions = { usePOLYLINE: true }
         // const dxf = makerjs.exporter.toDXF(model, renderOptions)
+        // console.log("dxf: ", dxf)
         console.log(`For ${frame.name} we found model svgString: `, svgString)
     })
 
