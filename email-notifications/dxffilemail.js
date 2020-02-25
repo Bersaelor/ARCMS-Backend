@@ -65,20 +65,23 @@ async function mailToManufacturer(brand, orderSK, files) {
 
     const locale = brandSettings[brand].preferredLanguage
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
-    const downloadLink = brandSettings[brand].appDownloadLink
     const customer = orderSK.split('#')[0]
     const timeStamp = parseInt(orderSK.split('#')[1], 10)
     const orderDate = new Date(timeStamp)
-
+    const localizedDate = orderDate.toLocaleString(locale)
     console.log("customer: ", customer, ", date: ", orderDate.toString())
 
     var htmlBody, subject 
     if (locale.startsWith('de')) {
-        subject = `Angepasste CAD Dateien für Bestellung von ${customer} um ${orderDate.toString()}`
+        subject = `Angepasste CAD Dateien für Bestellung von ${customer} vom ${localizedDate}`
         htmlBody = `
     <html>
         <body lang="DE" link="#0563C1" vlink="#954F72">
-        <p>Der looc.io Roboter freut sich Ihnen die angehängten Modelle für die Bestellung von ${customer} vom ${orderDate.toString()} senden zu können:</p>
+        <br>
+        <p>Hallo!</p>
+        <p>Der looc.io Roboter freut sich Ihnen die angehängten Modelle für die Bestellung von ${customer} um ${localizedDate} senden zu können:</p>
+        <p>Mehr Details zur Bestellung können auf <a href="${link}">cms.looc.io eingesehen werden</a>.
+        <BR><BR>
         <p>Mit freundlichen Grüßen</p>
         <p>🤖</p>
         </body>
@@ -130,14 +133,13 @@ exports.newRequest = async (event, context, callback) => {
         )
         const renderOptions = { usePOLYLINE: true }
         const dxf = makerjs.exporter.toDXF(model, renderOptions)
-        const fileName = `${frame.name}-${frame.glasWidth}-${frame.bridgeSize}-${frame.glasHeight}.dxf`
+        const fileName = `${frame.name}-${frame.glasWidth}-${frame.bridgeWidth}-${frame.glasHeight}.dxf`
         var duration = new Date() - start
         console.log(`Created dxf of length ${dxf.length} for ${frame.name} in %dms`, duration)
         return { filename: fileName, content: dxf }
     })
 
     const outPutDXFFiles = (await Promise.all(fetchDataPromises)).filter(value => value !== undefined)
-    console.log("outPutDXFFiles: ", outPutDXFFiles)
     if (outPutDXFFiles.length < 1) {
         console.log("No models were converted, not sending email")
         return
