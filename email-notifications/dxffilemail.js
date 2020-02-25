@@ -3,8 +3,10 @@
 'use strict';
 
 const AWS = require('aws-sdk'); 
+const SES = new AWS.SES({ region: 'eu-west-1' });
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
+var nodemailer = require("nodemailer");
 const strings = require('./locales.js');
 const brandSettings = require('../brand_settings.json')
 const makerjs = require('makerjs');
@@ -33,6 +35,60 @@ async function getFile(key) {
     return s3.getObject(params).promise()
 }
 
+async function sendMail(sender, to, subject, htmlBody, files) {
+    const transporter = nodemailer.createTransport({ SES: SES });
+
+    const mailOptions = {
+        from: sender,
+        subject: subject,
+        html: htmlBody,
+        to: to,
+        attachments: files
+    }
+
+    return new Promise(function (resolve, reject) {
+        transporter.sendMail(mailOptions, function (err, info) {
+            if (err) reject(err)
+            else {
+                console.log("Successfully sent email: ", info)
+                resolve()
+            }
+        });
+    })
+}
+
+async function mailToManufacturer(brand, orderSK, files) {
+    let brandMail = brandSettings[brand].orderAdress
+    if(!brandMail) {
+        throw `There is no manufacturer address saved for brand ${brand}`
+    }
+
+    const locale = brandSettings[brand].preferredLanguage
+    const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
+    const downloadLink = brandSettings[brand].appDownloadLink
+    const customer = orderSK.split('-')[0]
+    const timeStamp = parseInt(orderSK.split('-')[1], 10)
+    const orderDate = new Date(timeStamp)
+
+    var htmlBody, subject 
+    if (locale.startsWith('de')) {
+        subject = `Angepasste CAD Dateien für Bestellung von ${customer} um ${orderDate.toString()}`
+        htmlBody = `
+    <html>
+        <body lang="DE" link="#0563C1" vlink="#954F72">
+        <p>Der looc.io Roboter freut sich Ihnen die angehängten Modelle für die Bestellung von ${customer} vom ${orderDate.toString()} senden zu können:</p>
+        <p>Mit freundlichen Grüßen</p>
+        <p>🤖</p>
+        </body>
+    </html>
+    `    
+    }
+    const sender = "no_reply@looc.io"
+
+    let manufacturerMail = customer === "konrad@looc.io" ? "konrad@looc.io" : brandMail
+    return sendMail(sender, manufacturerMail, subject, htmlBody, files)
+}
+
 // Send email with a number of created dxf files for the ordered frames
 exports.newRequest = async (event, context, callback) => {
 
@@ -41,6 +97,7 @@ exports.newRequest = async (event, context, callback) => {
         throw "Failed to get firstRecord or Sns entry"
     }
     const message = firstRecord.Sns
+    console.log("message: ", message)
     const frames = JSON.parse(message.Message)
     const brand = message.MessageAttributes.brand.Value
     const orderSK = message.MessageAttributes.orderSK.Value
@@ -51,10 +108,12 @@ exports.newRequest = async (event, context, callback) => {
     console.log("Received dxf creation request ", orderSK, " for brand ", brand, " need to create DXF models")
 
     const fetchDataPromises = frames.map(async frame => {
+        var start = new Date()
+
         let modelData = await getModel(brand, frame.category, frame.name)
         if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].svgFile) return undefined
         const props = JSON.parse(modelData.Items[0].props)
-        const dxfPart2ColorMap = JSON.parse(modelData.Items[0].dxfPart2ColorMap)
+        const dxfPart2ColorMap = modelData.Items[0].dxfPart2ColorMap
         if (!dxfPart2ColorMap || !props.defaultBridgeSize || !props.defaultGlasWidth || !props.defaultGlasHeight) {
             console.error("Failed to get necessary values from modelData: ", modelData)
             return undefined
@@ -64,18 +123,20 @@ exports.newRequest = async (event, context, callback) => {
         const svgPromise = getFile(svgFile)
         const svgString = (await svgPromise).Body.toString('utf-8')
         const modelParts = await makeModelParts(part2ColorMap, svgString)
-
-        // const model = combineModel(
-        //     modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, 
-        //     { bridgeSize: props.defaultBridgeSize, glasWidth: props.defaultGlasWidth, glasHeight: props.defaultGlasHeight }
-        // )
-        // const renderOptions = { usePOLYLINE: true }
-        // const dxf = makerjs.exporter.toDXF(model, renderOptions)
-        // console.log("dxf: ", dxf)
-        console.log(`For ${frame.name} we found model modelParts: `, modelParts)
+        const { model } = combineModel(
+            modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, 
+            { bridgeSize: props.defaultBridgeSize, glasWidth: props.defaultGlasWidth, glasHeight: props.defaultGlasHeight }
+        )
+        const renderOptions = { usePOLYLINE: true }
+        const dxf = makerjs.exporter.toDXF(model, renderOptions)
+        const fileName = `${frame.name}-${frame.glasWidth}-${frame.bridgeSize}-${frame.glasHeight}.dxf`
+        var duration = new Date() - start
+        console.log(`Created dxf of length ${dxf.length} for ${frame.name} in %dms`, duration)
+        return { filename: fileName, content: dxf }
     })
 
-    const fetchDataSuccess = await Promise.all(fetchDataPromises)
-
-    console.log("fetchDataSuccess: ", fetchDataSuccess)
+    const outPutDXFFiles = await Promise.all(fetchDataPromises)
+    console.log("outPutDXFFiles: ", outPutDXFFiles.length)
+    const emailResult = await mailToManufacturer(brand, orderSK, outPutDXFFiles)
+    console.log("emailResult: ", emailResult)
 };

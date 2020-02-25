@@ -604,6 +604,7 @@ functions:
         - email-notifications/DXFAnalyzer.js
         - email-notifications/locales.js
         - brand_settings.json
+        - node_modules/nodemailer/**
         - node_modules/makerjs/**
         - node_modules/bezier-js/**
         - node_modules/clone/**

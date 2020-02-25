@@ -269,7 +269,6 @@ export function combineModel(
     defaultSizes: SizeParameters
 ): { model: makerjs.IModel, warnings: Warning[] } {
     let m = makerjs.model
-    var t0 = performance.now();
 
     // TODO: if the `distort` function makes a copy anyway, try doing the distort first, without extra cloning
     let shape = clone(parts.shape)
@@ -362,9 +361,6 @@ export function combineModel(
     let mirroredSide = m.mirror(fullSide, true, false)
     m.moveRelative(fullSide, [-0.0001, 0])
     let fullFrame = m.combineUnion(fullSide, mirroredSide)
-
-    var t1 = performance.now();
-    console.log("Combining frame took " + (t1 - t0) + " ms.");
 
     return { model: fullFrame, warnings: warnings }
 }
