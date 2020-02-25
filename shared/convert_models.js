@@ -9,7 +9,8 @@ exports.convertStoredModel = (storedModel) => {
     delete model.sk
     try {
         model.localizedNames = storedModel.localizedNames ? JSON.parse(storedModel.localizedNames) : undefined
-        model.props = storedModel.props ? JSON.parse(storedModel.props) : undefined    
+        model.props = storedModel.props ? JSON.parse(storedModel.props) : undefined  
+        if (storedModel.dxfPart2ColorMap) model.dxfPart2ColorMap = JSON.parse(storedModel.dxfPart2ColorMap)
     } catch (error) {
         console.log("Failed to convert json because: ", error)
     }

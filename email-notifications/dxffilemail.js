@@ -13,7 +13,7 @@ const { makeModelParts, combineModel } = require('./DXFAnalyzer.js');
 async function getModel(brand, category, modelName) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, dxfFile, svgFile, props",
+        ProjectionExpression: "sk, dxfFile, dxfPart2ColorMap, svgFile, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -54,7 +54,12 @@ exports.newRequest = async (event, context, callback) => {
         let modelData = await getModel(brand, frame.category, frame.name)
         if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].dxfFile || !modelData.Items[0].svgFile) return undefined
         const props = JSON.parse(modelData.Items[0].props)
-        if (!props.defaultBridgeSize || !props.defaultGlasWidth || !props.defaultGlasHeight) return undefined
+        const dxfPart2ColorMap = JSON.parse(modelData.Items[0].dxfPart2ColorMap)
+        if (!dxfPart2ColorMap || !props.defaultBridgeSize || !props.defaultGlasWidth || !props.defaultGlasHeight) {
+            console.error("Failed to get necessary values from modelData: ", modelData)
+            return undefined
+        }
+        const part2ColorMap = JSON.parse(dxfPart2ColorMap)
         const dxfFile = modelData.Items[0].dxfFile
         const svgFile = modelData.Items[0].svgFile
         const dxfPromise = getFile(dxfFile)

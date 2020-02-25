@@ -614,6 +614,8 @@ functions:
         - node_modules/xmlbuilder/**
         - node_modules/dxf/**
         - '!node_modules/dxf/test/**'
+        - '!node_modules/dxf/src/**'
+        - '!node_modules/dxf/examples/**'
         - node_modules/commander/**
         - node_modules/lodash/**
         - node_modules/pretty-data/**

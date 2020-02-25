@@ -1,11 +1,10 @@
-// "use strict";
-// var __importDefault = (this && this.__importDefault) || function (mod) {
-//     return (mod && mod.__esModule) ? mod : { "default": mod };
-// };
-// Object.defineProperty(exports, "__esModule", { value: true });
-// const makerjs_1 = __importDefault(require("makerjs"));
-// const xml2js_1 = __importDefault(require("xml2js"));
-// // unfortunately dxf has no types
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const makerjs_1 = __importDefault(require("makerjs"));
+const xml2js_1 = __importDefault(require("xml2js"));
+// unfortunately dxf has no types
 // const { Helper, entityToBoundsAndElement, colors } = require('dxf');
 // const tol = 0.0001;
 // const minPadX = 0.2;
@@ -171,11 +170,11 @@
 // }
 // exports.analyzeDXF = analyzeDXF;
 async function makeModelParts(dxfContents, svgContents) {
-    return dxfContents
-    // const helper = new Helper(dxfContents);
+    console.log("Helper:", Helper)
+    const helper = new Helper(dxfContents);
     // const { textsByColor, entitiesByColor } = categorize(helper.denormalised);
-    // const parser = new xml2js_1.default.Parser();
-    // const svgObj = await parser.parseStringPromise(svgContents);
+    const parser = new xml2js_1.default.Parser();
+    const svgObj = await parser.parseStringPromise(svgContents);
     // const parts = createParts(textsByColor, entitiesByColor, svgObj, []);
     // const options = {
     //     pointMatchingDistance: 0.05,

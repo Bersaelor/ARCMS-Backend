@@ -82,6 +82,7 @@ async function createModelInDB(values, brand, category) {
     if (values.svgFile) { params.Item.svgFile = values.svgFile }
     if (values.status) { params.Item.status = values.status }
     if (values.usdzFile) { params.Item.usdzFile = values.usdzFile }
+    if (values.dxfPart2ColorMap) { params.Item.dxfPart2ColorMap = JSON.stringify(values.dxfPart2ColorMap)}
 
     return dynamoDb.put(params).promise();
 }
@@ -129,7 +130,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, dxfFile, svgFile, usdzFile, #s, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, dxfFile, dxfPart2ColorMap, svgFile, usdzFile, #s, localizedNames, props",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
