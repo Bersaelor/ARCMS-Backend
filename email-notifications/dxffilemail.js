@@ -66,9 +66,11 @@ async function mailToManufacturer(brand, orderSK, files) {
     const locale = brandSettings[brand].preferredLanguage
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
     const downloadLink = brandSettings[brand].appDownloadLink
-    const customer = orderSK.split('-')[0]
-    const timeStamp = parseInt(orderSK.split('-')[1], 10)
+    const customer = orderSK.split('#')[0]
+    const timeStamp = parseInt(orderSK.split('#')[1], 10)
     const orderDate = new Date(timeStamp)
+
+    console.log("customer: ", customer, ", date: ", orderDate.toString())
 
     var htmlBody, subject 
     if (locale.startsWith('de')) {
@@ -97,7 +99,6 @@ exports.newRequest = async (event, context, callback) => {
         throw "Failed to get firstRecord or Sns entry"
     }
     const message = firstRecord.Sns
-    console.log("message: ", message)
     const frames = JSON.parse(message.Message)
     const brand = message.MessageAttributes.brand.Value
     const orderSK = message.MessageAttributes.orderSK.Value
@@ -135,8 +136,12 @@ exports.newRequest = async (event, context, callback) => {
         return { filename: fileName, content: dxf }
     })
 
-    const outPutDXFFiles = await Promise.all(fetchDataPromises)
-    console.log("outPutDXFFiles: ", outPutDXFFiles.length)
+    const outPutDXFFiles = (await Promise.all(fetchDataPromises)).filter(value => value !== undefined)
+    console.log("outPutDXFFiles: ", outPutDXFFiles)
+    if (outPutDXFFiles.length < 1) {
+        console.log("No models were converted, not sending email")
+        return
+    }
     const emailResult = await mailToManufacturer(brand, orderSK, outPutDXFFiles)
     console.log("emailResult: ", emailResult)
 };
