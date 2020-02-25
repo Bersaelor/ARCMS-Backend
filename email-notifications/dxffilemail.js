@@ -52,7 +52,7 @@ exports.newRequest = async (event, context, callback) => {
 
     const fetchDataPromises = frames.map(async frame => {
         let modelData = await getModel(brand, frame.category, frame.name)
-        if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].dxfFile || !modelData.Items[0].svgFile) return undefined
+        if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].svgFile) return undefined
         const props = JSON.parse(modelData.Items[0].props)
         const dxfPart2ColorMap = JSON.parse(modelData.Items[0].dxfPart2ColorMap)
         if (!dxfPart2ColorMap || !props.defaultBridgeSize || !props.defaultGlasWidth || !props.defaultGlasHeight) {
@@ -60,13 +60,10 @@ exports.newRequest = async (event, context, callback) => {
             return undefined
         }
         const part2ColorMap = JSON.parse(dxfPart2ColorMap)
-        const dxfFile = modelData.Items[0].dxfFile
         const svgFile = modelData.Items[0].svgFile
-        const dxfPromise = getFile(dxfFile)
         const svgPromise = getFile(svgFile)
         const svgString = (await svgPromise).Body.toString('utf-8')
-        const dxfString = (await dxfPromise).Body.toString('utf-8')
-        const modelParts = await makeModelParts(dxfString, svgString)
+        const modelParts = await makeModelParts(part2ColorMap, svgString)
 
         // const model = combineModel(
         //     modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, 

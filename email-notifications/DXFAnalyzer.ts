@@ -1,31 +1,14 @@
 import makerjs, { IModelMap, IPathMap } from 'makerjs';
 import xml2js from 'xml2js';
 
-// unfortunately dxf has no types
-const { Helper, entityToBoundsAndElement, colors } = require('dxf');
-
 const tol = 0.0001
 const minPadX = 0.2
 
-function rgbToHex(rgb: number) {
-    var hex = Number(rgb).toString(16);
-    if (hex.length < 2) {
-        hex = "0" + hex;
-    }
-    return hex;
-}
-function rgbToColorAttribute(rgb: Array<number>) {
-    if (rgb[0] === 255 && rgb[1] === 255 && rgb[2] === 255) {
-        return '#000000)';
-    } else {
-        return `#${rgbToHex(rgb[0])}${rgbToHex(rgb[1])}${rgbToHex(rgb[2])}`;
-    }
-}
-
-interface DXFEntity {
-    type: string
-    colorNumber: number
-    string: string
+const partNames: {[part: string]: string[]} = {
+    bridge: ["bridge", "bruecke", "brücke"],
+    shape: ["shape", "front", "frame", "shape_left", "shape_right"],
+    hinge: ["hinge", "hinge_left", "hinge_right", "backe"],
+    pad: ["pad", "pad_left", "pad_right"]
 }
 
 interface SVGPath {
@@ -60,35 +43,6 @@ interface SizeParameters {
     glasWidth: number
     glasHeight: number
     templeLength: number
-}
-
-function categorize(entities: Array<DXFEntity>) {
-    var textsByColor: {[color: string]: Array<string>} = {}
-    var entitiesByColor: {[color: string]: Array<DXFEntity>} = {}
-
-    entities.forEach(entity => {
-        if (entity.type === "MTEXT") {
-            let existing = textsByColor[entity.colorNumber]
-            if (existing) {
-                existing.push(entity.string)
-            } else {
-                textsByColor[entity.colorNumber] = Array(entity.string)
-            }   
-        } else {
-            let existing = entitiesByColor[entity.colorNumber]
-            if (existing) {
-                existing.push(entity)
-            } else {
-                entitiesByColor[entity.colorNumber] = Array(entity)
-            }    
-        }
-    });
-    return { textsByColor: textsByColor, entitiesByColor: entitiesByColor }
-}
-
-function checkForDuplicates(textsByColor: {[color: string]: Array<string>}) {
-    let duplicateKey = (Object.keys(textsByColor) as Array<keyof typeof textsByColor>).find(key => textsByColor[key].length > 1)
-    return duplicateKey ? textsByColor[duplicateKey].map(t => `"${t}"`) : []
 }
 
 function modelFromPaths(paths: string[]): makerjs.IModel {
@@ -126,65 +80,30 @@ function modelFromCircles(circles: SVGCircle[]): makerjs.IModel {
 }
 
 function createParts(
-    textsByColor: { [color: string]: Array<string> },
-    entitiesByColor: { [color: string]: Array<DXFEntity> },
-    svgObj: SVG,
-    warnings: Array<Warning>
-) {
-    var objectsByColor: {[color: string]: makerjs.IModel} = {}
-
-    Object.keys(entitiesByColor).forEach(color => {
-        let paths: string[] = entitiesByColor[color].map(entity => {
-            const { element } = entityToBoundsAndElement(entity)
-            if (element.startsWith("<path d=") && element.endsWith(" />")) {
-                let length = element.length
-                return element.substring(9, length - 9 - 5)
-            } else {
-                console.log(`entity ${entity.type} lead to an unusable svg of `, element)
-                return undefined
-            }
-        })
-
-        objectsByColor[color] = modelFromPaths(paths)
-    })
-
-    let partNames: {[part: string]: string[]} = {
-        bridge: ["bridge", "bruecke", "brücke"],
-        shape: ["shape", "front", "frame", "shape_left", "shape_right"],
-        hinge: ["hinge", "hinge_left", "hinge_right", "backe"],
-        pad: ["pad", "pad_left", "pad_right"]
+    part2ColorMap: { [part: string]: string },
+    svgObj: SVG | undefined,
+): makerjs.IModelMap {
+    if (!svgObj || !svgObj.svg || svgObj.svg.g.length < 1 || !svgObj.svg.g[0].path) {
+        console.log("SvgObj is missing key svg properties!")
+        return {}
     }
 
-    var parts: {[part: string]: makerjs.IModel } = {}
+    var parts: { [part: string]: makerjs.IModel } = {}
     Object.keys(partNames).forEach(part => {
-        let names: string[] = partNames[part]
-        let color = Object.keys(textsByColor).find(color => {
-            let texts = textsByColor[color]
-            return texts.find(text => names.includes(text.toLowerCase())) !== undefined
-        })
-        if (!color) {
-            warnings.push({ term: "frameupload.dxfwarning.missingAnnotation", data: { NAME: part } })
-        } else {
-            let object = objectsByColor[color]
-            if (!object) {
-                warnings.push({ term: "frameupload.dxfwarning.missingCurve", data: { NAME: part } })
-            } else {
-                if (svgObj && svgObj.svg && svgObj.svg.g.length > 0 && svgObj.svg.g[0].path) {
-                    let firstGroup = svgObj.svg.g[0]
-                    let paths = firstGroup.path
-                    let rgb = rgbToColorAttribute(colors[color])
-                    let matchingPaths = paths.filter(path => path.$ && path.$.style.startsWith && path.$.style.startsWith(`stroke:${rgb}`))
-                    if (matchingPaths.length > 0) {                        
-                        parts[part] = modelFromPaths(matchingPaths.map(path => path.$.d))
-                    }
-                    if (firstGroup.circle && firstGroup.circle.length > 0) {
-                        let colorFittingCircles = firstGroup.circle.filter(c => c.$.style.startsWith(`stroke:${rgb}`))
-                        if (part === "shape") {
-                            parts[`${part}_holes`] = modelFromCircles(colorFittingCircles)
-                        } else {
-                            console.log(`Unhandled circles for ${part}: `, firstGroup.circle)
-                        }
-                    }
+        let color = part2ColorMap[part]
+        if (color) {
+            let firstGroup = svgObj.svg.g[0]
+            let paths = firstGroup.path
+            let matchingPaths = paths.filter(path => path.$ && path.$.style.startsWith && path.$.style.startsWith(`stroke:${color}`))
+            if (matchingPaths.length > 0) {
+                parts[part] = modelFromPaths(matchingPaths.map(path => path.$.d))
+            }
+            if (firstGroup.circle && firstGroup.circle.length > 0) {
+                let colorFittingCircles = firstGroup.circle.filter(c => c.$.style.startsWith(`stroke:${color}`))
+                if (part === "shape") {
+                    parts[`${part}_holes`] = modelFromCircles(colorFittingCircles)
+                } else {
+                    console.log(`Unhandled circles for ${part}: `, firstGroup.circle)
                 }
             }
         }
@@ -198,49 +117,13 @@ type Warning = {
     data: {[key: string]: string}
 }
 
-/**  
- * analyzes the dxfContents and creates a preview SVG for viewing of the uploaded
- * the converted SVG isn't very high quality, so before we can use maker.js to really work on it
- * we need to upload the file to the cloud to properly convert it to a higher quality svg
- *
- * @param dxfContents the uploaded original DXF file contents
- * @param svgContents the contents of the high quality svg converted in the cloud
- */
-export async function analyzeDXF(dxfContents: string, svgContents: string) {
-    const helper = new Helper(dxfContents)
-    const previewSVG = helper.toSVG()
-
-    var warnings = []
-    var { textsByColor, entitiesByColor } = categorize(helper.denormalised)
-
-    let duplicates = checkForDuplicates(textsByColor)
-    if (duplicates && duplicates.length > 0) {
-        warnings.push({ term: "frameupload.dxfwarning.duplicate", data: { DUPLICATES: checkForDuplicates(textsByColor).join(" & ") }})
-    }
-
-    var svgObj
-    if (svgContents) {
-        let parser = new xml2js.Parser();
-        svgObj = await parser.parseStringPromise(svgContents)
-    }
-
-    // create the parts just to make the warnings
-    createParts(textsByColor, entitiesByColor, svgObj, warnings)
- 
-    return { previewSVG: previewSVG, warnings: warnings }
-}
-
 export async function makeModelParts(
-    dxfContents: string,
+    part2ColorMap: { [part: string]: string },
     svgContents: string
 ): Promise<makerjs.IModelMap> {
-    const helper = new Helper(dxfContents)
-
-    const { textsByColor, entitiesByColor } = categorize(helper.denormalised)
-
     const parser = new xml2js.Parser();
     const svgObj = await parser.parseStringPromise(svgContents)
-    const parts = createParts(textsByColor, entitiesByColor, svgObj, [])
+    const parts = createParts(part2ColorMap, svgObj)
 
     const options: makerjs.IFindChainsOptions = {
         pointMatchingDistance: 0.05,
@@ -298,26 +181,8 @@ type LineInfo = {
     isAtOrigin?: boolean
 }
 
-function convertToChained(model: makerjs.IModel): makerjs.IModel {
-    const options: makerjs.IFindChainsOptions = {
-        pointMatchingDistance: 0.05,
-        shallow: false,
-        unifyBeziers: false
-    }
-
-    const chains = makerjs.model.findChains(model, options) as makerjs.IChain[]
-
-    console.log("chains: ", chains)
-
-    var chainedParts: makerjs.IModelMap  = {}
-    chains.forEach((element, index) => {
-        chainedParts[`chain_${index}`] = makerjs.chain.toNewModel(element, true)
-    })
-
-    return { models: chainedParts }
-}
-
 function findConnectingLine(shape: makerjs.IModel, pad: makerjs.IModel) {
+    var warnings: Warning[] = []
 
     // find the connection line in the shape
     let padTop = makerjs.measure.modelExtents(pad).high[1]
@@ -327,14 +192,18 @@ function findConnectingLine(shape: makerjs.IModel, pad: makerjs.IModel) {
             if (makerjs.isPathLine(wp.pathContext)) {
                 let line = wp.pathContext as makerjs.IPathLine
                 let distToTop = Math.min(Math.abs(padTop - line.origin[1]), Math.abs(padTop - line.end[1]))
-                if (distToTop < tol ) linesConnectedToTop.push({line: line, route: wp.route })
+                if (distToTop < tol) linesConnectedToTop.push({ line: line, route: wp.route })
             }
         }
     }
     makerjs.model.walk(shape, findInShapeWalk)
     if (linesConnectedToTop.length !== 1) {
+        warnings.push({
+            term: "frameupload.dxfwarning.unexpectedLineCountConnectingPadAndShape",
+            data: { COUNT: linesConnectedToTop.length.toString() }
+        })
         console.log("ERROR: Expected a single line in the Shape part that connects to the Pad, found ", linesConnectedToTop.length)
-        return undefined
+        return { connectingLines: undefined, warnings: warnings }
     }
     let lineInShape = linesConnectedToTop[0]
     let topPoint = lineInShape.line.origin[1] > lineInShape.line.end[1] ? lineInShape.line.origin : lineInShape.line.end
@@ -363,7 +232,10 @@ function findConnectingLine(shape: makerjs.IModel, pad: makerjs.IModel) {
         }
     }
     makerjs.model.walk(pad, findLinesInPad)
-    return { lineInShape: lineInShape, padLinesTop: linesConnectedToTop, padLinesBottom: linesConnectedToBottom }
+    return { 
+        connectingLines: {lineInShape: lineInShape, padLinesTop: linesConnectedToTop,  padLinesBottom: linesConnectedToBottom},
+        warnings: warnings
+    }
 }
 
 function clone(model: makerjs.IModel) {
@@ -395,9 +267,8 @@ export function combineModel(
     glasWidth: number,
     glasHeight: number,
     defaultSizes: SizeParameters
-): makerjs.IModel {
+): { model: makerjs.IModel, warnings: Warning[] } {
     let m = makerjs.model
-
     var t0 = performance.now();
 
     // TODO: if the `distort` function makes a copy anyway, try doing the distort first, without extra cloning
@@ -406,7 +277,7 @@ export function combineModel(
     let hinge = parts.hinge
     var bridge = parts.bridge
 
-    let connectingLines = findConnectingLine(shape, pad)
+    let { connectingLines, warnings} = findConnectingLine(shape, pad)
 
     let bridgeMeas = makerjs.measure.modelExtents(bridge)
     let shapeMeas = makerjs.measure.modelExtents(shape)
@@ -454,9 +325,11 @@ export function combineModel(
             connectingLines.padLinesTop.forEach(lineInfo => setPointEqual(lineInfo, pad, topPoint))
             connectingLines.padLinesBottom.forEach(lineInfo => setPointEqual(lineInfo, pad, bottomPoint))
         } else {
+            warnings.push({ term: "frameupload.dxfwarning.noLineConnectsPadAndShape", data: {} })
             console.log("ERROR: Found connecting lines in the original, but couldn't find them during the algorithm!")
         }
     } else {
+        warnings.push({ term: "frameupload.dxfwarning.noLineConnectsPadAndShape", data: {} })
         console.log("ERROR: Failed to find line that connects Pad and Shape!")
     }
 
@@ -493,5 +366,5 @@ export function combineModel(
     var t1 = performance.now();
     console.log("Combining frame took " + (t1 - t0) + " ms.");
 
-    return fullFrame
+    return { model: fullFrame, warnings: warnings }
 }

@@ -80,21 +80,6 @@ clone@^1.0.2:
   resolved "https://registry.yarnpkg.com/clone/-/clone-1.0.4.tgz#da309cc263df15994c688ca902179ca3c7cd7c7e"
   integrity sha1-2jCcwmPfFZlMaIypAheco8fNfH4=
 
-commander@^2.20.3:
-  version "2.20.3"
-  resolved "https://registry.yarnpkg.com/commander/-/commander-2.20.3.tgz#fd485e84c03eb4881c20722ba48035e8531aeb33"
-  integrity sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==
-
-"dxf@https://github.com/Bersaelor/dxf#feature/export_entityToBoundsAndElement":
-  version "4.3.4"
-  resolved "https://github.com/Bersaelor/dxf#fd5033a44bbf16cdac495c47488c89763ad5a2a9"
-  dependencies:
-    commander "^2.20.3"
-    lodash "^4.17.15"
-    pretty-data "^0.40.0"
-    round10 "^1.0.3"
-    vecks "^3.9.0"
-
 events@1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/events/-/events-1.1.1.tgz#9ebdb7635ad099c70dcc4c2a1f5004288e8bd924"
@@ -130,11 +115,6 @@ kdbush@^2.0.1:
   resolved "https://registry.yarnpkg.com/kdbush/-/kdbush-2.0.1.tgz#90c6128e3001ac68c550d7c9e2f222c0269666f1"
   integrity sha512-9KqSdmWCkBIisFIGclT0FRagKhI7IVbMyUjsxCFG0Ly1Dg6whlxJ7b9lrq8ifk3X/fGeJzok1R75LQfZTfA5zQ==
 
-lodash@^4.17.15:
-  version "4.17.15"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.15.tgz#b447f6670a0455bbfeedd11392eff330ea097548"
-  integrity sha512-8xOcRHvCjnocdS5cpwXQXVzmmh5e5+saE2QGoeQmbKmRS6J3VQppPOIt0MnmE+4xlZoumy0GPG0D0MVIQbNA1A==
-
 makerjs@^0.17.0:
   version "0.17.0"
   resolved "https://registry.yarnpkg.com/makerjs/-/makerjs-0.17.0.tgz#4731c230a7e4460c926306f06d8a8ea04765f022"
@@ -155,11 +135,6 @@ mustache@3.0.1:
   resolved "https://registry.yarnpkg.com/mustache/-/mustache-3.0.1.tgz#873855f23aa8a95b150fb96d9836edbc5a1d248a"
   integrity sha512-jFI/4UVRsRYdUbuDTKT7KzfOp7FiD5WzYmmwNwXyUVypC0xjoTL78Fqc0jHUPIvvGD+6DQSPHIt1NE7D1ArsqA==
 
-pretty-data@^0.40.0:
-  version "0.40.0"
-  resolved "https://registry.yarnpkg.com/pretty-data/-/pretty-data-0.40.0.tgz#572aa8ea23467467ab94b6b5266a6fd9c8fddd72"
-  integrity sha1-Vyqo6iNGdGerlLa1Jmpv2cj93XI=
-
 punycode@1.3.2:
   version "1.3.2"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-1.3.2.tgz#9653a036fb7c1ee42342f2325cceefea3926c48d"
@@ -169,11 +144,6 @@ querystring@0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/querystring/-/querystring-0.2.0.tgz#b209849203bb25df820da756e747005878521620"
   integrity sha1-sgmEkgO7Jd+CDadW50cAWHhSFiA=
-
-round10@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/round10/-/round10-1.0.3.tgz#86110f46a10874a1931da7fdd5e06d1857a8e4d0"
-  integrity sha1-hhEPRqEIdKGTHaf91eBtGFeo5NA=
 
 run-local-lambda@^1.1.1:
   version "1.1.1"
@@ -202,11 +172,6 @@ uuid@3.3.2:
   version "3.3.2"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.3.2.tgz#1b4af4955eb3077c501c23872fc6513811587131"
   integrity sha512-yXJmeNaw3DnnKAOKJE51sL/ZaYfWJRl1pK9dr19YFCu0ObS231AB1/LbqTKRAQ5kw8A90rA6fr4riOUpTZvQZA==
-
-vecks@^3.9.0:
-  version "3.9.0"
-  resolved "https://registry.yarnpkg.com/vecks/-/vecks-3.9.0.tgz#1927cf90f9e859762836b70a1e86679dd474786c"
-  integrity sha512-ZHdBNUsVyi2jTXtGLNXi+knGqNUdL4qOLiXRfroOJ64Ho/402Ky0QTAk8C/c0jqz4VfxdzGfgmjS+P7ie8JoNA==
 
 xml2js@0.4.19:
   version "0.4.19"
