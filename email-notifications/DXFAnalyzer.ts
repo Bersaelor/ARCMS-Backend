@@ -148,8 +148,8 @@ export async function makeModelParts(
     })
 
     let bridgeMeas = makerjs.measure.modelExtents(convertedParts.bridge)
-    let hingeMeas = makerjs.measure.modelExtents(convertedParts.hinge)
-    let isLeftSide = hingeMeas.high[0] < bridgeMeas.low[0]
+    let shapeMeas = makerjs.measure.modelExtents(convertedParts.shape)
+    let isLeftSide = shapeMeas.center[0] < bridgeMeas.center[0]
     
     // move combined model to have origin [0, 0]
     let fullMeas = makerjs.measure.modelExtents({ models: convertedParts })
@@ -185,32 +185,28 @@ function findConnectingLine(shape: makerjs.IModel, pad: makerjs.IModel) {
     var warnings: Warning[] = []
 
     // find the connection line in the shape
-    let padTop = makerjs.measure.modelExtents(pad).high[1]
-    var linesConnectedToTop: LineInfo[] = []
+    let padMax = makerjs.measure.modelExtents(pad).high[0]
+    var linesConnectedToPadMax: LineInfo[] = []
     var findInShapeWalk: makerjs.IWalkOptions = {
         onPath: function (wp) {
             if (makerjs.isPathLine(wp.pathContext)) {
                 let line = wp.pathContext as makerjs.IPathLine
-                let distToTop = Math.min(Math.abs(padTop - line.origin[1]), Math.abs(padTop - line.end[1]))
-                if (distToTop < tol) linesConnectedToTop.push({ line: line, route: wp.route })
+                let distToMax = Math.min(Math.abs(padMax - line.origin[0]), Math.abs(padMax - line.end[0]))
+                if (distToMax < tol) linesConnectedToPadMax.push({ line: line, route: wp.route })
             }
         }
     }
     makerjs.model.walk(shape, findInShapeWalk)
-    if (linesConnectedToTop.length !== 1) {
-        warnings.push({
-            term: "frameupload.dxfwarning.unexpectedLineCountConnectingPadAndShape",
-            data: { COUNT: linesConnectedToTop.length.toString() }
-        })
-        console.log("ERROR: Expected a single line in the Shape part that connects to the Pad, found ", linesConnectedToTop.length)
+    if (linesConnectedToPadMax.length !== 1) {
+        console.log("ERROR: Expected a single line in the Shape part that connects to the Pad, found ", linesConnectedToPadMax.length)
         return { connectingLines: undefined, warnings: warnings }
     }
-    let lineInShape = linesConnectedToTop[0]
+    let lineInShape = linesConnectedToPadMax[0]
     let topPoint = lineInShape.line.origin[1] > lineInShape.line.end[1] ? lineInShape.line.origin : lineInShape.line.end
     let bottomPoint = lineInShape.line.origin[1] > lineInShape.line.end[1] ? lineInShape.line.end :  lineInShape.line.origin
     
     // find the lines that connect to the lineInShape in the pad
-    linesConnectedToTop = []
+    linesConnectedToPadMax = []
     var linesConnectedToBottom: LineInfo[] = []
     var findLinesInPad: makerjs.IWalkOptions = {
         onPath: function (wp) {
@@ -222,7 +218,7 @@ function findConnectingLine(shape: makerjs.IModel, pad: makerjs.IModel) {
                 let originToBottom = makerjs.measure.pointDistance(bottomPoint, line.origin)
                 let endToBottom = makerjs.measure.pointDistance(bottomPoint, line.end)
                 let distToBottom = Math.min(originToBottom, endToBottom)
-                if (distToTop < tol) linesConnectedToTop.push({
+                if (distToTop < tol) linesConnectedToPadMax.push({
                     line: line, route: wp.route, isAtOrigin: originToTop < endTopTop
                 })
                 if (distToBottom < tol) linesConnectedToBottom.push({
@@ -233,7 +229,7 @@ function findConnectingLine(shape: makerjs.IModel, pad: makerjs.IModel) {
     }
     makerjs.model.walk(pad, findLinesInPad)
     return { 
-        connectingLines: {lineInShape: lineInShape, padLinesTop: linesConnectedToTop,  padLinesBottom: linesConnectedToBottom},
+        connectingLines: {lineInShape: lineInShape, padLinesTop: linesConnectedToPadMax,  padLinesBottom: linesConnectedToBottom},
         warnings: warnings
     }
 }
@@ -300,12 +296,12 @@ export function combineModel(
     const floatingPointSecFactor = 1.00003
     shape = m.distort(shape, horizontalFactor * floatingPointSecFactor, verticalFactor)
     m.moveRelative(shape, [shapeMeas.low[0] - 0.5 * (floatingPointSecFactor - 1), 0])
-    hinge = m.distort(hinge, 1, verticalFactor)
+    if (hinge) hinge = m.distort(hinge, 1, verticalFactor)    
 
     let hingeTranslation = shapeMeas.width * (horizontalFactor - 1)
     let padTranslation = [padDelta[0] * (horizontalFactor - 1), padDelta[1] * (verticalFactor - 1)]
     m.moveRelative(shape, [bridgeXTranslation, 0])
-    m.moveRelative(hinge, [bridgeXTranslation + hingeTranslation, 0])
+    if (hinge) m.moveRelative(hinge, [bridgeXTranslation + hingeTranslation, 0])
     var totalPadTranslation = makerjs.point.add([bridgeXTranslation, 0], padTranslation)
     let padDiff = padMin + totalPadTranslation[0] - minPadX
     if (padDiff < 0) {
