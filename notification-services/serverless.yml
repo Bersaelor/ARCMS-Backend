@@ -1,0 +1,49 @@
+service: Internal # NOTE: update this with your service name
+#app: your-app-name
+#tenant: your-tenant-name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+
+custom:
+  myStage: ${opt:stage, self:provider.stage}
+  myEnvironment:
+    MESSAGE:
+      prod: "This is production environment"
+      dev: "This is development environment"
+  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
+  region: ${opt:region, self:provider.region}
+
+provider:
+  name: aws
+  stage: dev
+  runtime: nodejs10.x
+  region: eu-central-1
+  environment:
+    NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
+    MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
+    CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    STAGE: ${self:custom.myStage}
+
+package:
+  individually: true
+  exclude:
+    - "**/*"
+    - node_modules/**
+
+
+functions:
+  forwardLambdaError:
+    handler: notifications.forwardError
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Forward the error notification from region eu-central to region ireland
+    package:
+      include:
+        - notifications.js
+    environment:
+      snsArn: 'arn:aws:sns:eu-west-1:338756162532:lambda-error-notifications-irelandsms'
+    events:
+      - sns:
+          arn: 'arn:aws:sns:eu-central-1:338756162532:lambda-error-notifications'

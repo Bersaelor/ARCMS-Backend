@@ -93,7 +93,7 @@ async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, 
 async function getContactNameAndCustomerId(cognitoUserName, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "firstName, lastName, customerId",
+        ProjectionExpression: "firstName, lastName, customerId, mailCC",
         KeyConditionExpression: "#id = :value and sk = :brand",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -115,7 +115,7 @@ async function getContactNameAndCustomerId(cognitoUserName, brand) {
             } else {
                 let item = data.Items[0]
                 let contactName = `${item.firstName ? item.firstName : "?"} ${item.lastName ? item.lastName : "?"}`
-                resolve({ contactName: contactName, customerId: item.customerId });
+                resolve({ contactName: contactName, customerId: item.customerId, mailCC: item.mailCC });
             }
         });
     });
@@ -336,7 +336,7 @@ function paginate(orders, perPage, LastEvaluatedKey) {
     }
 }
 
-async function postNewOrderNotification(orderString, storeEmail, brand, orderSK, contactName, customerId) {
+async function postNewOrderNotification(orderString, storeEmail, ccMail, brand, orderSK, contactName, customerId) {
     var params = {
         Message: orderString, 
         Subject: "New glasses order",
@@ -345,6 +345,10 @@ async function postNewOrderNotification(orderString, storeEmail, brand, orderSK,
             'storeEmail': {
                 DataType: 'String',
                 StringValue: storeEmail
+            },
+            'ccMail': {
+                DataType: 'String',
+                StringValue: ccMail ? ccMail : "   "
             },
             'brand': {
                 DataType: 'String',
@@ -403,12 +407,12 @@ exports.create = async (event, context, callback) => {
     
         const bodyString = JSON.stringify(body)
     
-        const {contactName, customerId} = await getContactNameAndCustomerId(cognitoUserName, brand)
+        const {contactName, customerId, mailCC} = await getContactNameAndCustomerId(cognitoUserName, brand)
 
         const now = new Date()
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
-        const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, brand, orderSK, contactName, customerId)
+        const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, mailCC, brand, orderSK, contactName, customerId)
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise
