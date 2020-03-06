@@ -10,7 +10,7 @@ var nodemailer = require("nodemailer");
 const strings = require('./locales.js');
 const brandSettings = require('../brand_settings.json')
 const makerjs = require('makerjs');
-const { makeModelParts, combineModel } = require('./DXFAnalyzer.js');
+const { makeModelParts, combineModel } = require('./DXFCombiner.js');
 
 async function getModel(brand, category, modelName) {
     var params = {
@@ -43,6 +43,7 @@ async function sendMail(sender, to, subject, htmlBody, files) {
         subject: subject,
         html: htmlBody,
         to: to,
+        cc: 'konrad@looc.io',
         attachments: files
     }
 

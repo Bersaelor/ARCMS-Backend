@@ -601,7 +601,7 @@ functions:
     package:
       include:
         - email-notifications/dxffilemail.js
-        - email-notifications/DXFAnalyzer.js
+        - email-notifications/DXFCombiner.js
         - email-notifications/locales.js
         - brand_settings.json
         - node_modules/nodemailer/**
