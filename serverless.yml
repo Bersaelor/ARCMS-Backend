@@ -22,6 +22,7 @@ provider:
   region: eu-central-1
   environment:
     NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
+    REQUESTDXFTOPIC: create-dxf-for-order-${self:custom.myStage}
     MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
     IMAGE_BUCKET: looc-cloud-images
@@ -509,6 +510,7 @@ functions:
       include:
         - orders/orders.js
         - shared/access_methods.js
+        - brand_settings.json
     events:
       - http:
           path: v2/orders
@@ -537,6 +539,7 @@ functions:
       include:
         - orders/orders.js
         - shared/access_methods.js
+        - brand_settings.json
     events:
       - http:
           path: order/{id}
@@ -555,8 +558,10 @@ functions:
       include:
         - orders/orders.js
         - shared/access_methods.js
+        - brand_settings.json
     environment:
-      snsArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
+      emailSNSArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.NEWORDERTOPIC}" ] ]  }
+      dxfFileRequestArn: { "Fn::Join" : ["", ["arn:aws:sns:${self:custom.region}:", { "Ref" : "AWS::AccountId" }, ":${self:provider.environment.REQUESTDXFTOPIC}" ] ]  }
     events:
       - http:
           path: order/create
@@ -583,6 +588,31 @@ functions:
         - email-notifications/**
         - '!email-notifications/tests/**'
         - node_modules/mustache/mustache.min.js
+        - brand_settings.json
     events:
       - sns: ${self:provider.environment.NEWORDERTOPIC}
+
+  create-dxf-files:
+    handler: email-notifications/dxffilemail.newRequest
+    role: ${self:custom.users-role}
+    memorySize: 2048
+    timeout: 300
+    description: Send email with a number of created dxf files for the ordered frames
+    package:
+      include:
+        - email-notifications/dxffilemail.js
+        - email-notifications/DXFCombiner.js
+        - email-notifications/locales.js
+        - brand_settings.json
+        - node_modules/nodemailer/**
+        - node_modules/makerjs/**
+        - node_modules/bezier-js/**
+        - node_modules/clone/**
+        - node_modules/graham_scan/**
+        - node_modules/kdbush/**
+        - node_modules/xml2js/**
+        - node_modules/sax/**
+        - node_modules/xmlbuilder/**
+    events:
+      - sns: ${self:provider.environment.REQUESTDXFTOPIC}
 

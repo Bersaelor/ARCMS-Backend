@@ -6,6 +6,7 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
 const { getAccessLvl } = require('../shared/access_methods')
+const brandSettings = require('../brand_settings.json')
 
 const defaultPerPage = 20;
 
@@ -340,7 +341,7 @@ async function postNewOrderNotification(orderString, storeEmail, ccMail, brand, 
     var params = {
         Message: orderString, 
         Subject: "New glasses order",
-        TopicArn: process.env.snsArn,
+        TopicArn: process.env.emailSNSArn,
         MessageAttributes: {
             'storeEmail': {
                 DataType: 'String',
@@ -369,6 +370,66 @@ async function postNewOrderNotification(orderString, storeEmail, ccMail, brand, 
         }
     };
     return sns.publish(params).promise()
+}
+
+async function postConvertDxfRequestNotification(orderString, brand, orderSK) {
+    if (!orderString) return
+    
+    var params = {
+        Message: orderString, 
+        Subject: "Request to convert DXF for new order",
+        TopicArn: process.env.dxfFileRequestArn,
+        MessageAttributes: {
+            'brand': {
+                DataType: 'String',
+                StringValue: brand
+            },
+            'orderSK': {
+                DataType: 'String',
+                StringValue: orderSK
+            }
+        }
+    };
+    return sns.publish(params).promise()
+}
+
+function findSize(frame, name) {
+    const details = frame.frameOrderDetailItems
+    if (!details) return undefined
+    const item = details.find(el => el.titleTerm === name)
+    return item.chosenSize
+}
+
+function unique(frames) {
+    var temp = {}
+    frames.forEach(frame => {
+        temp[`${frame.category}-${frame.name}-${frame.bridgeWidth}-${frame.glasWidth}-${frame.glasHeight}`] = frame
+    })
+    return Object.values(temp)
+}
+
+function extractNecessaryModels(orderBody) {
+    if (!Array.isArray(orderBody)) {
+        console.error("Expected the order body to be an Array of frames!")
+        return []
+    }
+
+    var frames = orderBody.map(frame => {
+        const bridgeWidth = findSize(frame, 'OrderOption.BridgeWidth')
+        const glasWidth = findSize(frame, 'OrderOption.GlasWidth')
+        const glasHeight = findSize(frame, 'OrderOption.GlasHeight')
+        if (!frame.cmsName || !frame.category || !bridgeWidth || !glasWidth || !glasHeight) return null
+        return {
+            name: frame.cmsName,
+            category: frame.category,
+            bridgeWidth: bridgeWidth,
+            glasWidth: glasWidth,
+            glasHeight: glasHeight
+        }
+    })
+    frames = frames.filter(el => el !== null)
+
+    return unique(frames)
 }
 
 // Create and save a new order
@@ -413,6 +474,20 @@ exports.create = async (event, context, callback) => {
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
         const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
         const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, mailCC, brand, orderSK, contactName, customerId)
+        if (brandSettings[brand].wantsDXFConversion) {
+            // extract the unique frame combinations from the list and split conversion jobs into chunks of 10
+            const necessaryModels = extractNecessaryModels(body)
+            if (necessaryModels.length > 0) {
+                var fetchPromises = []
+                var i, j, chunk = 10;
+                for (i = 0, j = necessaryModels.length; i < j; i += chunk) {
+                    let slice = necessaryModels.slice(i, i + chunk);
+                    fetchPromises.push(postConvertDxfRequestNotification(JSON.stringify(slice), brand, orderSK))
+                }
+                const dxfCreationRequestSuccess = await Promise.all(fetchPromises) 
+                console.log("dxfCreationRequestSuccess: ", dxfCreationRequestSuccess)
+            }
+        }
 
         const writeSuccess = await writeSuccessPromise
         const notificationSuccess = await notifiyViaEmailPromise

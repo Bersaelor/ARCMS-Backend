@@ -1,0 +1,31 @@
+{
+    "Records": [
+        {
+            "EventSource": "aws:sns",
+            "EventVersion": "1.0",
+            "EventSubscriptionArn": "arn:aws:sns:eu-central-1:338756162532:create-dxf-for-order-prod:c53a7088-0f38-41f3-aa2b-8acc56f123d3",
+            "Sns": {
+                "Type": "Notification",
+                "MessageId": "a4257515-a802-569f-acd1-23d94582f234",
+                "TopicArn": "arn:aws:sns:eu-central-1:338756162532:create-dxf-for-order-prod",
+                "Subject": "Request to convert DXF for new order",
+                "Message": "[{\"name\":\"atlas\",\"category\":\"galaxius\",\"bridgeWidth\":18,\"glasWidth\":55,\"glasHeight\":37}]",
+                "Timestamp": "2020-02-23T21:14:40.917Z",
+                "SignatureVersion": "1",
+                "Signature": "QD4Y0WdYN9O3v0Kqv8oP46SkKQnRKgGJOuTc1kWFUopyCzweaxi4xfYfavQqpdmuGXW3jAIWvc5YiztTDBG64I4DTIPJnfMCfx6lr02VCqQcVcG3QYzismqh8CMLEgrk67wJ4fl/JnwpL5mNKVxcyW1myeU7UhpLkfD6+d9k+m/StV8v7xX6c9PsRLh8lPh10CVrq3mT9zu3U/EM1hBgXop4TVEq8cT90XhJNE+LnU3AOQaUxAKA0dA0nVn1kCt3NeMcs+IJrkbP+0wQ37Al35ZmnnpSPrCS8jsA9qrK+tDzMfHzAj5ZfoirN4xV3SEGU94JIomzMbm3qasVsQ1zNA==",
+                "SigningCertUrl": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-a86cb10b4e1f29c941702d737128f7b6.pem",
+                "UnsubscribeUrl": "https://sns.eu-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:eu-central-1:338756162532:create-dxf-for-order-prod:c53a7088-0f38-41f3-aa2b-8acc56f123d3",
+                "MessageAttributes": {
+                    "orderSK": {
+                        "Type": "String",
+                        "Value": "konrad@looc.io#2020-02-23T21:14:40.843Z"
+                    },
+                    "brand": {
+                        "Type": "String",
+                        "Value": "grafix"
+                    }
+                }
+            }
+        }
+    ]
+}

@@ -1,14 +1,34 @@
 {
     "domvetro": {
-        "allows3DModelUpload": true
+        "name": "DOM VETRO",
+        "allows3DModelUpload": true,
+        "wantsDXFConversion": false,
+        "orderAdress": "konrad@looc.io",
+        "preferredLanguage": "en",
+        "appDownloadLink": "https://beta.itunes.apple.com/v1/app/1350106957"
     },
     "grafix": {
-        "allows3DModelUpload": true
+        "name": "Grafix",
+        "allows3DModelUpload": true,
+        "wantsDXFConversion": true,
+        "orderAdress": "order@grafix-eyewear.com",
+        "preferredLanguage": "de",
+        "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1"
     },
     "loocfun": {
-        "allows3DModelUpload": true
+        "name": "LooC",
+        "allows3DModelUpload": true,
+        "wantsDXFConversion": false,
+        "orderAdress": "konrad@looc.io",
+        "preferredLanguage": "en",
+        "appDownloadLink": "https://apps.apple.com/app/id1463380262"
     },
     "markust": {
-        "allows3DModelUpload": true
+        "name": "MARKUS T",
+        "allows3DModelUpload": true,
+        "wantsDXFConversion": false,
+        "orderAdress": "konrad@looc.io",
+        "preferredLanguage": "de",
+        "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1"
     }
 }

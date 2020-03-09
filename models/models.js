@@ -64,7 +64,7 @@ async function getSignedModelDownloadURL(key) {
     });
 }
 
-async function createModelInDB(values, brand, category) {
+async function createModelInDB(user, values, brand, category) {
     const sanitize = (value) => ( value ? value : "placeholder.png" ) 
 
     var params = {
@@ -82,6 +82,8 @@ async function createModelInDB(values, brand, category) {
     if (values.svgFile) { params.Item.svgFile = values.svgFile }
     if (values.status) { params.Item.status = values.status }
     if (values.usdzFile) { params.Item.usdzFile = values.usdzFile }
+    if (values.dxfPart2ColorMap) { params.Item.dxfPart2ColorMap = JSON.stringify(values.dxfPart2ColorMap)}
+    params.Item.lastEdited = `${user}#${(new Date()).toISOString()}`
 
     return dynamoDb.put(params).promise();
 }
@@ -129,7 +131,7 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, dxfFile, svgFile, usdzFile, #s, localizedNames, props",
+        ProjectionExpression: "sk, image, modelFile, dxfFile, dxfPart2ColorMap, svgFile, usdzFile, #s, localizedNames, props, lastEdited",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -415,7 +417,7 @@ exports.createNew = async (event, context, callback) => {
             body.svgFile = urlPath(body.svgFile)
         }
 
-        const writeDBPromise = createModelInDB(body, brand, category)
+        const writeDBPromise = createModelInDB(cognitoUserName, body, brand, category)
 
         const imageUploadURL = imageURLPromise ? await imageURLPromise : undefined
         const modelUploadURL = modelURLPromise ? await modelURLPromise : undefined

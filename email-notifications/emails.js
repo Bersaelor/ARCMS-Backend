@@ -7,26 +7,7 @@ const SES = new AWS.SES({ region: 'eu-west-1' });
 const fs = require("fs");
 const Mustache = require('../node_modules/mustache/mustache.min.js');
 const strings = require('./locales.js');
-
-const manufacturerAdresses = {
-    "grafix": "order@grafix-eyewear.com",
-    "domevtro": "konrad@looc.io"
-}
-
-const manufacturerLanguages = {
-    "grafix": "de",
-    "domvetro": "en"
-}
-
-const manufacturerNames = {
-    "grafix": "Grafix",
-    "domvetro": "DOM VETRO"
-}
-
-const appDownloadLink = {
-    "grafix": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1",
-    "domvetro": "https://beta.itunes.apple.com/v1/app/1350106957"
-}
+const brandSettings = require('../brand_settings.json')
 
 function localizeOrder(order, locale) {
     return order.map(frame => {
@@ -51,22 +32,23 @@ function doesOrderContainSpecialSize(order) {
 }
 
 async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
-    if(!manufacturerAdresses[brand]) {
+    let brandMail = brandSettings[brand].orderAdress
+    if(!brandMail) {
         throw `There is no manufacturer address saved for brand ${brand}`
     }
 
-    const locale = manufacturerLanguages[brand]
+    const locale = brandSettings[brand].preferredLanguage
     const localizedOrder = localizeOrder(order, locale)
-    const brandName = manufacturerNames[brand]
+    const brandName = brandSettings[brand].name
     const subject = Mustache.render(strings[locale].subject_store, { BRAND_NAME: brandName })
     const htmlTemplate = fs.readFileSync(`./email-notifications/store_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
-    const downloadLink = appDownloadLink[brand]
+    const downloadLink = brandSettings[brand].appDownloadLink
 
     const htmlBody = Mustache.render(htmlTemplate, {
         ORDERS: localizedOrder, 
         LINK: link, 
-        BRAND_EMAIL: manufacturerAdresses[brand],
+        BRAND_EMAIL: brandMail,
         BRAND_NAME: brandName,
         ISTESTENVIRONMENT: process.env.STAGE != "prod",
         SPECIALSIZEDISCLAIMER: doesOrderContainSpecialSize(order),
@@ -75,20 +57,21 @@ async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
 
     let ccs = ccMail && ccMail.replace(/\s/g,'').split(";")
 
-    return sendMail(manufacturerAdresses[brand], storeEmail, ccs, subject, htmlBody)
+    return sendMail(brandMail, storeEmail, ccs, subject, htmlBody)
 }
 
 async function mailToManufacturer(brand, storeEmail, order, orderSK, customerContact, customerId) {
-    if(!manufacturerAdresses[brand]) {
+    let brandMail = brandSettings[brand].orderAdress
+    if(!brandMail) {
         throw `There is no manufacturer address saved for brand ${brand}`
     }
 
-    const locale = manufacturerLanguages[brand]
+    const locale = brandSettings[brand].preferredLanguage
     const localizedOrder = localizeOrder(order, locale)
     const subject = Mustache.render(strings[locale].subject_manu, {STORE: storeEmail, FRAME_COUNT: order.length})
     const htmlTemplate = fs.readFileSync(`./email-notifications/manufacturer_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
-    const downloadLink = appDownloadLink[brand]
+    const downloadLink = brandSettings[brand].appDownloadLink
     const htmlBody = Mustache.render(htmlTemplate, {
         STORE: storeEmail, 
         CONTACT: customerContact,
@@ -99,7 +82,9 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK, customerCon
         DOWNLOADLINK: downloadLink,
     })
     const sender = "no_reply@looc.io"
-    return sendMail(sender, manufacturerAdresses[brand], [], subject, htmlBody)
+
+    let manufacturerMail = storeEmail === "konrad@looc.io" ? "konrad@looc.io" : brandMail
+    return sendMail(sender, manufacturerMail, [], subject, htmlBody)
 }
 
 function validateEmail(email) {
