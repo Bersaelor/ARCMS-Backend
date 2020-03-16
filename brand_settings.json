@@ -30,5 +30,13 @@
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "de",
         "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1"
+    },
+    "ede": {
+        "name": "ForSec",
+        "allows3DModelUpload": true,
+        "wantsDXFConversion": false,
+        "orderAdress": "konrad@looc.io",
+        "preferredLanguage": "de",
+        "appDownloadLink": ""
     }
 }
