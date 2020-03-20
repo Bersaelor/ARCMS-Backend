@@ -43,7 +43,7 @@ functions:
     role: ${self:custom.users-role}
     memorySize: 1024
     timeout: 30
-    description: Convert dae files deposited into s3/original
+    description: Convert dae files deposited into s3/original and save newly found dae as modelfile
     package:
       include:
         - models/gltfConversion.js
