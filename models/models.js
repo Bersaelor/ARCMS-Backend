@@ -73,11 +73,11 @@ async function createModelInDB(user, values, brand, category) {
             "id": `${brand}#model`,
             "sk": `${category}#${values.name}`,
             "image": sanitize(values.image),
-            "modelFile": values.modelFile ? values.modelFile : "",
             "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
             "props": values.props ? JSON.stringify(values.props) : "{}",
         }
     };
+    if (values.modelFile) { params.Item.modelFile = values.modelFile }
     if (values.dxfFile) { params.Item.dxfFile = values.dxfFile }
     if (values.svgFile) { params.Item.svgFile = values.svgFile }
     if (values.status) { params.Item.status = values.status }
@@ -386,7 +386,6 @@ exports.createNew = async (event, context, callback) => {
             const modelAndVersion = `${body.name}-${now.getTime()}`
             const modelFileName = `${modelAndVersion}.${fileExtension(modelUploadRequested)}`
             const modelKey = `original/${brand}/${category}/${modelFileName}`
-            body.modelFile = modelKey
             modelURLPromise = getSignedModelUploadURL(modelKey)
         }
 
@@ -396,7 +395,6 @@ exports.createNew = async (event, context, callback) => {
             const modelAndVersion = `${body.name}-${now.getTime()}`
             const modelFileName = `${modelAndVersion}.${fileExtension(dxfUploadRequested)}`
             const modelKey = `original/${brand}/${category}/${modelFileName}`
-            body.dxfFile = modelKey
             dxfURLPromise = getSignedModelUploadURL(modelKey)
         }
 
@@ -405,12 +403,12 @@ exports.createNew = async (event, context, callback) => {
         if (existingModel) {
             // copy the existing models values which shouldn't be overwritten
             if (existingModel.status) body.status = existingModel.status
+            if (existingModel.modelFile) body.modelFile = existingModel.modelFile                
             if (!modelUploadRequested) {
-                if (existingModel.modelFile) body.modelFile = existingModel.modelFile                
                 if (existingModel.usdzFile) body.usdzFile = existingModel.usdzFile                
             }
+            if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
             if (!dxfUploadRequested) {
-                if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
                 if (existingModel.svgFile) body.svgFile = existingModel.svgFile
             }
         } else if (body.svgFile && body.svgFile.startsWith("http")) {

@@ -3,6 +3,7 @@
 'use strict';
 
 const AWS = require('aws-sdk'); 
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const path = require('path');
 const util = require('util');
 const s3 = new AWS.S3();
@@ -154,31 +155,108 @@ function upload(bucket, key, uploadPath) {
     });
 }
 
+async function getModel(brand, category, id) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, modelFile",
+        KeyConditionExpression: "#id = :value and #sk = :searchKey",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#sk": "sk"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#model`,
+            ":searchKey": `${category}#${id}`
+        },
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+async function updateModel(key, value, name, brand, category) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#model`, sk: `${category}#${name}` },
+        UpdateExpression: `set ${key} = :value`,
+        ExpressionAttributeValues: {
+            ':value' : value,
+        },
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
+async function convertToGLTF(fileName, extension, bucket, key, parsedPath) {
+    const downloadPath = `/tmp/${fileName}${extension}`
+    const fixedDaePath = `/tmp/${fileName}_fixed.dae`
+    const uploadPath = `/tmp/${fileName}.gltf`
+
+    console.log(`downloadPath: ${downloadPath}, uploadPath: ${uploadPath}`)
+    
+    process.env.PATH = `${process.env.PATH}:${process.env.LAMBDA_TASK_ROOT}/models`;
+
+    await download(bucket, key, downloadPath)
+    await fixEmptyNodes(downloadPath, fixedDaePath)
+    await convert(fixedDaePath, uploadPath)
+    const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
+    console.log("Upload result: ", uploadRes)
+    await cleanup([downloadPath, fixedDaePath, uploadPath])
+}
+
+async function saveDaeIntoDBEntry(brand, category, modelId, uploadedTimestamp, uploadedKey) {
+    const modelData = await getModel(brand, category, modelId)
+    if (!modelData || !modelData.Items || modelData.Items.length == 0) {
+        const msg = `Failed to find model with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
+        console.error(msg)
+        return
+    }
+
+    const model = modelData.Items[0]
+    if (model.modelFile) {
+        const parsedPath = path.parse(model.modelFile)
+        const oldModelFileName = parsedPath.name
+        const dashSeparated = oldModelFileName.split('-')
+        const existingTimestamp = dashSeparated.pop() // pop the timestamp
+        if (existingTimestamp > uploadedTimestamp) {
+            console.log(`Existing file ${oldModelFileName} is newer then uploaded with timestamp ${uploadedTimestamp}, not changing db entry`)
+            return
+        }    
+    }
+
+    const updateSuccess = await updateModel("modelFile", uploadedKey, modelId, brand, category)
+    console.log("Updating modelFile to ", uploadedKey, " in db success: ", updateSuccess)    
+}
+
+// Convert dae files deposited into s3/original and save newly found dae as modelfile
 exports.convert = async (event, context, callback) => {
     if (event.Records) {
         for (const index in event.Records) {
             const record = event.Records[index]
+
+            // for conversion and downloading
             const bucket = record.s3.bucket.name
             const key = record.s3.object.key
             const parsedPath = path.parse(key)
             const fileName = parsedPath.name
             const extension = parsedPath.ext
-            const downloadPath = `/tmp/${fileName}${extension}`
-            const fixedDaePath = `/tmp/${fileName}_fixed.dae`
-            const uploadPath = `/tmp/${fileName}.gltf`
-    
+
+            // for model updating
+            const brand = key.split('/')[1]
+            const category = key.split('/')[2]
+            const file = parsedPath.base
+            const dashSeparated = parsedPath.name.split('-')
+            const timestamp = dashSeparated.pop() // pop the timestamp
+            const modelId = dashSeparated.join('-')
+
             try {
-                console.log(`downloadPath: ${downloadPath}, uploadPath: ${uploadPath}`)
-    
-                process.env.PATH = `${process.env.PATH}:${process.env.LAMBDA_TASK_ROOT}/models`;
-    
-                await download(bucket, key, downloadPath)
-                await fixEmptyNodes(downloadPath, fixedDaePath)
-                await convert(fixedDaePath, uploadPath)
-                const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
-                console.log("Upload result: ", uploadRes)
-                await cleanup([downloadPath, fixedDaePath, uploadPath])
-                
+                let conversionPromise = convertToGLTF(fileName, extension, bucket, key, parsedPath)
+                let updateDBEntryPromise = saveDaeIntoDBEntry(brand, category, modelId, timestamp, key)
+                const conversionResult = await conversionPromise
+                const updateDBResult = await updateDBEntryPromise
+
+                console.log("conversionResult: ", conversionResult)
+                console.log("updateDBResult: ", updateDBResult)
+
                 callback(null, {msg: "Success"})
             } catch(error) {
                 console.error(error.code, "-", error.message)

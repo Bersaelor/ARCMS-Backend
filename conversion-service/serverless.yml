@@ -43,7 +43,7 @@ functions:
     role: ${self:custom.users-role}
     memorySize: 1024
     timeout: 30
-    description: Convert dae files deposited into s3/original
+    description: Convert dae files deposited into s3/original and save newly found dae as modelfile
     package:
       include:
         - models/gltfConversion.js
@@ -116,7 +116,7 @@ functions:
     handler: models/dxfConversion.convert
     role: ${self:custom.ec2-role}
     memorySize: 512
-    description: Convert dxf files deposited into s3/original to svg
+    description: Convert dxf files deposited into s3/original to svg and save newly uploaded dxf as dxffile
     package:
       include:
         - models/dxfConversion.js
