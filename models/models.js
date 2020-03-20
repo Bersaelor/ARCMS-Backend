@@ -395,7 +395,6 @@ exports.createNew = async (event, context, callback) => {
             const modelAndVersion = `${body.name}-${now.getTime()}`
             const modelFileName = `${modelAndVersion}.${fileExtension(dxfUploadRequested)}`
             const modelKey = `original/${brand}/${category}/${modelFileName}`
-            body.dxfFile = modelKey
             dxfURLPromise = getSignedModelUploadURL(modelKey)
         }
 
@@ -408,8 +407,8 @@ exports.createNew = async (event, context, callback) => {
             if (!modelUploadRequested) {
                 if (existingModel.usdzFile) body.usdzFile = existingModel.usdzFile                
             }
+            if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
             if (!dxfUploadRequested) {
-                if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
                 if (existingModel.svgFile) body.svgFile = existingModel.svgFile
             }
         } else if (body.svgFile && body.svgFile.startsWith("http")) {
