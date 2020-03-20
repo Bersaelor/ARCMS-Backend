@@ -173,6 +173,19 @@ async function getModel(brand, category, id) {
     return dynamoDb.query(params).promise()
 }
 
+async function updateModel(key, value, name, brand, category) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#model`, sk: `${category}#${name}` },
+        UpdateExpression: `set ${key} = :value`,
+        ExpressionAttributeValues: {
+            ':value' : value,
+        },
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
 async function convertToGLTF(fileName, extension, bucket, key, parsedPath) {
     const downloadPath = `/tmp/${fileName}${extension}`
     const fixedDaePath = `/tmp/${fileName}_fixed.dae`
@@ -190,7 +203,7 @@ async function convertToGLTF(fileName, extension, bucket, key, parsedPath) {
     await cleanup([downloadPath, fixedDaePath, uploadPath])
 }
 
-async function saveDaeIntoDBEntry(brand, category, modelId) {
+async function saveDaeIntoDBEntry(brand, category, modelId, uploadedTimestamp, uploadedKey) {
     const modelData = await getModel(brand, category, modelId)
     if (!modelData || !modelData.Items || modelData.Items.length == 0) {
         const msg = `Failed to find model with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
@@ -199,8 +212,19 @@ async function saveDaeIntoDBEntry(brand, category, modelId) {
     }
 
     const model = modelData.Items[0]
-    const oldModelFileName = path.parse(model.modelFile).name
-    console.log("oldModelFileName: ", oldModelFileName)
+    if (model.modelFile) {
+        const parsedPath = path.parse(model.modelFile)
+        const oldModelFileName = parsedPath.name
+        const dashSeparated = oldModelFileName.split('-')
+        const existingTimestamp = dashSeparated.pop() // pop the timestamp
+        if (existingTimestamp > uploadedTimestamp) {
+            console.log(`Existing file ${oldModelFileName} is newer then uploaded with timestamp ${uploadedTimestamp}, not changing db entry`)
+            return
+        }    
+    }
+
+    const updateSuccess = await updateModel("modelFile", uploadedKey, modelId, brand, category)
+    console.log("Updating modelFile to ", uploadedKey, " in db success: ", updateSuccess)    
 }
 
 // Convert dae files deposited into s3/original and save newly found dae as modelfile
@@ -221,12 +245,12 @@ exports.convert = async (event, context, callback) => {
             const category = key.split('/')[2]
             const file = parsedPath.base
             const dashSeparated = parsedPath.name.split('-')
-            dashSeparated.pop() // pop the timestamp
+            const timestamp = dashSeparated.pop() // pop the timestamp
             const modelId = dashSeparated.join('-')
 
             try {
                 let conversionPromise = convertToGLTF(fileName, extension, bucket, key, parsedPath)
-                let updateDBEntryPromise = saveDaeIntoDBEntry(brand, category, modelId)
+                let updateDBEntryPromise = saveDaeIntoDBEntry(brand, category, modelId, timestamp, key)
                 const conversionResult = await conversionPromise
                 const updateDBResult = await updateDBEntryPromise
 
