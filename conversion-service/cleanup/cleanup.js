@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const s3 = new AWS.S3();
 const { getAllModels, getCategorys } = require('../shared/get_dyndb_models')
-const brandSettings = require('../brand_settings.json')
+const brandSettings = require('../../brand_settings.json')
 
 function makeHeader(content) {
     return { 
