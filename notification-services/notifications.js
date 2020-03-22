@@ -30,7 +30,7 @@ exports.forwardError = async (event, context, callback) => {
             MessageAttributes: {
                 'AWS.SNS.SMS.SenderID': {
                     DataType: 'String',
-                    StringValue: 'LooC Cloud'
+                    StringValue: 'LooCARCMS'
                 },
                 'AWS.SNS.SMS.SMSType': {
                     DataType: 'String',
