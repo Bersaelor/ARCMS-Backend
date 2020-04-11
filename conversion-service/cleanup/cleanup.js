@@ -98,6 +98,11 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             })
         })
 
+        let specialImageKeys = ["placeholder.png"]
+        specialImageKeys.forEach(key => {
+            currentImages.add(key)
+        })
+
         let categories = await categoryPromise
         categories.forEach(array => {
             array.forEach(image => currentImages.add(image))
