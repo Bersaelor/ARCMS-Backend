@@ -447,6 +447,65 @@ exports.createNew = async (event, context, callback) => {
     }
 };
 
+exports.copy = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const category = event.pathParameters.category.toLowerCase()
+    const id = event.pathParameters.id.toLowerCase()
+
+    var body = JSON.parse(event.body)
+    let newBrand = body.brand
+    let newCategory = body.category
+
+    try {
+        if (!newBrand || !newCategory) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": "The body should contain the new Brand and new Category to be copied too." })
+            });
+            return;
+        }
+
+        const accessLvlPromise = getAccessLvl(cognitoUserName, newBrand)
+        const existingModelPromise = getModel(brand, category, id)
+
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to create or update models"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const existingModelData = await existingModelPromise
+
+        const existingModel = existingModelData.Count > 0 ? existingModelData.Items[0] : undefined
+        if (!existingModel) {
+            callback(null, {
+                statusCode: 400,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify({ "message": `No existing model found in brand ${brand} and category ${category}` })
+            });
+            return;
+        }
+
+
+    } catch(error) {
+        console.error('Failed to create model: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+};
+
 exports.delete = async (event, context, callback) => {
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()

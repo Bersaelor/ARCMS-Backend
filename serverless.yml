@@ -284,6 +284,30 @@ functions:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
+  copy-model:
+    handler: models/models.copy
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Copy an existing model to a new brand and collection
+    package:
+      include:
+        - models/models.js
+        - shared/**
+    events:
+      - http:
+          path: /{brand}/category/{category}/models/{id}
+          method: post
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                category: true
+                id: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
   delete-model:
     handler: models/models.delete
     role: ${self:custom.users-role}
