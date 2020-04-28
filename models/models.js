@@ -88,6 +88,15 @@ async function createModelInDB(user, values, brand, category) {
     return dynamoDb.put(params).promise();
 }
 
+async function createModel(user, oldValues) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Item: oldValues
+    };
+    params.Item.lastEdited = `${user}#${(new Date()).toISOString()}`
+    return dynamoDb.put(params).promise();
+}
+
 async function updateModelStatus(status, name, brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -483,8 +492,7 @@ exports.copy = async (event, context, callback) => {
         }
 
         const existingModelData = await existingModelPromise
-
-        const existingModel = existingModelData.Count > 0 ? existingModelData.Items[0] : undefined
+        var existingModel = existingModelData.Count > 0 ? existingModelData.Items[0] : undefined
         if (!existingModel) {
             callback(null, {
                 statusCode: 400,
@@ -494,6 +502,21 @@ exports.copy = async (event, context, callback) => {
             return;
         }
 
+        existingModel.id = `${newBrand}#model`
+        existingModel.sk = `${newCategory}#${id}`
+        
+        const writeSuccess = await createModel(cognitoUserName, existingModel)
+        console.log("write model to db success: ", writeSuccess)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                message: "Model copying successful"
+            })
+        };
+    
+        callback(null, response);
 
     } catch(error) {
         console.error('Failed to create model: ', JSON.stringify(error, null, 2));
