@@ -504,6 +504,7 @@ exports.copy = async (event, context, callback) => {
 
         existingModel.id = `${newBrand}#model`
         existingModel.sk = `${newCategory}#${id}`
+        existingModel.status = "unpublished"
         
         const writeSuccess = await createModel(cognitoUserName, existingModel)
         console.log("write model to db success: ", writeSuccess)
