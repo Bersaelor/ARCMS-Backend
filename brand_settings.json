@@ -7,6 +7,14 @@
         "preferredLanguage": "en",
         "appDownloadLink": "https://beta.itunes.apple.com/v1/app/1350106957"
     },
+    "ede": {
+        "name": "ForSec",
+        "allows3DModelUpload": true,
+        "wantsDXFConversion": false,
+        "orderAdress": "konrad@looc.io",
+        "preferredLanguage": "de",
+        "appDownloadLink": ""
+    },
     "grafix": {
         "name": "Grafix",
         "allows3DModelUpload": true,
@@ -16,7 +24,7 @@
         "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1"
     },
     "loocfun": {
-        "name": "LooC",
+        "name": "My LooC",
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
@@ -29,14 +37,14 @@
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "de",
-        "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1"
+        "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1464779760?ls=1"
     },
-    "ede": {
-        "name": "ForSec",
+    "safeeyes": {
+        "name": "SAFE EYES",
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "de",
-        "appDownloadLink": ""
+        "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1464779760?ls=1"
     }
 }
