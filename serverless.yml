@@ -640,3 +640,14 @@ functions:
     events:
       - sns: ${self:provider.environment.REQUESTDXFTOPIC}
 
+  cognito-verification-email:
+    handler: email-notifications/cognito.verification
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Send email with verification code for password reset
+    package:
+      include:
+        - email-notifications/**
+        - '!email-notifications/tests/**'
+        - node_modules/mustache/mustache.min.js
+        - brand_settings.json
