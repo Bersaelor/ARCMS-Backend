@@ -9,6 +9,17 @@ const brandSettings = require('../brand_settings.json')
 const brandTexts = require('./brand_texts.json')
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
+const subjects = {
+    welcome: {
+        de: "Willkommen bei {{APP_NAME}}",
+        en: "Welcome to {{APP_NAME}}"    
+    },
+    verification: {
+        de: "Ihr Passwortcode für {{APP_NAME}}",
+        en: "Your verification code for {{APP_NAME}}"    
+    }
+}
+
 async function findUserBrand(cognitoUserName) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -62,7 +73,8 @@ exports.verification = async (event, context, callback) => {
     const appName = brandSettings[brand].appname || brandSettings[brand].name
     const locale = brandSettings[brand].preferredLanguage
     const isPasswordVerification = event.triggerSource === "CustomMessage_ForgotPassword"
-    const fileName = `${isPasswordVerification ? "verification" : "welcome" }_${locale}`
+    const mailType = isPasswordVerification ? "verification" : "welcome"
+    const fileName = `${mailType}_${locale}`
     const htmlTemplate = fs.readFileSync(`./email-notifications/${fileName}.html`, "utf8")
     const downloadLink = brandSettings[brand].appDownloadLink
 
@@ -77,6 +89,7 @@ exports.verification = async (event, context, callback) => {
     })
 
     event.response.emailMessage = htmlBody;
+    event.response.emailSubject = subjects[mailType][locale].replace("{{APP_NAME}}", appName);
 
     callback(null, event);
 };
