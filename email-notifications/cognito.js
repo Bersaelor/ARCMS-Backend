@@ -51,19 +51,26 @@ exports.verification = async (event, context, callback) => {
     const userEmail = event.request.userAttributes.email
     const brand = await findUserBrand(userEmail)
 
-    console.log("User: ", userEmail, " needs a verification mail, found brand: ", brand);
+    if (event.triggerSource === "CustomMessage_ForgotPassword") {
+        console.log("User: ", userEmail, " needs a verification mail, found brand: ", brand);
+    } else if (event.triggerSource === "CustomMessage_AdminCreateUser") {
+        console.log("User: ", userEmail, " needs an invitatio mail, found brand: ", brand);
+    }
 
     const contactAddress = brandSettings[brand].orderAdress
     const brandName = brandSettings[brand].name
+    const appName = brandSettings[brand].appname || brandSettings[brand].name
     const locale = brandSettings[brand].preferredLanguage
-    // if (event.triggerSource === "CustomMessage_ForgotPassword") {
-    // if (event.triggerSource === "CustomMessage_AdminCreateUser") {
-    const htmlTemplate = fs.readFileSync(`./email-notifications/verification_${locale}.html`, "utf8")
+    const isPasswordVerification = event.triggerSource === "CustomMessage_ForgotPassword"
+    const fileName = `${isPasswordVerification ? "verification" : "welcome" }_${locale}`
+    const htmlTemplate = fs.readFileSync(`./email-notifications/${fileName}.html`, "utf8")
     const downloadLink = brandSettings[brand].appDownloadLink
 
     const htmlBody = Mustache.render(htmlTemplate, {
         TITLE: brandTexts[brand].title || "",
+        APP_NAME: appName,
         BRAND_EMAIL: contactAddress,
+        BRAND_IDENTIFIER: brand,
         BRAND_NAME: brandName,
         DOWNLOADLINK: downloadLink,
         LEGAL_FOOTER: brandTexts[brand].legal_footer[locale] || ""

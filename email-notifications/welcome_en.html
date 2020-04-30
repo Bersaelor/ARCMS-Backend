@@ -1,7 +1,9 @@
+<!DOCTYPE html>
 <html>
     <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="Generator" content="Microsoft Word 15 (filtered medium)">
+    <title>Welcome to {{APP_NAME}}</title>
     <style><!--
         /* Font Definitions */
         @font-face
@@ -28,12 +30,20 @@
             margin-right: auto;
             width: 520px;
         }
-        p.normal, li.normal, div.normal {
+        p.normal, div.normal {
             margin:0cm;
             margin-bottom:.0001pt;
             font-size:10.0pt;
             font-family:"Calibri",sans-serif;
             mso-fareast-language:EN-US;
+        }
+        li.normal {
+            font-size:10.0pt;
+            font-family:"Calibri",sans-serif;
+            mso-fareast-language:EN-US;
+        }
+        li:not(:last-child) {
+            margin-bottom: 10px;
         }
         p.small {
             margin:0cm;
@@ -45,17 +55,32 @@
         --></style>
     </head>
     <body lang="DE" link="#0563C1" vlink="#954F72">
-        <img src="https://cms.looc.io/pics/emailheader.jpeg" class="title">
+        <img src="https://cms.looc.io/pics/emailheader.jpeg" alt="image with a shelf of glasses" class="title">
         <h3>{{TITLE}}</h3>
-        <p class="normal">Hello,</p>
+        <p class="normal">Welcome as registered user of the looc.io Virtual-Try on system!</p>
         <br>
-        <p class="normal">Your verification code for at <a href="https://cms.looc.io/">https://cms.looc.io</a> is </p><br>
+        <p class="normal">Your username is {username}.</p>
+        <br>
+        <p class="normal">Your new temporary password is: </p><br>
         <p class="normal">{####}</p>
         <br>
-        <p class="normal">You can use it in <a href="https://cms.looc.io/{{BRAND_IDENTIFIER}}/redirect.html">the app</a> or on <a href="https://cms.looc.io/">https://cms.looc.io</a> !</p>
+        <ol>
+            <li class="normal">It will be easiest to open this mail on your iPhone or iPad, this way you won't have to type anything and can just follow links.</li>
+            <li class="normal">First <a href="{{DOWNLOADLINK}}">go to the App Store and install the {{APP_NAME}} App</a>. Once this is done on with the next step.</li>
+            <li class="normal">
+                Now that you have the {{APP_NAME}} app on your iPhone or iPad, 
+                <a href="https://cms.looc.io/{{BRAND_IDENTIFIER}}/redirect.html?username={username}&temp={####}">click here to open the app directly</a>, your username & password will be autofilled.
+            </li class="normal">
+            <li class="normal"> 
+                In the app you will be requested to choose a permanent password, please store this at a safe location.
+            </li>
+        </ol>
+        <p class="normal">You can also use the username and password to log in to <a href="https://cms.looc.io/">https://cms.looc.io</a> to look at your orders from the comforts of your desktop computer.</p>
         <br>
-        <p class="normal">Sincerely,</p>
+        <p class="normal">Thank you,</p>
         <p class="normal">{{BRAND_NAME}}</p>
+        <br>
+        <p class="normal">This is an automatically generated mail, for questions regarding products please contact <a href="mailto:{{BRAND_EMAIL}}">{{BRAND_EMAIL}}</a></p>
         <br>
         <br>
         <p class="small">{{LEGAL_FOOTER}}</p>
