@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="Generator" content="Microsoft Word 15 (filtered medium)">
+    <title>Welcome to {{APP_NAME}}</title>
+    <style><!--
+        /* Font Definitions */
+        @font-face
+            {font-family:"Cambria Math";
+            panose-1:2 4 5 3 5 4 6 3 2 4;}
+        @font-face
+            {font-family:Calibri;
+            panose-1:2 15 5 2 2 2 4 3 2 4;}
+        @font-face
+            {font-family:Verdana;
+            panose-1:2 11 6 4 3 5 4 4 2 4;}
+        @font-face
+            {font-family:"Gill Sans";
+            panose-1:2 11 5 2 2 1 4 2 2 3;}
+        /* Style Definitions */
+        h3 {
+            font-size:14.0pt;
+            font-family:"Verdana";
+            color:#3B3838;
+        }
+        img.title {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 520px;
+        }
+        p.normal, div.normal {
+            margin:0cm;
+            margin-bottom:.0001pt;
+            font-size:10.0pt;
+            font-family:"Calibri",sans-serif;
+            mso-fareast-language:EN-US;
+        }
+        li.normal {
+            font-size:10.0pt;
+            font-family:"Calibri",sans-serif;
+            mso-fareast-language:EN-US;
+        }
+        li:not(:last-child) {
+            margin-bottom: 10px;
+        }
+        p.small {
+            margin:0cm;
+            margin-bottom:.0001pt;
+            font-size:8.0pt;
+            font-family:"Calibri",sans-serif;
+            mso-fareast-language:EN-US;
+        }
+        --></style>
+    </head>
+    <body lang="DE" link="#0563C1" vlink="#954F72">
+        <img src="https://cms.looc.io/pics/emailheader.jpeg" alt="image with a shelf of glasses" class="title">
+        <h3>{{TITLE}}</h3>
+        <p class="normal">Willkommen als registrierter Nutzer des looc.io Virtual-Try-On Systems,</p>        
+        <br>
+        <p class="normal">Ihr Nutzername ist {username}.</p>
+        <br>
+        <p class="normal">Ihr vorrübergehendes Passwort lautet:</p><br>
+        <p class="normal">{####}</p>
+        <br>
+        <ol>
+            <li class="normal"> Am einfachsten ist es wenn Sie diese Email auf Ihrem iPad/iPhone öffnen, dann können Sie den Links folgen und müssen nichts eintippen.</li>
+            <li class="normal">Zuerst gehen Sie zum <a href="{{DOWNLOADLINK}}">App Store und laden sich die {{APP_NAME}} App herunter</a>. Wenn Sie dies bereits getan haben gehts direkt zum nächsten Schritt.</li>
+            <li class="normal">
+                Nun da Sie die {{APP_NAME}} App auf ihrem iPhone oder iPad installiert haben, 
+                <a href="https://cms.looc.io/{{BRAND_IDENTIFIER}}/redirect.html?username={username}&temp={####}">klicken Sie hier um direkt die App zu öffnen</a> und Ihr Nutzername und Password wird automatisch ausgefüllt.
+            </li>
+            <li class="normal"> 
+                In der App werden Sie dazu aufgefordert Ihr temporäres Passwort zu ändern, notieren Sie sich das von Ihnen nun gewählt Passwort und bewahren Sie es an einem sicheren Ort auf.
+            </li>
+        </ol>
+        <p class="normal">Mit ihrem Nutzernamen und Passwort können Sie sich auch auf <a href="https://cms.looc.io/">https://cms.looc.io</a> einloggen um von beliebigen PCs aus ihre Bestellungen einzusehen.</p>
+        <br>
+        <p class="normal">Vielen Dank,</p>
+        <p class="normal">{{BRAND_NAME}}</p>
+        <br>
+        <p class="normal">Dies ist eine automatisch generierte Email, bei Fragen zu Produkten kontaktieren Sie bitte <a href="mailto:{{BRAND_EMAIL}}">{{BRAND_EMAIL}}</a></p>
+        <br>
+        <br>
+        <p class="small">{{LEGAL_FOOTER}}</p>
+        <p class="normal">---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------</p>
+        <br>
+        <font face="Arial" color="Gray" size="1">
+            This message is for the designated recipient only and may contain privileged, proprietary, or otherwise private information. If you have received it in error, please notify the sender immediately and delete the original. Any other use of the email by you is
+            prohibited.
+        </font>
+    </body>
+</html>

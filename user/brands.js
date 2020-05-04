@@ -24,6 +24,7 @@ async function getBrands(cognitoName) {
             const brand = value.sk.slice(0 , -5)
             const allows3DUpload = (brandSettings[brand] && brandSettings[brand].allows3DModelUpload) || false
             value.brand = brand
+            value.brandDisplayName = (brandSettings[brand] && brandSettings[brand].name) || brand
             value.mayEditManagers = accessLvlMayEditManagers(value.accessLvl)
             value.mayEditStores = accessLvlMayEditStores(value.accessLvl)
             value.mayEditFrames = accessLvlMayEditFrames(value.accessLvl)

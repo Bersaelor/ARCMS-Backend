@@ -88,6 +88,15 @@ async function createModelInDB(user, values, brand, category) {
     return dynamoDb.put(params).promise();
 }
 
+async function createModel(user, oldValues) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Item: oldValues
+    };
+    params.Item.lastEdited = `${user}#${(new Date()).toISOString()}`
+    return dynamoDb.put(params).promise();
+}
+
 async function updateModelStatus(status, name, brand, category) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -131,12 +140,10 @@ async function deleteModelFromDB(name, brand, category) {
 async function getModel(brand, category, id) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, modelFile, dxfFile, dxfPart2ColorMap, svgFile, usdzFile, #s, localizedNames, props, lastEdited",
         KeyConditionExpression: "#id = :value and #sk = :searchKey",
         ExpressionAttributeNames:{
             "#id": "id",
             "#sk": "sk",
-            "#s": "status"
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#model`,
@@ -431,6 +438,80 @@ exports.createNew = async (event, context, callback) => {
                 imageUploadURL: imageUploadURL ? imageUploadURL : "",
                 modelUploadURL: modelUploadURL ? modelUploadURL : "",
                 dxfUploadURL: dxfUploadURL ? dxfUploadURL : ""
+            })
+        };
+    
+        callback(null, response);
+
+    } catch(error) {
+        console.error('Failed to create model: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+};
+
+exports.copy = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const category = event.pathParameters.category.toLowerCase()
+    const id = event.pathParameters.id.toLowerCase()
+
+    var body = JSON.parse(event.body)
+    let newBrand = body.brand
+    let newCategory = body.category
+
+    try {
+        if (!newBrand || !newCategory) {
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": "The body should contain the new Brand and new Category to be copied too." })
+            });
+            return;
+        }
+
+        const accessLvlPromise = getAccessLvl(cognitoUserName, newBrand)
+        const existingModelPromise = getModel(brand, category, id)
+
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await accessLvlPromise;
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to create or update models"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const existingModelData = await existingModelPromise
+        var existingModel = existingModelData.Count > 0 ? existingModelData.Items[0] : undefined
+        if (!existingModel) {
+            callback(null, {
+                statusCode: 400,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify({ "message": `No existing model found in brand ${brand} and category ${category}` })
+            });
+            return;
+        }
+
+        existingModel.id = `${newBrand}#model`
+        existingModel.sk = `${newCategory}#${id}`
+        existingModel.status = "unpublished"
+        
+        const writeSuccess = await createModel(cognitoUserName, existingModel)
+        console.log("write model to db success: ", writeSuccess)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                message: "Model copying successful"
             })
         };
     
