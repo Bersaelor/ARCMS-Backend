@@ -16,7 +16,7 @@ exports.getModels = async (brand, category) => {
         },
         ExpressionAttributeValues: {
             ":value": `${brand}#model`,
-            ":category": category
+            ":category": `${category}#`
         },
     };
 
