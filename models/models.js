@@ -439,10 +439,8 @@ exports.createNew = async (event, context, callback) => {
                 modelUploadURL: modelUploadURL ? modelUploadURL : "",
                 dxfUploadURL: dxfUploadURL ? dxfUploadURL : ""
             })
-        };
-    
+        };    
         callback(null, response);
-
     } catch(error) {
         console.error('Failed to create model: ', JSON.stringify(error, null, 2));
         callback(null, {

@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
-const { getAccessLvl , accessLvlMayCreate } = require('../shared/access_methods')
+const { getAccessLvl, accessLvlMayCreate } = require('../shared/access_methods')
 
 const testStage = "test"
 const productionStage = "prod"
@@ -22,7 +22,7 @@ function makeHeader(content, maxAge = 60) {
 const getConfig = async (brand, stage) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, headerImage, updateInfo",
+        ProjectionExpression: "sk, headerImage, updateInfo, lastEdited",
         KeyConditionExpression: "#id = :value and #sk = :sk",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -81,7 +81,6 @@ async function getSignedImageUploadURL(key, type) {
 
 const convertStoredConfig = (storedConfig) => {
     var config = storedConfig
-    config.brand = storedConfig.sk.split('#')[0]
     delete storedConfig.sk
     try {
         config.updateInfo = storedConfig.updateInfo ? JSON.parse(storedConfig.updateInfo) : undefined
