@@ -246,7 +246,7 @@ exports.get = async (event, context, callback) => {
 
         callback(null, response);
     } catch (error) {
-        console.error('Query failed to delete. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error('Query failed to fetch. Error JSON: ', JSON.stringify(error, null, 2));
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
