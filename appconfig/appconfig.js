@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
-const { getAccessLvl, accessLvlMayCreate } = require('../shared/access_methods')
+const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 
 const testStage = "test"
 const productionStage = "prod"
