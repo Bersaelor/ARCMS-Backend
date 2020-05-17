@@ -3,6 +3,7 @@
 'use strict';
 
 const AWS = require('aws-sdk'); 
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const { getAllModels, getCategorys } = require('../shared/get_dyndb_models')
 const brandSettings = require('../brand_settings.json')
@@ -47,6 +48,24 @@ function fetchAllCategories(brands) {
     return Promise.all(categoryFetches)
 }
 
+function fetchAppHeaderImages() {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, headerImage",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id",
+        },
+        ExpressionAttributeValues: {
+            ":value": "appconfig",
+        },
+    };
+
+    return dynamoDb.query(params).promise().then( data => {
+        return data.Items.map( (item) => item.headerImage )
+    });
+}
+
 function getS3Content(bucket, continuationToken) {
     var params = {
         Bucket: bucket,
@@ -81,6 +100,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         console.log("Fetching Models and Categories for: ", brands)
         let modelsPromise = fetchAllModels(brands)
         let categoryPromise = fetchAllCategories(brands)
+        let headerImagesPromise = fetchAppHeaderImages()
         let imagesInS3Promise = getS3Content(process.env.IMAGE_BUCKET, null)
         let modelsInS3Promise = getS3Content(process.env.MODEL_BUCKET, null)
 
@@ -107,6 +127,9 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         categories.forEach(array => {
             array.forEach(image => currentImages.add(image))
         })
+
+        let headerImages = await headerImagesPromise
+        headerImages.forEach(key => currentImages.add(key))
 
         let imagesInS3Data = await imagesInS3Promise
         if (imagesInS3Data.IsTruncated) { console.log("More images are in S3, but haven't been loaded as maximum was hit") }
