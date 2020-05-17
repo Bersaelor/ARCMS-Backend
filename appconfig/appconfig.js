@@ -87,7 +87,7 @@ const convertStoredConfig = (storedConfig) => {
     } catch (error) {
         console.log("Failed to convert json because: ", error)
     }
-    config.headerImage = "https://images.looc.io/" + storedConfig.image
+    config.headerImage = "https://images.looc.io/" + storedConfig.headerImage
     return config
 }
 
@@ -162,8 +162,8 @@ exports.new = async (event, context, callback) => {
 
     const headerImageUploadRequested = body.headerImageName
     const headerImageType = body.headerimageType
-    delete body.imageName
-    delete body.imageType
+    delete body.headerImageName
+    delete body.headerimageType
 
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
@@ -195,7 +195,7 @@ exports.new = async (event, context, callback) => {
             const imageFileFolder = `appconfig-${brand}-${now.getTime()}`
             const imageFileName = `${imageFileFolder}.${fileExtension(headerImageUploadRequested)}`
             const imageKey = `${imageFileFolder}/${imageFileName}`
-            body.image = imageKey
+            body.headerImage = imageKey
             imageURLPromise = getSignedImageUploadURL(imageKey, headerImageType)
         } else if (body.headerImage && body.headerImage.startsWith("http")) {
             // remove the host from as we store only the headerImage key in the db
