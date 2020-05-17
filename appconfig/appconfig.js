@@ -168,7 +168,7 @@ exports.new = async (event, context, callback) => {
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
 
-        if (!headerImageUploadRequested || !body.updateInfo) {
+        if ((!headerImageUploadRequested && !body.headerImage) || !body.updateInfo) {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('application/json' ),
@@ -188,6 +188,8 @@ exports.new = async (event, context, callback) => {
             });
             return;
         }
+
+        console.log("body: ", body, " headerImageUploadRequested? ", headerImageUploadRequested)
 
         var imageURLPromise
         if (headerImageUploadRequested) {
