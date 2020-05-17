@@ -176,7 +176,6 @@ exports.new = async (event, context, callback) => {
             });
             return;
         }
-        body.name = body.name.toLowerCase()
 
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise;
@@ -221,7 +220,7 @@ exports.new = async (event, context, callback) => {
         };
         callback(null, response);
     } catch(error) {
-        console.error('Failed to create config: ', JSON.stringify(error, null, 2));
+        console.error('Failed to create config: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
