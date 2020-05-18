@@ -263,7 +263,9 @@ exports.publish = async (event, context, callback) => {
         }
 
         const existingData = await existingDataPromise
+
         const existingTestConfig = existingData.Count > 0 ? existingData.Items[0] : undefined
+        console.log("Publishing textconfig ", existingTestConfig, " of brand ", brand)
         if (!existingTestConfig) {
             callback(null, {
                 statusCode: 404,
@@ -273,7 +275,7 @@ exports.publish = async (event, context, callback) => {
             return;
         }
 
-        const writeDBPromise = createConfigInDB(cognitoUserName, existingTestConfig, brand, testStage)
+        const writeDBPromise = createConfigInDB(cognitoUserName, existingTestConfig, brand, productionStage)
         const writeSuccess = await writeDBPromise
         console.log("write config to db success: ", writeSuccess)
 
