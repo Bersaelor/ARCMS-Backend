@@ -246,7 +246,7 @@ exports.get = async (event, context, callback) => {
 
         callback(null, response);
     } catch (error) {
-        console.error('Query failed to delete. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error('Query failed to fetch. Error JSON: ', JSON.stringify(error, null, 2));
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
@@ -439,10 +439,8 @@ exports.createNew = async (event, context, callback) => {
                 modelUploadURL: modelUploadURL ? modelUploadURL : "",
                 dxfUploadURL: dxfUploadURL ? dxfUploadURL : ""
             })
-        };
-    
+        };    
         callback(null, response);
-
     } catch(error) {
         console.error('Failed to create model: ', JSON.stringify(error, null, 2));
         callback(null, {
