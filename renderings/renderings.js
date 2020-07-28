@@ -173,7 +173,7 @@ exports.get = async (event, context, callback) => {
         }
 
         const data = await dataPromise
-        const renderings = data.map(render => convertStoredRendering(render))
+        const renderings = data.Items.map(render => convertStoredRendering(render))
     
         var response = {
             statusCode: 200,
