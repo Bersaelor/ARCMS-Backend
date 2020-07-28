@@ -149,7 +149,6 @@ exports.get = async (event, context, callback) => {
             body: `Encountered error ${error}`,
         });
         return;
-
     }
 };
 
