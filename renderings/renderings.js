@@ -30,7 +30,8 @@ const getRenderings = async (brand, category, model) => {
             KeyConditionExpression: "#id = :value and begins_with(#sk, :sk)",
             ExpressionAttributeNames:{
                 "#id": "id",
-                "#sk": "sk"
+                "#sk": "sk",
+                "#s": "status"
             },
             ExpressionAttributeValues: {
                 ":value": `rendering#${brand}`,
@@ -41,7 +42,8 @@ const getRenderings = async (brand, category, model) => {
         params = {
             KeyConditionExpression: "#id = :value",
             ExpressionAttributeNames:{
-                "#id": "id"
+                "#id": "id",
+                "#s": "status"
             },
             ExpressionAttributeValues: {
                 ":value": `rendering#${brand}`
@@ -49,7 +51,7 @@ const getRenderings = async (brand, category, model) => {
         };
     }
     params.TableName = process.env.CANDIDATE_TABLE
-    params.ProjectionExpression = "sk, status, parameters, finishedDate, s3key"
+    params.ProjectionExpression = "sk, #s, parameters, finishedDate, s3key"
 
     return dynamoDb.query(params).promise()
 }
