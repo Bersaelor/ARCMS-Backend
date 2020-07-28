@@ -237,6 +237,7 @@ exports.new = async (event, context, callback) => {
         let timeStamp = (new Date()).getTime()
         let updateDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp)
         let uploadKey = `${brand}/${category}/${modelId}/${timeStamp}`
+        console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
         const instanceStartResponse = await startInstance(modelS3Key, uploadKey)
         const updateDBResult = await updateDBEntryPromise
 
