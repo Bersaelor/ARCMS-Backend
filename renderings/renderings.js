@@ -105,7 +105,7 @@ const convertStoredRendering = (stored) => {
     } catch (error) {
         console.log("Failed to convert json because: ", error)
     }
-    converted.link = "https://render.looc.io/" + stored.s3key
+    converted.result_url = stored.s3key ? "https://render.looc.io/" + stored.s3key : ""
     delete converted.s3key
     return converted
 }
