@@ -22,7 +22,7 @@ function makeHeader(content, maxAge = 60) {
 const getConfig = async (brand, stage) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, headerImage, updateInfo, lastEdited",
+        ProjectionExpression: "sk, headerImage, updateInfo, lastEdited, texts",
         KeyConditionExpression: "#id = :value and #sk = :sk",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -48,6 +48,13 @@ async function createConfigInDB(user, values, brand, stage) {
         updateInfo = "{}"
     }
 
+    let texts
+    if (values.texts) {
+        let isString = typeof values.texts === 'string' || values.texts instanceof String
+        texts = isString ? values.texts : JSON.stringify(values.texts)
+    } else {
+        texts = "{}"
+    }
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
@@ -55,6 +62,7 @@ async function createConfigInDB(user, values, brand, stage) {
             "sk": `${brand}#${stage}`,
             "headerImage": sanitize(values.headerImage),
             "updateInfo": updateInfo,
+            "texts": texts
         }
     };
     params.Item.lastEdited = `${user}#${(new Date()).toISOString()}`
@@ -83,7 +91,8 @@ const convertStoredConfig = (storedConfig) => {
     var config = storedConfig
     delete storedConfig.sk
     try {
-        config.updateInfo = storedConfig.updateInfo ? JSON.parse(storedConfig.updateInfo) : undefined
+        config.updateInfo = storedConfig.updateInfo ? JSON.parse(storedConfig.updateInfo) : {}
+        config.texts = storedConfig.texts ? JSON.parse(storedConfig.texts) : {}
     } catch (error) {
         console.log("Failed to convert json because: ", error)
     }
