@@ -240,10 +240,12 @@ exports.new = async (event, context, callback) => {
         const instanceStartResponse = await startInstance(modelS3Key, uploadKey)
         const updateDBResult = await updateDBEntryPromise
 
+        console.log(`Success: ${instanceStartResponse.Instances} Instances created and db updated: ${updateDBResult}`)
+
         var response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: `Success: ${instanceStartResponse.Instances} Instances created and db updated: ${updateDBResult}` 
+            body: `Success: ${instanceStartResponse.Instances.length} Instances created and db updated: ${JSON.stringify(updateDBResult)}` 
         };
 
         callback(null, response);

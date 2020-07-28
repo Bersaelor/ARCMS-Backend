@@ -62,7 +62,7 @@ functions:
 
   new:
     handler: renderings.new
-    role: ${self:custom.users-role}
+    role: ${self:custom.ec2-role}
     memorySize: 512
     description: Post the configuration for a requested rendering, 
     package:
