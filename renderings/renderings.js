@@ -111,11 +111,12 @@ const convertStoredRendering = (stored) => {
 }
 
 function writeParametersToS3(parameters, uploadKey) {
-    return s3.putObject({
+    const params = {
         Bucket: process.env.RENDERING_BUCKET,
         Key: `${uploadKey}/parameters.json`,
         Body: JSON.stringify(parameters)
-    })
+    }
+    return s3.putObject(params).promise()
 }
 
 function startInstance(fileKey, uploadKey) {
@@ -207,6 +208,7 @@ exports.new = async (event, context, callback) => {
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
 
     const body = JSON.parse(event.body)
+
     const category = body.category
     const modelId = body.model
     const parameters = body.parameters
@@ -251,7 +253,7 @@ exports.new = async (event, context, callback) => {
         const updateDBResult = await updateDBEntryPromise
         const writeParametersResponse = await saveParametersPromise
         const instanceStartResponse = await launchEC2Promise
-        console.log(`Success: ${instanceStartResponse.Instances} Instances created and db updated: ${updateDBResult}, writeParametersResponse: ${writeParametersResponse}`)
+        console.log(`Success: ${instanceStartResponse.Instances} Instances created and db updated: ${JSON.stringify(updateDBResult)}, writeParametersResponse: ${JSON.stringify(writeParametersResponse)}`)
 
         var response = {
             statusCode: 200,
