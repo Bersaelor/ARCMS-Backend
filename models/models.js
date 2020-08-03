@@ -669,4 +669,3 @@ exports.updateModelSVG = async (event, context, callback) => {
         callback(error, {msg: `Failed to save data because of ${error.toString()}`})
     }
 }
-
