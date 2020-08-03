@@ -110,6 +110,14 @@ const convertStoredRendering = (stored) => {
     return converted
 }
 
+function writeParametersToS3(parameters, uploadKey) {
+    return s3.putObject({
+        Bucket: process.env.RENDERING_BUCKET,
+        Key: `${uploadKey}/parameters.json`,
+        Body: JSON.stringify(parameters)
+    })
+}
+
 function startInstance(fileKey, uploadKey) {
     const init_script = `#!/bin/bash -x
 echo Initializing g4dn-Renderer
@@ -120,7 +128,7 @@ chmod +x /tmp/p2-init.sh
     const base64Script = Buffer.from(init_script).toString('base64')
 
     var params = {
-        ImageId: "ami-0a367fe2dfd1f66f8",
+        ImageId: "ami-034cd0836aa8c9bee",
         InstanceType: "g4dn.xlarge",
         KeyName: "Convert3DEC2Pair",
         MaxCount: 1,
@@ -237,11 +245,13 @@ exports.new = async (event, context, callback) => {
         let timeStamp = (new Date()).getTime()
         let updateDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp)
         let uploadKey = `${brand}/${category}/${modelId}/${timeStamp}`
+        let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
         console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
-        const instanceStartResponse = await startInstance(modelS3Key, uploadKey)
+        let launchEC2Promise = startInstance(modelS3Key, uploadKey)
         const updateDBResult = await updateDBEntryPromise
-
-        console.log(`Success: ${instanceStartResponse.Instances} Instances created and db updated: ${updateDBResult}`)
+        const writeParametersResponse = await saveParametersPromise
+        const instanceStartResponse = await launchEC2Promise
+        console.log(`Success: ${instanceStartResponse.Instances} Instances created and db updated: ${updateDBResult}, writeParametersResponse: ${writeParametersResponse}`)
 
         var response = {
             statusCode: 200,

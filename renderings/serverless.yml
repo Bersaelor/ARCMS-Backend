@@ -26,6 +26,7 @@ provider:
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
     IMAGE_BUCKET: looc-cloud-images
     MODEL_BUCKET: ar-glasses-models
+    RENDERING_BUCKET: looc-renderings
     STAGE: ${self:custom.myStage}
     ACCESS_STORE: store
     ACCESS_MANAGER: manager
