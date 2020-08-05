@@ -54,6 +54,7 @@ const getRenderings = async (brand, category, model) => {
     }
     params.TableName = process.env.CANDIDATE_TABLE
     params.ProjectionExpression = "sk, #s, #p, finished, s3key, cost"
+    params.ScanIndexForward = false
 
     return dynamoDb.query(params).promise()
 }
