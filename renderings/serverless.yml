@@ -92,3 +92,13 @@ functions:
       include:
         - renderings.js
         - shared/**
+
+  save-rendering-logs:
+    handler: renderings.savelog
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Save the link to the logfile into the db
+    package:
+      include:
+        - renderings.js
+        - shared/**

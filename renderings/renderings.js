@@ -32,7 +32,8 @@ const getRenderings = async (brand, category, model) => {
                 "#id": "id",
                 "#sk": "sk",
                 "#p": "parameters",
-                "#s": "status"
+                "#s": "status",
+                "#l": "log"
             },
             ExpressionAttributeValues: {
                 ":value": `rendering#${brand}`,
@@ -45,7 +46,8 @@ const getRenderings = async (brand, category, model) => {
             ExpressionAttributeNames:{
                 "#id": "id",
                 "#p": "parameters",
-                "#s": "status"
+                "#s": "status",
+                "#l": "log"
             },
             ExpressionAttributeValues: {
                 ":value": `rendering#${brand}`
@@ -53,7 +55,7 @@ const getRenderings = async (brand, category, model) => {
         };
     }
     params.TableName = process.env.CANDIDATE_TABLE
-    params.ProjectionExpression = "sk, #s, #p, finished, s3key, cost"
+    params.ProjectionExpression = "sk, #s, #p, #l, finished, s3key, cost"
     params.ScanIndexForward = false
 
     return dynamoDb.query(params).promise()
@@ -129,6 +131,22 @@ async function updateModel(s3key, brand, category, modelId, timeStamp, finishedT
     return dynamoDb.update(params).promise()
 }
 
+async function updateModelLog(logS3Key, brand, category, modelId, timeStamp) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `rendering#${brand}`, sk: `${category}#${modelId}#${timeStamp}` },
+        UpdateExpression: `set #l = :f`,
+        ExpressionAttributeNames:{
+            "#l": "log",
+        },
+        ExpressionAttributeValues: {
+            ":f": logS3Key,
+        },
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
 const convertStoredRendering = (stored) => {
     var converted = stored
     let skComponents = stored.sk.split('#')
@@ -145,6 +163,8 @@ const convertStoredRendering = (stored) => {
     }
     converted.result_url = stored.s3key ? "https://render.looc.io/" + stored.s3key : ""
     delete converted.s3key
+    converted.log = stored.log ? "https://render.looc.io/" + stored.log : ""
+
     return converted
 }
 
@@ -340,6 +360,37 @@ exports.finished = async (event, context, callback) => {
             const cost = renderingTimeInS / 3600 * costPerHour
 
             const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, cost)
+            console.log("Updating model with finished ", key, " in db success: ", updateSuccess)    
+
+            callback(null, {msg: "Success"})
+        }
+    } catch (error) {
+        callback(error, {msg: `Failed to save data because of ${error.toString()}`})
+    }
+}
+
+// Save the link to the logfile into the db
+exports.savelog = async (event, context, callback) => {
+    try {
+        for (const index in event.Records) {
+            const record = event.Records[index]
+            const key = record.s3.object.key
+            const keyComponents = key.split('/')
+            const brand = keyComponents[0]
+            const category = keyComponents[1]
+            const modelId = keyComponents[2]
+            const timeStamp = keyComponents[3]
+
+            const renderingData = await getRenderingFromDB(brand, category, modelId, timeStamp)
+
+            if (!renderingData || !renderingData.Items || renderingData.Items.length == 0) {
+                const msg = `Failed to find rendering with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const updateSuccess = await updateModelLog(key, brand, category, modelId, timeStamp)
             console.log("Updating model with finished ", key, " in db success: ", updateSuccess)    
 
             callback(null, {msg: "Success"})
