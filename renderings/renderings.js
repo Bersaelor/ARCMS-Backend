@@ -131,6 +131,22 @@ async function updateModel(s3key, brand, category, modelId, timeStamp, finishedT
     return dynamoDb.update(params).promise()
 }
 
+async function updateModelStatus(status, brand, category, modelId, timeStamp) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `rendering#${brand}`, sk: `${category}#${modelId}#${timeStamp}` },
+        UpdateExpression: `set #s = :status`,
+        ExpressionAttributeNames:{
+            "#s": "status",
+        },
+        ExpressionAttributeValues: {
+            ":status": status
+        },
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
 async function updateModelLog(logS3Key, brand, category, modelId, timeStamp) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -395,6 +411,34 @@ exports.savelog = async (event, context, callback) => {
 
             callback(null, {msg: "Success"})
         }
+    } catch (error) {
+        callback(error, {msg: `Failed to save data because of ${error.toString()}`})
+    }
+}
+
+// Update the status of the current rendering
+exports.updateStatus = async (event, context, callback) => {
+    try {
+        const key = event.s3key
+        const status = event.status
+
+        if (!key || !status) {
+            const msg = `Expected bot s3key and status parameter`
+            console.error(msg)
+            callback(null, {msg: msg})
+            return
+        }
+
+        const keyComponents = key.split('/')
+        const brand = keyComponents[0]
+        const category = keyComponents[1]
+        const modelId = keyComponents[2]
+        const timeStamp = keyComponents[3]
+
+        const updateSuccess = await updateModelStatus(status, brand, category, modelId, timeStamp)
+        console.log("Updating model with finished ", key, " in db success: ", updateSuccess)    
+
+        callback(null, {msg: "Success"})
     } catch (error) {
         callback(error, {msg: `Failed to save data because of ${error.toString()}`})
     }
