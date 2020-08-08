@@ -65,7 +65,7 @@ functions:
     handler: renderings.new
     role: ${self:custom.ec2-role}
     memorySize: 512
-    description: Post the configuration for a requested rendering, 
+    description: Post the configuration for a requested rendering
     package:
       include:
         - renderings.js
@@ -113,3 +113,28 @@ functions:
       include:
         - renderings.js
         - shared/**
+
+  delete-rendering:
+    handler: renderings.delete
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Delete rendering should the current user have enough rights
+    package:
+      include:
+        - renderings.js
+        - shared/**
+    events:
+      - http:
+          path: /{brand}/renderings/{category}/{model}/{timestamp}
+          method: delete
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+                category: true
+                model: true
+                timestamp: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v

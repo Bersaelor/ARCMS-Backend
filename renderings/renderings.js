@@ -163,6 +163,18 @@ async function updateModelLog(logS3Key, brand, category, modelId, timeStamp) {
     return dynamoDb.update(params).promise()
 }
 
+async function deleteRenderingFromDB(brand, category, model, timeStamp) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {
+            id: `rendering#${brand}`,
+            sk: `${category}#${model}#${timeStamp}`
+        } 
+    };
+
+    return dynamoDb.delete(params).promise()
+}
+
 const convertStoredRendering = (stored) => {
     var converted = stored
     let skComponents = stored.sk.split('#')
@@ -441,5 +453,51 @@ exports.updateStatus = async (event, context, callback) => {
         callback(null, {msg: "Success"})
     } catch (error) {
         callback(error, {msg: `Failed to save data because of ${error.toString()}`})
+    }
+}
+
+// Delete rendering should the current user have enough rights
+exports.delete = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+    const category = event.pathParameters.category.toLowerCase()
+    const model = event.pathParameters.model.toLowerCase()
+    const timestamp = event.pathParameters.timestamp.toLowerCase()
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+
+    if (!brand || !category || !model || !timestamp) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected a brand,category, model and timestamp in the call.`,
+        });
+        return;
+    }    
+    
+    console.log("Deleting from ", brand, ", for category: ", category, ", model: ", model, " - ", timestamp)
+    try {
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await getAccessLvl(cognitoUserName, brand);
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = "This user isn't allowed to edit renderings"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const dbDeletionResponse = await deleteRenderingFromDB(brand, category, model, timestamp)
+        console.log("dbDeletionResponse: ", dbDeletionResponse)
+
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify({ "message": "Deletion of rendering for " + model + " successful" })
+        };
+
+        callback(null, response);
+    } catch (error) {
+        callback(error, {msg: `Failed to delete rendering because of ${error.toString()}`})
     }
 }
