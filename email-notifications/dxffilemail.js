@@ -67,8 +67,8 @@ async function mailToManufacturer(brand, orderSK, files) {
     const locale = brandSettings[brand].preferredLanguage
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
     const customer = orderSK.split('#')[0]
-    const timeStamp = parseInt(orderSK.split('#')[1], 10)
-    const orderDate = new Date(timeStamp)
+    const dateISOString = orderSK.split('#')[1]
+    const orderDate = new Date(dateISOString)
     const localizedDate = orderDate.toLocaleString(locale)
     console.log("customer: ", customer, ", date: ", orderDate.toString())
 
