@@ -7,7 +7,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const ec2 = new AWS.EC2();
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
-const { paginate } = require('../shared/pagination')
+const { paginate } = require('shared/pagination')
 
 const defaultPerPage = 20;
 
