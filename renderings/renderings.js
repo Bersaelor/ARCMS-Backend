@@ -259,13 +259,13 @@ exports.get = async (event, context, callback) => {
     
     console.log("Checking for renderings for ", brand, ", for category: ", category, ", model: ", model)
     try {
-        var perPage = event.queryStringParameters.perPage ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
+        var perPage = (event.queryStringParameters && event.queryStringParameters.perPage) ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
         if (!perPage || perPage > 2 * defaultPerPage) {
             perPage = defaultPerPage
         }    
 
         var PreviousLastEvaluatedKey
-        if (event.queryStringParameters.nextPageKey) {
+        if (event.queryStringParameters && event.queryStringParameters.nextPageKey) {
             let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
             PreviousLastEvaluatedKey = JSON.parse(jsonString)
         }
@@ -295,7 +295,7 @@ exports.get = async (event, context, callback) => {
 
         callback(null, response);
     } catch(error) {
-        console.error('Query for renderings failed. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error(`Query for renderings failed. Error ${error}`);
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
