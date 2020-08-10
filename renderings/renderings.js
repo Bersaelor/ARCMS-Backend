@@ -210,6 +210,21 @@ function writeParametersToS3(parameters, uploadKey) {
     return s3.putObject(params).promise()
 }
 
+function makeUploadKey(brand, category, model, timeStamp) {
+    return `${brand}/${category}/${model}/${timeStamp}`
+}
+
+function shortenedKey(key) {
+    const maxLength = 124
+    if (key.length > maxLength) {
+        return key.slice(key.length - maxLength)
+    } else {
+        return key
+    }
+}
+
+const uploadKeyTag = "UploadKey"
+
 function startInstance(fileKey, uploadKey) {
     const init_script = `#!/bin/bash -x
 echo Initializing g4dn-Renderer
@@ -225,20 +240,72 @@ chmod +x /tmp/p2-init.sh
         KeyName: "Convert3DEC2Pair",
         MaxCount: 1,
         MinCount: 1,
-        SecurityGroupIds: [ "sg-d572aabd" ],
+        SecurityGroupIds: ["sg-d572aabd"],
         IamInstanceProfile: {
             Arn: "arn:aws:iam::338756162532:instance-profile/ServerRenderAccess"
         },
+        TagSpecifications: [
+            {
+                ResourceType: "instance",
+                Tags: [
+                    {
+                        Key: uploadKeyTag,
+                        Value: shortenedKey(uploadKey)
+                    }
+                ]
+            }
+        ],
         InstanceInitiatedShutdownBehavior: "terminate",
         UserData: base64Script
     };
 
-    return new Promise((resolve, reject) => {
-        let request = ec2.runInstances(params, (error, data) => {
-            if (error) reject(error); 
-            else resolve(data);
+    return ec2.runInstances(params).promise()
+}
+
+function findInstances(uploadKey) {
+    var params = {
+        Filters: [
+            {
+                Name: `tag:${uploadKeyTag}`,
+                Values: [uploadKey]
+            }
+        ]
+    };
+
+    return ec2.describeInstances(params).promise().then( data => {
+        var instanceIds = []
+        data.Reservations.forEach((reservation) => {
+            reservation.Instances.forEach(function (instance) {
+                console.log("Found instance: ", instance);
+                instanceIds.push(instance.InstanceId);
+            });
         });
+        return instanceIds
+    });
+}
+
+function terminateInstances(instanceIds) {
+    const params = {
+        InstanceIds: instanceIds
+    }
+
+    return new Promise((resolve, reject) => {
+        ec2.terminateInstances(params, function(err, data) {
+            if (err) { reject(err); return }
+            else resolve(data)
+        })    
     })
+}
+
+async function findAndTerminate(uploadKey) {
+    const instanceIds = await findInstances(uploadKey)
+    console.log("instanceIds: ", instanceIds);
+    if (instanceIds.length > 0) {
+        const terminationResult = await terminateInstances(instanceIds)
+        return terminationResult    
+    } else {
+        return `No instances running for uploadKey ${uploadKey}`
+    }
 }
 
 // Get an array of renderings, optionally filtered by category and model, paginated
@@ -349,7 +416,7 @@ exports.new = async (event, context, callback) => {
         const modelS3Key = modelData.Items[0].modelFile
         let timeStamp = (new Date()).getTime()
         let updateDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp)
-        let uploadKey = `${brand}/${category}/${modelId}/${timeStamp}`
+        let uploadKey = makeUploadKey(brand, category, modelId, timeStamp)
         let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
         console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
         let launchEC2Promise = startInstance(modelS3Key, uploadKey)
@@ -503,9 +570,10 @@ exports.delete = async (event, context, callback) => {
             });
             return;
         }
-
+        const instanceTerminationPromise = findAndTerminate(makeUploadKey(brand, category, model, timestamp))
         const dbDeletionResponse = await deleteRenderingFromDB(brand, category, model, timestamp)
-        console.log("dbDeletionResponse: ", dbDeletionResponse)
+        const terminationResponse = await instanceTerminationPromise
+        console.log("dbDeletionResponse: ", dbDeletionResponse, ", terminationResponse: ", terminationResponse)
 
         const response = {
             statusCode: 200,

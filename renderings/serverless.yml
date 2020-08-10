@@ -116,7 +116,7 @@ functions:
 
   delete-rendering:
     handler: renderings.delete
-    role: ${self:custom.users-role}
+    role: ${self:custom.ec2-role}
     memorySize: 512
     description: Delete rendering should the current user have enough rights
     package:
