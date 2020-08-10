@@ -7,6 +7,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
 const { getAccessLvl } = require('../shared/access_methods')
 const brandSettings = require('../brand_settings.json')
+const { paginate } = require('../shared/pagination')
 
 const defaultPerPage = 20;
 
@@ -314,26 +315,6 @@ async function replyWithAllOrders(brand, cognitoUserName, perPage, callback, Pre
         };
         callback(null, response);
         return;
-    }
-}
-
-function paginate(orders, perPage, LastEvaluatedKey) {
-    if (LastEvaluatedKey) {
-        const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
-        return {
-            items: orders,
-            itemCount: orders.length,
-            fullPage: perPage,
-            hasMoreContent: LastEvaluatedKey !== undefined,
-            nextPageKey: base64Key 
-        }
-    } else {
-        return {
-            items: orders,
-            itemCount: orders.length,
-            fullPage: perPage,
-            hasMoreContent: false,
-        }
     }
 }
 

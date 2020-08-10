@@ -536,6 +536,8 @@ functions:
         - orders/orders.js
         - shared/access_methods.js
         - brand_settings.json
+        - shared/pagination.js
+        
     events:
       - http:
           path: v2/orders
