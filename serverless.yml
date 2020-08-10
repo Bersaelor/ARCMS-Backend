@@ -461,6 +461,7 @@ functions:
       include:
         - brand/users.js
         - shared/access_methods.js
+        - shared/pagination.js
     events:
       - http:
           path: users

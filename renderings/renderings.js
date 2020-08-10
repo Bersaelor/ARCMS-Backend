@@ -7,6 +7,9 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const ec2 = new AWS.EC2();
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
+const { paginate } = require('../shared/pagination')
+
+const defaultPerPage = 20;
 
 const statusStrings = {
     requested: "REQUESTED",
@@ -23,7 +26,7 @@ function makeHeader(content) {
     };
 }
 
-const getRenderings = async (brand, category, model) => {
+const getRenderings = async (brand, category, model, perPage, LastEvaluatedKey) => {
     var params
     if (category) {
         params = {
@@ -54,9 +57,11 @@ const getRenderings = async (brand, category, model) => {
             },
         };
     }
+    params.Limit = perPage
     params.TableName = process.env.CANDIDATE_TABLE
     params.ProjectionExpression = "sk, #s, #p, #l, finished, s3key, cost"
     params.ScanIndexForward = false
+    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
     return dynamoDb.query(params).promise()
 }
@@ -254,7 +259,18 @@ exports.get = async (event, context, callback) => {
     
     console.log("Checking for renderings for ", brand, ", for category: ", category, ", model: ", model)
     try {
-        const dataPromise = getRenderings(brand, category, model)
+        var perPage = event.queryStringParameters.perPage ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
+        if (!perPage || perPage > 2 * defaultPerPage) {
+            perPage = defaultPerPage
+        }    
+
+        var PreviousLastEvaluatedKey
+        if (event.queryStringParameters.nextPageKey) {
+            let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
+            PreviousLastEvaluatedKey = JSON.parse(jsonString)
+        }
+
+        const dataPromise = getRenderings(brand, category, model, perPage, PreviousLastEvaluatedKey)
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
         if (!accessLvlMayCreate(accessLvl)) {
@@ -268,12 +284,13 @@ exports.get = async (event, context, callback) => {
         }
 
         const data = await dataPromise
+        const LastEvaluatedKey = data.LastEvaluatedKey
         const renderings = data.Items.map(render => convertStoredRendering(render))
         
-        var response = {
+        const response = {
             statusCode: 200,
-            headers: makeHeader('application/json'),
-            body: JSON.stringify(renderings)
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify(paginate(renderings, perPage, LastEvaluatedKey))
         };
 
         callback(null, response);
