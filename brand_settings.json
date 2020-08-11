@@ -27,6 +27,7 @@
         "name": "My LooC",
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
+        "allowsRendering": true,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "en",
         "appDownloadLink": "https://apps.apple.com/app/id1463380262"

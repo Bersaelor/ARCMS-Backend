@@ -384,6 +384,7 @@ functions:
     package:
       include:
         - user/brands.js
+        - shared/access_methods.js
         - brand_settings.json
     events:
       - http:
