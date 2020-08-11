@@ -6,8 +6,9 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const ec2 = new AWS.EC2();
-const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
+const { getAccessLvl, accessLvlMayRender } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
+const brandSettings = require('brand_settings.json')
 
 const defaultPerPage = 20;
 
@@ -340,7 +341,7 @@ exports.get = async (event, context, callback) => {
         const dataPromise = getRenderings(brand, category, model, perPage, PreviousLastEvaluatedKey)
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
-        if (!accessLvlMayCreate(accessLvl)) {
+        if (!accessLvlMayRender(accessLvl, brandSettings[brand])) {
             const msg = "This user isn't allowed to see the list of renderings"
             callback(null, {
                 statusCode: 403,
@@ -397,7 +398,7 @@ exports.new = async (event, context, callback) => {
         const modelPromise = getModel(brand, category, modelId)    
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
-        if (!accessLvlMayCreate(accessLvl)) {
+        if (!accessLvlMayRender(accessLvl, brandSettings[brand])) {
             const msg = "This user isn't allowed to see the list of renderings"
             callback(null, {
                 statusCode: 403,
@@ -561,7 +562,7 @@ exports.delete = async (event, context, callback) => {
     try {
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
-        if (!accessLvlMayCreate(accessLvl)) {
+        if (!accessLvlMayRender(accessLvl, brandSettings[brand])) {
             const msg = "This user isn't allowed to edit renderings"
             callback(null, {
                 statusCode: 403,
