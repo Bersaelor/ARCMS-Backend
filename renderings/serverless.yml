@@ -120,6 +120,7 @@ functions:
       include:
         - renderings.js
         - shared/**
+        - brand_settings.json
 
   save-rendering-logs:
     handler: renderings.savelog
@@ -130,6 +131,7 @@ functions:
       include:
         - renderings.js
         - shared/**
+        - brand_settings.json
 
 
   update-rendering-status:
@@ -141,3 +143,4 @@ functions:
       include:
         - renderings.js
         - shared/**
+        - brand_settings.json
