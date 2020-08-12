@@ -6,11 +6,17 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const ec2 = new AWS.EC2();
+const pricing = new AWS.Pricing({
+    apiVersion: '2017-10-15',
+    region: 'us-east-1'
+});
 const { getAccessLvl, accessLvlMayRender } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
 const brandSettings = require('brand_settings.json')
-
+const instanceType = "g4dn.xlarge"
 const defaultPerPage = 20;
+
+const first = obj => obj[Object.keys(obj)[0]];
 
 const statusStrings = {
     requested: "REQUESTED",
@@ -100,6 +106,61 @@ const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, 
     return dynamoDb.put(params).promise();
 }
 
+const saveReceiptInDB = async (brand, category, id, timeStamp, duration, cost, parameters) => {
+    const timeString = (new Date()).toISOString()
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Item: {
+            "id": `receipt#${brand}`,
+            "sk": timeString,
+            "category": category,
+            "model": id,
+            "timeStamp": timeStamp,
+            "duration": duration,
+            "cost": cost,
+            "parameters": parameters ? JSON.stringify(parameters) : "{}"
+        }
+    };
+
+    return dynamoDb.put(params).promise();
+}
+
+const getReceipts = async (brand, year, month) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, category, model, #t, #d, cost, #p",
+        KeyConditionExpression: "#id = :value and begins_with(#sk, :sk)",
+        ExpressionAttributeNames: {
+            "#id": "id",
+            "#sk": "sk",
+            "#t": "timeStamp",
+            "#d": "duration",
+            "#p": "parameters"
+        },
+        ExpressionAttributeValues: {
+            ":value": `receipt#${brand}`,
+            ":sk": `${year}-${month}`
+        },
+        ScanIndexForward: false
+    };
+
+    console.log("params: ", params)
+
+    return dynamoDb.query(params).promise()
+}
+
+const convertStoredReceipt = (stored) => {
+    var converted = stored
+    delete converted.sk
+    try {
+        converted.parameters = stored.parameters ? JSON.parse(stored.parameters) : {}
+    } catch (error) {
+        console.log("Failed to convert json because: ", error)
+    }
+
+    return converted
+}
+
 const getModel = async (brand, category, id) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -116,6 +177,44 @@ const getModel = async (brand, category, id) => {
     };
 
     return dynamoDb.query(params).promise()
+}
+
+const getEC2Pricing = async () => {
+    var params = {
+        Filters: [
+            {
+                Field: "location",
+                Type: "TERM_MATCH",
+                Value: "EU (Frankfurt)"
+            },
+            {
+                Field: "operatingSystem",
+                Type: "TERM_MATCH",
+                Value: "Linux"
+            },
+            {
+                Field: "operation",
+                Type: "TERM_MATCH",
+                Value: "RunInstances"
+            },
+            {
+                Field: "usagetype",
+                Type: "TERM_MATCH",
+                Value: `EUC1-UnusedBox:${instanceType}`
+            }
+        ],
+        FormatVersion: "aws_v1",
+        MaxResults: 1,
+        ServiceCode: "AmazonEC2"
+    };
+
+    return pricing.getProducts(params).promise().then((data) => {
+        const item = data && data.PriceList && data.PriceList.length > 0 ? data.PriceList[0] : undefined
+        const onDemandPrice = item && item.terms && item.terms.OnDemand && first(item.terms.OnDemand)
+        const price = onDemandPrice && onDemandPrice.priceDimensions && first(onDemandPrice.priceDimensions)
+        const pricePerUnit = price && price.pricePerUnit && price.pricePerUnit.USD && parseFloat(price.pricePerUnit.USD)
+        return pricePerUnit
+    })
 }
 
 async function updateModel(s3key, brand, category, modelId, timeStamp, finishedTimeStamp, cost) {
@@ -237,7 +336,7 @@ chmod +x /tmp/p2-init.sh
 
     var params = {
         ImageId: "ami-034cd0836aa8c9bee",
-        InstanceType: "g4dn.xlarge",
+        InstanceType: instanceType,
         KeyName: "Convert3DEC2Pair",
         MaxCount: 1,
         MinCount: 1,
@@ -457,6 +556,7 @@ exports.finished = async (event, context, callback) => {
             const timeStamp = keyComponents[3]
             const finishedTimeStamp = (new Date()).getTime()
 
+            const ec2pricingPromise = getEC2Pricing()
             const renderingData = await getRenderingFromDB(brand, category, modelId, timeStamp)
 
             if (!renderingData || !renderingData.Items || renderingData.Items.length == 0) {
@@ -469,11 +569,16 @@ exports.finished = async (event, context, callback) => {
             const rendering = convertStoredRendering(renderingData.Items[0])
             const renderingTimeInS = Math.max(60, (finishedTimeStamp - rendering.created) / 1000)
             console.log("Rendering took ", renderingTimeInS, "s")
-            const costPerHour = 0.658
+            const ec2Price = await ec2pricingPromise
+            console.log("ec2Price: ", ec2Price)
+
+            const costPerHour = ec2Price || 1.0
             const cost = renderingTimeInS / 3600 * costPerHour
 
+            const receiptPromise = saveReceiptInDB(brand, category, modelId, timeStamp, renderingTimeInS, cost, rendering.parameters)
             const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, cost)
-            console.log("Updating model with finished ", key, " in db success: ", updateSuccess)    
+            const receiptWriteSuccess = await receiptPromise
+            console.log("Updating model with finished ", key, " in db success: ", updateSuccess, receiptWriteSuccess)    
 
             callback(null, {msg: "Success"})
         }
@@ -587,3 +692,108 @@ exports.delete = async (event, context, callback) => {
         callback(error, {msg: `Failed to delete rendering because of ${error.toString()}`})
     }
 }
+
+//  Get the brand's receipts should the current user have enough rights
+exports.receipts = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const year = event.queryStringParameters && event.queryStringParameters.year;
+    const month = event.queryStringParameters && event.queryStringParameters.month;
+
+    if (!year || !month) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected a year and month query parameter in the call.`,
+        });
+        return;
+    }    
+    
+    try {
+        console.log("Checking for receipts for ", brand)
+        const dataPromise = getReceipts(brand, year, month)
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await getAccessLvl(cognitoUserName, brand);
+        if (!accessLvlMayRender(accessLvl, brandSettings[brand])) {
+            const msg = "This user isn't allowed to see the list of renderings"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const data = await dataPromise
+        const receipts = data.Items.map(receipt => convertStoredReceipt(receipt))
+        
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify(receipts)
+        };
+
+        callback(null, response);
+    } catch(error) {
+        console.error(`Query for receipts failed. Error ${error}`);
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+};
+
+//  Get the brand's rendering costs for a specified month should the current user have enough rights
+exports.costs = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const year = event.queryStringParameters && event.queryStringParameters.year;
+    const month = event.queryStringParameters && event.queryStringParameters.month;
+
+    if (!year || !month) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected a year and month query parameter in the call.`,
+        });
+        return;
+    }    
+    
+    try {
+        console.log("Checking for receipts for ", brand, " for month: ", month, " and year ", year)
+        const dataPromise = getReceipts(brand, year, month)
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await getAccessLvl(cognitoUserName, brand);
+        if (!accessLvlMayRender(accessLvl, brandSettings[brand])) {
+            const msg = "This user isn't allowed to see the list of renderings"
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        const data = await dataPromise
+        const sumUp = (acc, val) => acc + val
+        const totalCost = data.Items.length > 0 ? data.Items.map(receipt => receipt.cost).reduce(sumUp) : 0
+        
+        const response = {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({totalCost: totalCost})
+        };
+
+        callback(null, response);
+    } catch(error) {
+        console.error(`Query for totalCost failed. Error ${error}`);
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+};
