@@ -69,7 +69,7 @@ async function mailToManufacturer(brand, orderSK, files) {
     const customer = orderSK.split('#')[0]
     const dateISOString = orderSK.split('#')[1]
     const orderDate = new Date(dateISOString)
-    const localizedDate = orderDate.toLocaleString(locale)
+    const localizedDate = orderDate.toLocaleString(locale, { timeZone: brandSettings[brand].timeZone })
     console.log("customer: ", customer, ", date: ", orderDate.toString())
 
     var htmlBody, subject 

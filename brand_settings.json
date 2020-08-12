@@ -5,7 +5,8 @@
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "en",
-        "appDownloadLink": "https://beta.itunes.apple.com/v1/app/1350106957"
+        "appDownloadLink": "https://beta.itunes.apple.com/v1/app/1350106957",
+        "timeZone": "America/Los_Angeles"
     },
     "ede": {
         "name": "ForSec",
@@ -13,7 +14,8 @@
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "de",
-        "appDownloadLink": ""
+        "appDownloadLink": "",
+        "timeZone": "Europe/Berlin"
     },
     "grafix": {
         "name": "Grafix",
@@ -21,7 +23,8 @@
         "wantsDXFConversion": true,
         "orderAdress": "order@grafix-eyewear.com",
         "preferredLanguage": "de",
-        "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1"
+        "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1",
+        "timeZone": "Europe/Berlin"
     },
     "loocfun": {
         "name": "My LooC",
@@ -30,7 +33,8 @@
         "allowsRendering": true,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "en",
-        "appDownloadLink": "https://apps.apple.com/app/id1463380262"
+        "appDownloadLink": "https://apps.apple.com/app/id1463380262",
+        "timeZone": "Europe/Berlin"
     },
     "markust": {
         "name": "MARKUS T",
@@ -38,7 +42,8 @@
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "de",
-        "appDownloadLink": "https://apps.apple.com/us/app/id1464779760?ls=1"
+        "appDownloadLink": "https://apps.apple.com/us/app/id1464779760?ls=1",
+        "timeZone": "Europe/Berlin"
     },
     "safeeyes": {
         "name": "SAFE EYES",
@@ -46,6 +51,7 @@
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
         "preferredLanguage": "de",
-        "appDownloadLink": "https://apps.apple.com/us/app/id1464779760?ls=1"
+        "appDownloadLink": "https://apps.apple.com/us/app/id1464779760?ls=1",
+        "timeZone": "Europe/Berlin"
     }
 }

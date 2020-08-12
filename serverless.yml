@@ -567,6 +567,7 @@ functions:
       include:
         - orders/orders.js
         - shared/access_methods.js
+        - shared/pagination.js
         - brand_settings.json
     events:
       - http:
@@ -585,6 +586,7 @@ functions:
     package:
       include:
         - orders/orders.js
+        - shared/pagination.js
         - shared/access_methods.js
         - brand_settings.json
     environment:
