@@ -67,7 +67,7 @@ const getRenderings = async (brand, category, model, perPage, LastEvaluatedKey) 
     }
     params.Limit = perPage
     params.TableName = process.env.CANDIDATE_TABLE
-    params.ProjectionExpression = "sk, #s, #p, #l, finished, s3key, cost"
+    params.ProjectionExpression = "sk, #s, #p, #l, finished, s3key, cost, renderStarted"
     params.ScanIndexForward = false
     if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
@@ -96,7 +96,7 @@ const getWaitingRenderings = async (brand) => {
 const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     let params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, #p",
+        ProjectionExpression: "sk, #p, renderStarted",
         KeyConditionExpression: "#id = :value and #sk = :sk",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -112,7 +112,7 @@ const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     return dynamoDb.query(params).promise()
 }
 
-const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, waitingForFreeInstance) => {
+const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, waitingForFreeInstance, renderStarted) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
@@ -123,6 +123,8 @@ const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, 
             "status": waitingForFreeInstance ? statusStrings.waitingForResource : statusStrings.requested
         }
     };
+
+    if (renderStarted) params.Item.renderStarted = renderStarted
 
     return dynamoDb.put(params).promise();
 }
@@ -261,7 +263,7 @@ async function updateModel(s3key, brand, category, modelId, timeStamp, finishedT
     return dynamoDb.update(params).promise()
 }
 
-async function updateModelStatus(status, brand, category, modelId, timeStamp) {
+async function updateRenderingStatus(status, brand, category, modelId, timeStamp) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Key: {id: `rendering#${brand}`, sk: `${category}#${modelId}#${timeStamp}` },
@@ -271,6 +273,26 @@ async function updateModelStatus(status, brand, category, modelId, timeStamp) {
         },
         ExpressionAttributeValues: {
             ":status": status
+        },
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
+async function updateRenderingStatusAndRenderStarted(status, brand, category, modelId, timeStamp) {
+    const renderStarted = (new Date()).getTime()
+
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `rendering#${brand}`, sk: `${category}#${modelId}#${timeStamp}` },
+        UpdateExpression: `set #s = :status, #r = :started`,
+        ExpressionAttributeNames:{
+            "#s": "status",
+            "#r": "renderStarted"
+        },
+        ExpressionAttributeValues: {
+            ":status": status,
+            ":started": renderStarted
         },
     };
 
@@ -351,7 +373,7 @@ function shortenedKey(key) {
 const uploadKeyTag = "UploadKey"
 const loocEC2Tag = "loocec2tag"
 const loocEC2TagRenderValue = "loocrenderInstance"
-const maxRenderInstances = 1
+const maxRenderInstances = 20
 
 function startInstance(fileKey, uploadKey) {
     const init_script = `#!/bin/bash -x
@@ -454,8 +476,7 @@ async function checkForWaitingRenderings(brand) {
     const model = skComponents[1]
     const timeStamp = parseInt(skComponents[2], 10)
     const uploadKey = makeUploadKey(brand, category, model, timeStamp)
-
-    const updateSuccessPromise = updateModelStatus(statusStrings.requested, brand, category, model, timeStamp)
+    const updateSuccessPromise = updateRenderingStatusAndRenderStarted(statusStrings.requested, brand, category, model, timeStamp)
     const instanceStartResponse = await startInstance(rendering.modelS3Key, uploadKey)
     const updateDBResponse = await updateSuccessPromise
 
@@ -573,10 +594,11 @@ exports.new = async (event, context, callback) => {
         const runningInstances = await runningInstancesPromise
         const waitingForFreeInstance = runningInstances.length >= maxRenderInstances
         let timeStamp = (new Date()).getTime()
-        let updateDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp, waitingForFreeInstance)
+        const renderStarted = !waitingForFreeInstance ? timeStamp : undefined
+        let createDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp, waitingForFreeInstance, renderStarted)
         let uploadKey = makeUploadKey(brand, category, modelId, timeStamp)
         let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
-        console.log("Currently runnign rendering instances: ", runningInstances.length)
+        console.log("Currently running rendering instances: ", runningInstances.length)
         if (!waitingForFreeInstance) {
             console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
             const instanceStartResponse = await startInstance(modelS3Key, uploadKey)
@@ -584,7 +606,7 @@ exports.new = async (event, context, callback) => {
         } else {
             console.log("Maximum instances rendering, waiting for next free instance")
         }
-        const updateDBResult = await updateDBEntryPromise
+        const updateDBResult = await createDBEntryPromise
         const writeParametersResponse = await saveParametersPromise
         console.log(`Success: db updated: ${JSON.stringify(updateDBResult)}, writeParametersResponse: ${JSON.stringify(writeParametersResponse)}`)
 
@@ -630,7 +652,8 @@ exports.finished = async (event, context, callback) => {
             }
 
             const rendering = convertStoredRendering(renderingData.Items[0])
-            const renderingTimeInS = Math.max(60, (finishedTimeStamp - rendering.created) / 1000)
+            const startedTimeStamp = rendering.renderStarted || rendering.created
+            const renderingTimeInS = Math.max(60, (finishedTimeStamp - startedTimeStamp) / 1000)
             console.log("Rendering took ", renderingTimeInS, "s")
             const ec2Price = await ec2pricingPromise
             console.log("ec2Price: ", ec2Price)
@@ -731,7 +754,7 @@ exports.updateStatus = async (event, context, callback) => {
         const modelId = keyComponents[2]
         const timeStamp = keyComponents[3]
 
-        const updateSuccess = await updateModelStatus(status, brand, category, modelId, timeStamp)
+        const updateSuccess = await updateRenderingStatus(status, brand, category, modelId, timeStamp)
         console.log("Updating model with finished ", key, " in db success: ", updateSuccess)    
 
         callback(null, {msg: "Success"})
