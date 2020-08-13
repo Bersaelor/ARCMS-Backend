@@ -20,6 +20,7 @@ const first = obj => obj[Object.keys(obj)[0]];
 
 const statusStrings = {
     requested: "REQUESTED",
+    waitingForResource: "WAITING",
     rendering: "RENDERING",
     finished: "FINISHED",
     failed: "FAILED"
@@ -73,6 +74,25 @@ const getRenderings = async (brand, category, model, perPage, LastEvaluatedKey) 
     return dynamoDb.query(params).promise()
 }
 
+const getWaitingRenderings = async (brand) => {
+    const params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, #s, modelS3Key",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#s": "status"
+        },
+        ExpressionAttributeValues: {
+            ":value": `rendering#${brand}`
+        },
+    }; 
+
+    const data = await dynamoDb.query(params).promise()
+    const waitingRenderings = data.Items && data.Items.filter(rendering => rendering.status === statusStrings.waitingForResource)
+    return waitingRenderings || []
+}
+
 const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     let params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -92,7 +112,7 @@ const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     return dynamoDb.query(params).promise()
 }
 
-const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp) => {
+const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, waitingForFreeInstance) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
@@ -100,7 +120,7 @@ const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, 
             "sk": `${category}#${id}#${timeStamp}`,
             "modelS3Key": modelS3Key,
             "parameters": parameters ? JSON.stringify(parameters) : "{}",
-            "status": statusStrings.requested
+            "status": waitingForFreeInstance ? statusStrings.waitingForResource : statusStrings.requested
         }
     };
 
@@ -329,6 +349,9 @@ function shortenedKey(key) {
 }
 
 const uploadKeyTag = "UploadKey"
+const loocEC2Tag = "loocec2tag"
+const loocEC2TagRenderValue = "loocrenderInstance"
+const maxRenderInstances = 1
 
 function startInstance(fileKey, uploadKey) {
     const init_script = `#!/bin/bash -x
@@ -354,6 +377,10 @@ chmod +x /tmp/p2-init.sh
                 ResourceType: "instance",
                 Tags: [
                     {
+                        Key: loocEC2Tag,
+                        Value: loocEC2TagRenderValue
+                    },
+                    {
                         Key: uploadKeyTag,
                         Value: shortenedKey(uploadKey)
                     }
@@ -367,12 +394,12 @@ chmod +x /tmp/p2-init.sh
     return ec2.runInstances(params).promise()
 }
 
-function findInstances(uploadKey) {
+function findInstances(tagKey, tagValue) {
     var params = {
         Filters: [
             {
-                Name: `tag:${uploadKeyTag}`,
-                Values: [uploadKey]
+                Name: `tag:${tagKey}`,
+                Values: [tagValue]
             }
         ]
     };
@@ -381,8 +408,9 @@ function findInstances(uploadKey) {
         var instanceIds = []
         data.Reservations.forEach((reservation) => {
             reservation.Instances.forEach(function (instance) {
-                console.log("Found instance: ", instance);
-                instanceIds.push(instance.InstanceId);
+                if (instance.State.Name == 'running' || instance.State.Name == 'pending') {
+                    instanceIds.push(instance.InstanceId);    
+                }
             });
         });
         return instanceIds
@@ -403,7 +431,7 @@ function terminateInstances(instanceIds) {
 }
 
 async function findAndTerminate(uploadKey) {
-    const instanceIds = await findInstances(uploadKey)
+    const instanceIds = await findInstances(uploadKeyTag, uploadKey)
     console.log("instanceIds: ", instanceIds);
     if (instanceIds.length > 0) {
         const terminationResult = await terminateInstances(instanceIds)
@@ -411,6 +439,28 @@ async function findAndTerminate(uploadKey) {
     } else {
         return `No instances running for uploadKey ${uploadKey}`
     }
+}
+
+async function checkForWaitingRenderings(brand) {
+    console.log(`Checking for waiting renderings for ${brand}`)
+    const renderings = await getWaitingRenderings(brand)
+    if (renderings.length < 1) {
+        console.log("No waiting renderings found")
+        return
+    }
+    const rendering = renderings[0]
+    let skComponents = rendering.sk.split('#')
+    const category = skComponents[0]
+    const model = skComponents[1]
+    const timeStamp = parseInt(skComponents[2], 10)
+    const uploadKey = makeUploadKey(brand, category, model, timeStamp)
+
+    const updateSuccessPromise = updateModelStatus(statusStrings.requested, brand, category, model, timeStamp)
+    const instanceStartResponse = await startInstance(rendering.modelS3Key, uploadKey)
+    const updateDBResponse = await updateSuccessPromise
+
+    console.log("Successfully created ", instanceStartResponse.Instances.length, " instances to render ", uploadKey, " and updateDB: ", updateDBResponse)
+    return
 }
 
 // Get an array of renderings, optionally filtered by category and model, paginated
@@ -499,7 +549,8 @@ exports.new = async (event, context, callback) => {
 
     console.log("Requesting rendering for: ", brand, ", ", category, ", model: ", modelId)
     try {
-        const modelPromise = getModel(brand, category, modelId)    
+        const modelPromise = getModel(brand, category, modelId)
+        const runningInstancesPromise = findInstances(loocEC2Tag, loocEC2TagRenderValue)
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
         if (!accessLvlMayRender(accessLvl, brandSettings[brand])) {
@@ -519,21 +570,28 @@ exports.new = async (event, context, callback) => {
             return
         }
         const modelS3Key = modelData.Items[0].modelFile
+        const runningInstances = await runningInstancesPromise
+        const waitingForFreeInstance = runningInstances.length >= maxRenderInstances
         let timeStamp = (new Date()).getTime()
-        let updateDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp)
+        let updateDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp, waitingForFreeInstance)
         let uploadKey = makeUploadKey(brand, category, modelId, timeStamp)
         let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
-        console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
-        let launchEC2Promise = startInstance(modelS3Key, uploadKey)
+        console.log("Currently runnign rendering instances: ", runningInstances.length)
+        if (!waitingForFreeInstance) {
+            console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
+            const instanceStartResponse = await startInstance(modelS3Key, uploadKey)
+            console.log(`Success: ${instanceStartResponse.Instances.length} instances started`)
+        } else {
+            console.log("Maximum instances rendering, waiting for next free instance")
+        }
         const updateDBResult = await updateDBEntryPromise
         const writeParametersResponse = await saveParametersPromise
-        const instanceStartResponse = await launchEC2Promise
-        console.log(`Success: ${instanceStartResponse.Instances} Instances created and db updated: ${JSON.stringify(updateDBResult)}, writeParametersResponse: ${JSON.stringify(writeParametersResponse)}`)
+        console.log(`Success: db updated: ${JSON.stringify(updateDBResult)}, writeParametersResponse: ${JSON.stringify(writeParametersResponse)}`)
 
         var response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: `Success: ${instanceStartResponse.Instances.length} Instances created and db updated: ${JSON.stringify(updateDBResult)}` 
+            body: `Success: db updated: ${JSON.stringify(updateDBResult)}` 
         };
 
         callback(null, response);
@@ -593,7 +651,7 @@ exports.finished = async (event, context, callback) => {
     }
 }
 
-// Save the link to the logfile into the db
+// Save the link to the logfile into the db and start new instances if renderings are waiting
 exports.savelog = async (event, context, callback) => {
     try {
         for (const index in event.Records) {
@@ -613,12 +671,42 @@ exports.savelog = async (event, context, callback) => {
                 callback(null, {msg: msg})
                 return
             }
-
             const updateSuccess = await updateModelLog(key, brand, category, modelId, timeStamp)
             console.log("Updating model with finished ", key, " in db success: ", updateSuccess)    
 
             callback(null, {msg: "Success"})
         }
+    } catch (error) {
+        callback(error, {msg: `Failed to save data because of ${error.toString()}`})
+    }
+}
+
+// Check for waiting renderings when instances are terminated
+exports.checkWaiting = async (event, context, callback) => {
+    try {
+        const instanceID = event.detail['instance-id']
+        console.log("Instance ", instanceID, " has been terminated")
+
+        const tagsPromise = ec2.describeTags({ 
+            Filters: [{
+                Name: "resource-id",
+                Values: [instanceID]
+            }]
+        }).promise()
+        const runningInstances = await findInstances(loocEC2Tag, loocEC2TagRenderValue)
+        if (runningInstances.length < maxRenderInstances) {
+            console.log("Found ", runningInstances.length, " out of max ", maxRenderInstances, " checking for waiting renderings")
+            const terminatedInstanceTags = await tagsPromise
+            const tag = terminatedInstanceTags.Tags.find(tag => tag.Key === uploadKeyTag);
+            const brand = tag && tag.Value && tag.Value.split('/')[0]
+            if (brand) {
+                await checkForWaitingRenderings(brand)
+            }
+        } else {
+            console.log(runningInstances.length, " instances out of a maximum of ", maxRenderInstances, " instances running, not checking for waiting renderings.")
+        }
+
+        callback(null, {msg: "Success"})
     } catch (error) {
         callback(error, {msg: `Failed to save data because of ${error.toString()}`})
     }

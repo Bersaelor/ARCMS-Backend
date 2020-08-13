@@ -190,3 +190,14 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+
+  check-for-waiting-renderings:
+    handler: renderings.checkWaiting
+    role: ${self:custom.ec2-role}
+    memorySize: 512
+    description: Check for waiting renderings when instances are terminated
+    package:
+      include:
+        - renderings.js
+        - shared/**
+        - brand_settings.json
