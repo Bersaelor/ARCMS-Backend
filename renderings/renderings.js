@@ -125,7 +125,11 @@ const saveReceiptInDB = async (brand, category, id, timeStamp, duration, cost, p
     return dynamoDb.put(params).promise();
 }
 
-const getReceipts = async (brand, year, month) => {
+const getReceipts = async (brand, year, month, LastEvaluatedKey) => {
+    var sk = "2"
+    if (year) sk = year
+    if (month) sk = year + "-" + month
+
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk, category, model, #t, #d, cost, #p",
@@ -139,18 +143,18 @@ const getReceipts = async (brand, year, month) => {
         },
         ExpressionAttributeValues: {
             ":value": `receipt#${brand}`,
-            ":sk": `${year}-${month}`
+            ":sk": sk
         },
         ScanIndexForward: false
     };
-
-    console.log("params: ", params)
+    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
     return dynamoDb.query(params).promise()
 }
 
 const convertStoredReceipt = (stored) => {
     var converted = stored
+    converted.date = converted.sk
     delete converted.sk
     try {
         converted.parameters = stored.parameters ? JSON.parse(stored.parameters) : {}
@@ -575,6 +579,7 @@ exports.finished = async (event, context, callback) => {
             const costPerHour = ec2Price || 1.0
             const cost = renderingTimeInS / 3600 * costPerHour
 
+            console.log("Saving receipt with parameters: ", rendering.parameters)
             const receiptPromise = saveReceiptInDB(brand, category, modelId, timeStamp, renderingTimeInS, cost, rendering.parameters)
             const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, cost)
             const receiptWriteSuccess = await receiptPromise
@@ -693,25 +698,22 @@ exports.delete = async (event, context, callback) => {
     }
 }
 
-//  Get the brand's receipts should the current user have enough rights
+//  Get the brand's receipts should the current user have enough rights, paginated
 exports.receipts = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const year = event.queryStringParameters && event.queryStringParameters.year;
     const month = event.queryStringParameters && event.queryStringParameters.month;
-
-    if (!year || !month) {
-        callback(null, {
-            statusCode: 403,
-            headers: makeHeader('text/plain'),
-            body: `Expected a year and month query parameter in the call.`,
-        });
-        return;
-    }    
     
     try {
+        var PreviousLastEvaluatedKey
+        if (event.queryStringParameters && event.queryStringParameters.nextPageKey) {
+            let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
+            PreviousLastEvaluatedKey = JSON.parse(jsonString)
+        }
+
         console.log("Checking for receipts for ", brand)
-        const dataPromise = getReceipts(brand, year, month)
+        const dataPromise = getReceipts(brand, year, month, PreviousLastEvaluatedKey)
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
         if (!accessLvlMayRender(accessLvl, brandSettings[brand])) {
@@ -725,12 +727,13 @@ exports.receipts = async (event, context, callback) => {
         }
 
         const data = await dataPromise
+        const LastEvaluatedKey = data.LastEvaluatedKey
         const receipts = data.Items.map(receipt => convertStoredReceipt(receipt))
         
         const response = {
             statusCode: 200,
             headers: makeHeader('application/json' ),
-            body: JSON.stringify(receipts)
+            body: JSON.stringify(paginate(receipts, undefined, LastEvaluatedKey))
         };
 
         callback(null, response);

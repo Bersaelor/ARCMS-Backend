@@ -3,21 +3,22 @@
 'use strict';
 
 exports.paginate = (items, perPage, LastEvaluatedKey) => {
+    var result = {}
     if (LastEvaluatedKey) {
         const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
-        return {
+        result = {
             items: items,
             itemCount: items.length,
-            fullPage: perPage,
             hasMoreContent: LastEvaluatedKey !== undefined,
             nextPageKey: base64Key 
         }
     } else {
-        return {
+        result = {
             items: items,
             itemCount: items.length,
-            fullPage: perPage,
             hasMoreContent: false,
         }
     }
+    if (perPage) result.fullPage = perPage
+    return result
 }
