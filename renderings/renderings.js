@@ -76,11 +76,12 @@ const getRenderings = async (brand, category, model, perPage, LastEvaluatedKey) 
 const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     let params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk",
+        ProjectionExpression: "sk, #p",
         KeyConditionExpression: "#id = :value and #sk = :sk",
         ExpressionAttributeNames:{
             "#id": "id",
             "#sk": "sk",
+            "#p": "parameters"
         },
         ExpressionAttributeValues: {
             ":value": `rendering#${brand}`,
@@ -579,7 +580,7 @@ exports.finished = async (event, context, callback) => {
             const costPerHour = ec2Price || 1.0
             const cost = renderingTimeInS / 3600 * costPerHour
 
-            console.log("Saving receipt with parameters: ", rendering.parameters)
+            console.log("Saving receipt for rendering: ", rendering)
             const receiptPromise = saveReceiptInDB(brand, category, modelId, timeStamp, renderingTimeInS, cost, rendering.parameters)
             const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, cost)
             const receiptWriteSuccess = await receiptPromise
