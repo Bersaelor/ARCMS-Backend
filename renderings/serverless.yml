@@ -201,3 +201,15 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+
+  cleanup-renderings:
+    handler: renderings.cleanup
+    role: ${self:custom.users-role}
+    memorySize: 512
+    timeout: 300
+    description: Cleanup unused renderings
+    package:
+      include:
+        - renderings.js
+        - shared/**
+        - brand_settings.json

@@ -34,6 +34,48 @@ function makeHeader(content) {
     };
 }
 
+const fetchRenderingsForBrand = async (brand, PreviousLastEvaluatedKey) => {
+    const params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk",
+        KeyConditionExpression: "#id = :value",
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": `rendering#${brand}`
+        },
+    }; 
+    if (PreviousLastEvaluatedKey) { params.ExclusiveStartKey = PreviousLastEvaluatedKey }
+
+    const data = await dynamoDb.query(params).promise()
+    const s3Keys = data.Items && data.Items.map(rendering => {
+        let skComponents = rendering.sk.split('#')
+        const category = skComponents[0]
+        const model = skComponents[1]
+        const timeStamp = parseInt(skComponents[2], 10)
+        return makeUploadKey(brand, category, model, timeStamp)
+    })
+    return { LastEvaluatedKey: data.LastEvaluatedKey, keys: s3Keys }
+}
+
+const getAllRenderingsInDB = async (brands) => {
+    var livingRenderKeys = new Set()
+
+    await Promise.all(brands.map(async (brand) => {
+
+    }))
+    for (const brand of brands) {
+        var lastEvaluatedKey
+        do {
+            const data = await fetchRenderingsForBrand(brand, lastEvaluatedKey)
+            lastEvaluatedKey = data.LastEvaluatedKey
+            data.keys.forEach(key => livingRenderKeys.add(key))
+        } while (lastEvaluatedKey)
+    }
+    return livingRenderKeys
+}
+
 const getRenderings = async (brand, category, model, perPage, LastEvaluatedKey) => {
     var params
     if (category) {
@@ -346,6 +388,31 @@ const convertStoredRendering = (stored) => {
     converted.log = stored.log ? "https://render.looc.io/" + stored.log : ""
 
     return converted
+}
+
+function getS3Content(bucket, continuationToken) {
+    var params = {
+        Bucket: bucket,
+        MaxKeys: 1000,
+    }
+
+    if (continuationToken) {
+        params.ContinuationToken = continuationToken
+    }
+
+    return s3.listObjectsV2(params).promise()
+}
+
+const getAllFiles = async () => {
+    var continuationToken
+    var files = []
+    do {
+        let data = await getS3Content(process.env.RENDERING_BUCKET, continuationToken)
+        let modelKeys = data.Contents.map(object => object.Key)
+        files = files.concat(modelKeys)
+        continuationToken = files.NextContinuationToken
+    } while (continuationToken)
+    return files
 }
 
 function writeParametersToS3(parameters, uploadKey) {
@@ -912,3 +979,33 @@ exports.costs = async (event, context, callback) => {
         return;
     }
 };
+
+// Cleanup unused renderings
+exports.cleanup = async (event, context, callback) => {
+    const brands = Object.keys(brandSettings)
+
+    try {
+        const data = await Promise.all([getAllRenderingsInDB(brands), getAllFiles()])
+        const renderKeySet = data[0]
+        console.log("Found ", renderKeySet.size, " alive renderings in the DB")
+        const allFileKeys = data[1]
+        console.log("Found ", allFileKeys.length, " file keys in S3")
+
+        var filesToDelete = allFileKeys.filter(fileKey => {
+            let fileFolder = fileKey.substring(0, fileKey.lastIndexOf('/'));
+            return !renderKeySet.has(fileFolder)
+        })
+
+        console.log("About to delete ", filesToDelete.length ," keys ", filesToDelete)
+
+        callback(null, {msg: "Success"})
+    } catch(error) {
+        console.error(`Cleanup failed. Error ${error}`);
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+}
