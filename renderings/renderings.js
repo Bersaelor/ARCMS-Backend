@@ -424,6 +424,19 @@ function writeParametersToS3(parameters, uploadKey) {
     return s3.putObject(params).promise()
 }
 
+function deleteRenderKeys(keys) {
+    var params = {
+        Bucket: process.env.RENDERING_BUCKET,
+        Delete: {
+            Objects: keys.map(key => {
+                return { Key: key }
+            })
+        },
+    }
+
+    return s3.deleteObjects(params).promise()
+}
+
 function makeUploadKey(brand, category, model, timeStamp) {
     return `${brand}/${category}/${model}/${timeStamp}`
 }
@@ -996,7 +1009,12 @@ exports.cleanup = async (event, context, callback) => {
             return !renderKeySet.has(fileFolder)
         })
 
-        console.log("About to delete ", filesToDelete.length ," keys ", filesToDelete)
+        console.log("About to delete ", filesToDelete.length, " keys")
+
+        let deletePromise = filesToDelete.length > 0 ? deleteRenderKeys(filesToDelete) : undefined
+        let deleteResult = deletePromise ? await deletePromise : "Not needed"
+
+        console.log("deleteResult: ", deleteResult)
 
         callback(null, {msg: "Success"})
     } catch(error) {
