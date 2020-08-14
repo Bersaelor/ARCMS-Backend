@@ -474,26 +474,43 @@ chmod +x /tmp/p2-init.sh
         IamInstanceProfile: {
             Arn: "arn:aws:iam::338756162532:instance-profile/ServerRenderAccess"
         },
-        TagSpecifications: [
-            {
-                ResourceType: "instance",
-                Tags: [
-                    {
-                        Key: loocEC2Tag,
-                        Value: loocEC2TagRenderValue
-                    },
-                    {
-                        Key: uploadKeyTag,
-                        Value: shortenedKey(uploadKey)
-                    }
-                ]
-            }
-        ],
         InstanceInitiatedShutdownBehavior: "terminate",
         UserData: base64Script
     };
 
     return ec2.runInstances(params).promise()
+}
+
+function requestSpotInstance(fileKey, uploadKey) {
+    const init_script = `#!/bin/bash -x
+echo Initializing g4dn-Renderer
+aws s3 cp s3://looc-server-side-rendering/p2-init.sh /tmp/ 
+chmod +x /tmp/p2-init.sh
+/tmp/p2-init.sh ${ fileKey } ${ uploadKey }
+`
+    const base64Script = Buffer.from(init_script).toString('base64')
+
+    // InstanceInitiatedShutdownBehavior: "terminate",
+
+    var params = {
+        InstanceCount: 1,
+        LaunchSpecification: {
+            ImageId: "ami-034cd0836aa8c9bee",
+            InstanceType: instanceType,
+            KeyName: "Convert3DEC2Pair",
+            Placement: {
+                AvailabilityZone: "eu-central-1"
+            },
+            SecurityGroupIds: ["sg-d572aabd"],
+            IamInstanceProfile: {
+                Arn: "arn:aws:iam::338756162532:instance-profile/ServerRenderAccess"
+            },
+            UserData: base64Script
+        },
+        Type: "one-time"
+    };
+
+    return ec2.requestSpotInstances(params).promise()
 }
 
 function findInstances(tagKey, tagValue) {
@@ -557,7 +574,7 @@ async function checkForWaitingRenderings(brand) {
     const timeStamp = parseInt(skComponents[2], 10)
     const uploadKey = makeUploadKey(brand, category, model, timeStamp)
     const updateSuccessPromise = updateRenderingStatusAndRenderStarted(statusStrings.requested, brand, category, model, timeStamp)
-    const instanceStartResponse = await startInstance(rendering.modelS3Key, uploadKey)
+    const instanceStartResponse = await requestSpotInstance(rendering.modelS3Key, uploadKey)
     const updateDBResponse = await updateSuccessPromise
 
     console.log("Successfully created ", instanceStartResponse.Instances.length, " instances to render ", uploadKey, " and updateDB: ", updateDBResponse)
@@ -681,7 +698,7 @@ exports.new = async (event, context, callback) => {
         console.log("Currently running rendering instances: ", runningInstances.length)
         if (!waitingForFreeInstance) {
             console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
-            const instanceStartResponse = await startInstance(modelS3Key, uploadKey)
+            const instanceStartResponse = await requestSpotInstance(modelS3Key, uploadKey)
             console.log(`Success: ${instanceStartResponse.Instances.length} instances started`)
         } else {
             console.log("Maximum instances rendering, waiting for next free instance")
@@ -797,9 +814,9 @@ exports.checkWaiting = async (event, context, callback) => {
             }]
         }).promise()
         const runningInstances = await findInstances(loocEC2Tag, loocEC2TagRenderValue)
+        const terminatedInstanceTags = await tagsPromise
         if (runningInstances.length < maxRenderInstances) {
             console.log("Found ", runningInstances.length, " out of max ", maxRenderInstances, " checking for waiting renderings")
-            const terminatedInstanceTags = await tagsPromise
             const tag = terminatedInstanceTags.Tags.find(tag => tag.Key === uploadKeyTag);
             const brand = tag && tag.Value && tag.Value.split('/')[0]
             if (brand) {
@@ -808,6 +825,8 @@ exports.checkWaiting = async (event, context, callback) => {
         } else {
             console.log(runningInstances.length, " instances out of a maximum of ", maxRenderInstances, " instances running, not checking for waiting renderings.")
         }
+
+        // TODO: check whether there is an output.log with the tagged key, if not spot instance was terminated prematurely
 
         callback(null, {msg: "Success"})
     } catch (error) {
