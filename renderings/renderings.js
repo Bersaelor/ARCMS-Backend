@@ -739,7 +739,7 @@ exports.finished = async (event, context, callback) => {
             console.log("ec2Price: ", ec2Price)
 
             const costPerHour = ec2Price || 1.0
-            const cost = renderingTimeInS / 3600 * costPerHour
+            const cost = Math.ceil(100 * renderingTimeInS / 3600 * costPerHour) / 100
 
             console.log("Saving receipt for rendering: ", rendering)
             const receiptPromise = saveReceiptInDB(brand, category, modelId, timeStamp, renderingTimeInS, cost, rendering.parameters)
