@@ -454,7 +454,7 @@ function shortenedKey(key) {
     }
 }
 
-const uploadKeyTag = "UploadKey"
+const uploadKeyTag = "uploadKeyTag"
 const loocEC2Tag = "loocec2tag"
 const loocEC2TagRenderValue = "loocrenderInstance"
 const maxRenderInstances = 20
@@ -817,13 +817,14 @@ exports.checkWaiting = async (event, context, callback) => {
         }).promise()
         const runningInstances = await findInstances(loocEC2Tag, loocEC2TagRenderValue)
         const terminatedInstanceTags = await tagsPromise
-        console.log("terminatedInstanceTags: ", terminatedInstanceTags)
         const tag = terminatedInstanceTags.Tags.find(tag => tag.Key === uploadKeyTag);
         if (runningInstances.length < maxRenderInstances) {
-            console.log("Found ", runningInstances.length, " out of max ", maxRenderInstances, " checking for waiting renderings")
+            console.log("Found ", runningInstances.length, " out of max ", maxRenderInstances, ", checking for waiting renderings")
             const brand = tag && tag.Value && tag.Value.split('/')[0]
             if (brand) {
                 await checkForWaitingRenderings(brand)
+            } else {
+                console.warn("No brand found in ", tag)
             }
         } else {
             console.log(runningInstances.length, " instances out of a maximum of ", maxRenderInstances, " instances running, not checking for waiting renderings.")
@@ -839,12 +840,16 @@ exports.checkWaiting = async (event, context, callback) => {
             const data = await getRenderingFromDB(brand, category, modelId, timeStamp)  
             if (data && data.Items && data.Items.length > 0) {
                 const rendering = convertStoredRendering(data.Items[0])
-                console.log(`DB entry for ${tag.Value} is ${rendering}`)
+                console.log(`DB entry for ${tag.Value} is`, rendering)
                 if (rendering.status === statusStrings.rendering) {
                     const instanceStartResponse = await requestSpotInstance(rendering.modelS3Key, tag.Value)
                     console.log(`Spot request result: ${instanceStartResponse}`)
                 }
-            }      
+            } else {
+                console.warn("Could not find db entry for ", tag.Value)
+            }
+        } else {
+            console.warn("Tag had no value, not checking for db entries for:", tag)
         }
         callback(null, {msg: "Success"})
     } catch (error) {
