@@ -494,9 +494,6 @@ chmod +x /tmp/p2-init.sh
 `
     const base64Script = Buffer.from(init_script).toString('base64')
 
-    // InstanceInitiatedShutdownBehavior: "terminate",
-
-    console.log("ec2: ", ec2)
     var params = {
         InstanceCount: 1,
         LaunchSpecification: {
