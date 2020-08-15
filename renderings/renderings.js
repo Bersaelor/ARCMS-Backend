@@ -5,7 +5,10 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
-const ec2 = new AWS.EC2();
+const ec2 = new AWS.EC2({
+    apiVersion: '2016-11-15',
+    region: 'eu-central-1'
+});
 const pricing = new AWS.Pricing({
     apiVersion: '2017-10-15',
     region: 'us-east-1'
@@ -138,11 +141,12 @@ const getWaitingRenderings = async (brand) => {
 const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     let params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, #p, renderStarted",
+        ProjectionExpression: "sk, #p, renderStarted, #s, modelS3Key",
         KeyConditionExpression: "#id = :value and #sk = :sk",
         ExpressionAttributeNames:{
             "#id": "id",
             "#sk": "sk",
+            "#s": "status",
             "#p": "parameters"
         },
         ExpressionAttributeValues: {
@@ -492,15 +496,13 @@ chmod +x /tmp/p2-init.sh
 
     // InstanceInitiatedShutdownBehavior: "terminate",
 
+    console.log("ec2: ", ec2)
     var params = {
         InstanceCount: 1,
         LaunchSpecification: {
             ImageId: "ami-034cd0836aa8c9bee",
             InstanceType: instanceType,
             KeyName: "Convert3DEC2Pair",
-            Placement: {
-                AvailabilityZone: "eu-central-1"
-            },
             SecurityGroupIds: ["sg-d572aabd"],
             IamInstanceProfile: {
                 Arn: "arn:aws:iam::338756162532:instance-profile/ServerRenderAccess"
@@ -577,7 +579,7 @@ async function checkForWaitingRenderings(brand) {
     const instanceStartResponse = await requestSpotInstance(rendering.modelS3Key, uploadKey)
     const updateDBResponse = await updateSuccessPromise
 
-    console.log("Successfully created ", instanceStartResponse.Instances.length, " instances to render ", uploadKey, " and updateDB: ", updateDBResponse)
+    console.log("Successfully requested ", instanceStartResponse, " instances to render ", uploadKey, " and updateDB: ", updateDBResponse)
     return
 }
 
@@ -699,7 +701,7 @@ exports.new = async (event, context, callback) => {
         if (!waitingForFreeInstance) {
             console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
             const instanceStartResponse = await requestSpotInstance(modelS3Key, uploadKey)
-            console.log(`Success: ${instanceStartResponse.Instances.length} instances started`)
+            console.log(`Success: ${instanceStartResponse} instances requested`)
         } else {
             console.log("Maximum instances rendering, waiting for next free instance")
         }
@@ -815,9 +817,10 @@ exports.checkWaiting = async (event, context, callback) => {
         }).promise()
         const runningInstances = await findInstances(loocEC2Tag, loocEC2TagRenderValue)
         const terminatedInstanceTags = await tagsPromise
+        console.log("terminatedInstanceTags: ", terminatedInstanceTags)
+        const tag = terminatedInstanceTags.Tags.find(tag => tag.Key === uploadKeyTag);
         if (runningInstances.length < maxRenderInstances) {
             console.log("Found ", runningInstances.length, " out of max ", maxRenderInstances, " checking for waiting renderings")
-            const tag = terminatedInstanceTags.Tags.find(tag => tag.Key === uploadKeyTag);
             const brand = tag && tag.Value && tag.Value.split('/')[0]
             if (brand) {
                 await checkForWaitingRenderings(brand)
@@ -826,8 +829,23 @@ exports.checkWaiting = async (event, context, callback) => {
             console.log(runningInstances.length, " instances out of a maximum of ", maxRenderInstances, " instances running, not checking for waiting renderings.")
         }
 
-        // TODO: check whether there is an output.log with the tagged key, if not spot instance was terminated prematurely
-
+        // check whether the instance is still rendering, if that is the case, start a new spot request
+        if (tag && tag.Value) {
+            const keyComponents = tag.Value.split('/')
+            const brand = keyComponents[0]
+            const category = keyComponents[1]
+            const modelId = keyComponents[2]
+            const timeStamp = keyComponents[3]
+            const data = await getRenderingFromDB(brand, category, modelId, timeStamp)  
+            if (data && data.Items && data.Items.length > 0) {
+                const rendering = convertStoredRendering(data.Items[0])
+                console.log(`DB entry for ${tag.Value} is ${rendering}`)
+                if (rendering.status === statusStrings.rendering) {
+                    const instanceStartResponse = await requestSpotInstance(rendering.modelS3Key, tag.Value)
+                    console.log(`Spot request result: ${instanceStartResponse}`)
+                }
+            }      
+        }
         callback(null, {msg: "Success"})
     } catch (error) {
         callback(error, {msg: `Failed to save data because of ${error.toString()}`})
