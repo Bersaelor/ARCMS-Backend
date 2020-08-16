@@ -5,6 +5,8 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const brandSettings = require('../brand_settings.json')
+const { accessLvlMayCreate, accessLvlMayRender } = require('../shared/access_methods')
+
 
 async function getBrands(cognitoName) {
     var params = {
@@ -27,7 +29,8 @@ async function getBrands(cognitoName) {
             value.brandDisplayName = (brandSettings[brand] && brandSettings[brand].name) || brand
             value.mayEditManagers = accessLvlMayEditManagers(value.accessLvl)
             value.mayEditStores = accessLvlMayEditStores(value.accessLvl)
-            value.mayEditFrames = accessLvlMayEditFrames(value.accessLvl)
+            value.mayEditFrames = accessLvlMayCreate(value.accessLvl)
+            value.mayRender = accessLvlMayRender(value.accessLvl, brandSettings[brand])
             value.role = value.accessLvl
             value.allows3DUpload = allows3DUpload
             delete(value.sk)
@@ -42,10 +45,6 @@ function accessLvlMayEditManagers(accessLvl) {
 }
 
 function accessLvlMayEditStores(accessLvl) {
-    return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
-}
-
-function accessLvlMayEditFrames(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
 

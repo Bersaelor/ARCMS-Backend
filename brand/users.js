@@ -5,6 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const { getAccessLvl } = require('../shared/access_methods')
+const { paginate } = require('../shared/pagination')
 
 const defaultPerPage = 20;
 
@@ -59,26 +60,6 @@ async function getLastUsed(brand, email) {
         const lastUsedArray = val.Items.map( (item) => item.lastUsed ).sort()
         return lastUsedArray.length > 0 ? lastUsedArray[lastUsedArray.length - 1] : undefined
     });
-}
-
-function paginate(orders, perPage, LastEvaluatedKey) {
-    if (LastEvaluatedKey) {
-        const base64Key = Buffer.from(JSON.stringify(LastEvaluatedKey)).toString('base64')
-        return {
-            items: orders,
-            itemCount: orders.length,
-            fullPage: perPage,
-            hasMoreContent: LastEvaluatedKey !== undefined,
-            nextPageKey: base64Key 
-        }
-    } else {
-        return {
-            items: orders,
-            itemCount: orders.length,
-            fullPage: perPage,
-            hasMoreContent: false,
-        }
-    }
 }
 
 exports.all = async (event, context, callback) => {
