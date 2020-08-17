@@ -99,6 +99,7 @@ const getRenderings = async (brand, category, model, perPage, LastEvaluatedKey) 
     } else {
         params = {
             KeyConditionExpression: "#id = :value",
+            IndexName: "id-sk2-index",
             ExpressionAttributeNames:{
                 "#id": "id",
                 "#p": "parameters",
@@ -159,11 +160,13 @@ const getRenderingFromDB = async (brand, category, model, timeStamp) => {
 }
 
 const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, waitingForFreeInstance, renderStarted) => {
+    const timeString = (new Date(timeStamp)).toISOString()
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
             "id": `rendering#${brand}`,
             "sk": `${category}#${id}#${timeStamp}`,
+            "sk2": timeString,
             "modelS3Key": modelS3Key,
             "parameters": parameters ? JSON.stringify(parameters) : "{}",
             "status": waitingForFreeInstance ? statusStrings.waitingForResource : statusStrings.requested
