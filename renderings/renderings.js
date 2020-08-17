@@ -465,9 +465,9 @@ const maxRenderInstances = 20
 function startInstance(fileKey, uploadKey) {
     const init_script = `#!/bin/bash -x
 echo Initializing g4dn-Renderer
-aws s3 cp s3://looc-server-side-rendering/p2-init.sh /tmp/ 
-chmod +x /tmp/p2-init.sh
-/tmp/p2-init.sh ${ fileKey } ${ uploadKey }
+aws s3 cp s3://looc-server-side-rendering/render.sh /tmp/ 
+chmod +x /tmp/render.sh
+/tmp/render.sh -f ${fileKey} -u ${uploadKey}
 `
     const base64Script = Buffer.from(init_script).toString('base64')
 
@@ -491,9 +491,9 @@ chmod +x /tmp/p2-init.sh
 function requestSpotInstance(fileKey, uploadKey) {
     const init_script = `#!/bin/bash -x
 echo Initializing g4dn-Renderer
-aws s3 cp s3://looc-server-side-rendering/p2-init.sh /tmp/ 
-chmod +x /tmp/p2-init.sh
-/tmp/p2-init.sh ${ fileKey } ${ uploadKey }
+aws s3 cp s3://looc-server-side-rendering/render.sh /tmp/ 
+chmod +x /tmp/render.sh
+/tmp/render.sh -f ${fileKey} -u ${uploadKey}
 `
     const base64Script = Buffer.from(init_script).toString('base64')
 
