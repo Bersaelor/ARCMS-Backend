@@ -575,7 +575,7 @@ async function checkForWaitingRenderings(brand) {
     const model = skComponents[1]
     const timeStamp = parseInt(skComponents[2], 10)
     const uploadKey = makeUploadKey(brand, category, model, timeStamp)
-    const updateSuccessPromise = updateRenderingStatusAndRenderStarted(statusStrings.requested, brand, category, model, timeStamp)
+    const updateSuccessPromise = updateRenderingStatus(statusStrings.requested, brand, category, model, timeStamp)
     const instanceStartResponse = await requestSpotInstance(rendering.modelS3Key, uploadKey)
     const updateDBResponse = await updateSuccessPromise
 
@@ -751,6 +751,7 @@ exports.finished = async (event, context, callback) => {
             }
 
             const rendering = convertStoredRendering(renderingData.Items[0])
+            console.log(`rendering.renderStarted: ${rendering.renderStarted}, rendering.created: ${rendering.created}`)
             const startedTimeStamp = rendering.renderStarted || rendering.created
             const renderingTimeInS = Math.max(60, (finishedTimeStamp - startedTimeStamp) / 1000)
             console.log("Rendering took ", renderingTimeInS, "s")
@@ -876,7 +877,12 @@ exports.updateStatus = async (event, context, callback) => {
         const modelId = keyComponents[2]
         const timeStamp = keyComponents[3]
 
-        const updateSuccess = await updateRenderingStatus(status, brand, category, modelId, timeStamp)
+        var updateSuccess
+        if (status === statusStrings.rendering) {
+            updateSuccess = await updateRenderingStatusAndRenderStarted(status, brand, category, modelId, timeStamp)
+        } else {
+            updateSuccess = await updateRenderingStatus(status, brand, category, modelId, timeStamp)
+        }
         console.log("Updating model with finished ", key, " in db success: ", updateSuccess)    
 
         callback(null, {msg: "Success"})
