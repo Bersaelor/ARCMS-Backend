@@ -329,7 +329,8 @@ async function updateRenderingStatus(status, brand, category, modelId, timeStamp
 }
 
 async function updateRenderingStatusAndRenderStarted(status, brand, category, modelId, timeStamp) {
-    const renderStarted = (new Date()).getTime()
+    // add 30 secs to account for the instance starting/booting
+    const renderStarted = (new Date()).getTime() - 30 * 1000
 
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
