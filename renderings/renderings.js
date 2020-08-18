@@ -142,12 +142,13 @@ const getWaitingRenderings = async (brand) => {
 const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     let params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, #p, renderStarted, #s, modelS3Key",
+        ProjectionExpression: "sk, #p, renderStarted, #s, #u, modelS3Key",
         KeyConditionExpression: "#id = :value and #sk = :sk",
         ExpressionAttributeNames:{
             "#id": "id",
             "#sk": "sk",
             "#s": "status",
+            "#u": "user",            
             "#p": "parameters"
         },
         ExpressionAttributeValues: {
@@ -159,7 +160,7 @@ const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     return dynamoDb.query(params).promise()
 }
 
-const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, waitingForFreeInstance, renderStarted) => {
+const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, user, waitingForFreeInstance, renderStarted) => {
     const timeString = (new Date(timeStamp)).toISOString()
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -169,6 +170,7 @@ const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, 
             "sk2": timeString,
             "modelS3Key": modelS3Key,
             "parameters": parameters ? JSON.stringify(parameters) : "{}",
+            "user": user,
             "status": waitingForFreeInstance ? statusStrings.waitingForResource : statusStrings.requested
         }
     };
@@ -178,7 +180,7 @@ const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, 
     return dynamoDb.put(params).promise();
 }
 
-const saveReceiptInDB = async (brand, category, id, timeStamp, duration, cost, parameters) => {
+const saveReceiptInDB = async (brand, category, id, timeStamp, user, duration, cost, parameters) => {
     const timeString = (new Date()).toISOString()
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -188,6 +190,7 @@ const saveReceiptInDB = async (brand, category, id, timeStamp, duration, cost, p
             "category": category,
             "model": id,
             "timeStamp": timeStamp,
+            "user": user,
             "duration": duration,
             "cost": cost,
             "parameters": parameters ? JSON.stringify(parameters) : "{}"
@@ -204,12 +207,13 @@ const getReceipts = async (brand, year, month, LastEvaluatedKey) => {
 
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, category, model, #t, #d, cost, #p",
+        ProjectionExpression: "sk, category, model, #t, #u, #d, cost, #p",
         KeyConditionExpression: "#id = :value and begins_with(#sk, :sk)",
         ExpressionAttributeNames: {
             "#id": "id",
             "#sk": "sk",
             "#t": "timeStamp",
+            "#u": "user",
             "#d": "duration",
             "#p": "parameters"
         },
@@ -695,7 +699,7 @@ exports.new = async (event, context, callback) => {
         const waitingForFreeInstance = runningInstances.length >= maxRenderInstances
         let timeStamp = (new Date()).getTime()
         const renderStarted = !waitingForFreeInstance ? timeStamp : undefined
-        let createDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp, waitingForFreeInstance, renderStarted)
+        let createDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp, cognitoUserName, waitingForFreeInstance, renderStarted)
         let uploadKey = makeUploadKey(brand, category, modelId, timeStamp)
         let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
         console.log("Currently running rendering instances: ", runningInstances.length)
@@ -763,7 +767,7 @@ exports.finished = async (event, context, callback) => {
             const cost = Math.ceil(100 * renderingTimeInS / 3600 * costPerHour) / 100
 
             console.log("Saving receipt for rendering: ", rendering)
-            const receiptPromise = saveReceiptInDB(brand, category, modelId, timeStamp, renderingTimeInS, cost, rendering.parameters)
+            const receiptPromise = saveReceiptInDB(brand, category, modelId, timeStamp, rendering.user, renderingTimeInS, cost, rendering.parameters)
             const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, cost)
             const receiptWriteSuccess = await receiptPromise
             console.log("Updating model with finished ", key, " in db success: ", updateSuccess, receiptWriteSuccess)    
