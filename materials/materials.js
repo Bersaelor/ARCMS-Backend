@@ -76,7 +76,7 @@ async function createMatInDB(user, values, brand) {
             "id": `material#${brand}`,
             "sk": `${values.type}#${values.identifier}`,
             "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
-            "props": values.parameter ? JSON.stringify(values.parameter) : "{}",
+            "parameters": values.parameters ? JSON.stringify(values.parameters) : "{}",
             "status": values.status ? values.status : "unpublished"
         }
     };
