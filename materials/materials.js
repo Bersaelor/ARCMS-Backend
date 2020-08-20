@@ -23,11 +23,8 @@ const getMaterials = async (brand, type, perPage, LastEvaluatedKey) => {
         TableName: process.env.CANDIDATE_TABLE,
         Limit: perPage,
         ProjectionExpression: "sk, localizedNames, #p, #s, lastEdited",
-        KeyConditionExpression: "#id = :id and begins_with(#sk, :sk)",
-        IndexName: "id-sk2-index",
         ExpressionAttributeNames: {
             "#id": "id",
-            "#sk": "sk",
             "#s": "status",
             "#p": "parameters"
         },
@@ -36,6 +33,20 @@ const getMaterials = async (brand, type, perPage, LastEvaluatedKey) => {
             ":sk": type ? `${type}` : ""
         },
     };
+    if (type) {
+        params.KeyConditionExpression = "#id = :id and begins_with(#sk, :sk)"
+        params.ExpressionAttributeValues = {
+            ":id": `material#${brand}`,
+            ":sk": type ? `${type}` : ""
+        }
+        params.ExpressionAttributeNames["#sk"] = "sk"
+    } else {
+        params.KeyConditionExpression = "#id = :id"
+        params.ExpressionAttributeValues = {
+            ":id": `material#${brand}`
+        }
+    }
+
     params.ScanIndexForward = false
     if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
@@ -62,7 +73,7 @@ async function createMatInDB(user, values, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
-            "id": `brand#${brand}`,
+            "id": `material#${brand}`,
             "sk": `${values.type}#${values.identifier}`,
             "localizedNames": values.localizedNames ? JSON.stringify(values.localizedNames) : "{}",
             "props": values.parameter ? JSON.stringify(values.parameter) : "{}",
