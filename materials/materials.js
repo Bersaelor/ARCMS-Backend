@@ -88,7 +88,7 @@ async function deleteMatFromDB(brand, type, identifier) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Key: {
-            "id": `brand#${brand}`,
+            "id": `material#${brand}`,
             "sk": `${type}#${identifier}`
         } 
     };
@@ -229,7 +229,7 @@ exports.delete = async (event, context, callback) => {
         return;
     }
 
-    console.log(cognitoUserName, " wants to delete material named: ", id, " from brand ", brand)
+    console.log(cognitoUserName, ` wants to delete material named: ${id} from brand ${brand} , type: ${type}`)
     try {
         // make sure the current cognito user has high enough access lvl
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
