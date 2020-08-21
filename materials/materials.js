@@ -4,6 +4,7 @@
 
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const s3 = new AWS.S3();
 
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
@@ -22,7 +23,7 @@ const getMaterials = async (brand, type, perPage, LastEvaluatedKey) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Limit: perPage,
-        ProjectionExpression: "sk, localizedNames, #p, #s, lastEdited",
+        ProjectionExpression: "sk, localizedNames, #p, #s, lastEdited, image, normalTex",
         ExpressionAttributeNames: {
             "#id": "id",
             "#s": "status",
@@ -64,6 +65,8 @@ const convertStoredMaterial = (stored) => {
     } catch (error) {
         console.log("Failed to convert json because: ", error)
     }
+    if (stored.image) converted.image = "https://images.looc.io/" + stored.image
+    if (stored.normalTex) converted.normalTex = "https://images.looc.io/" + stored.normalTex
 
     return converted
 }
@@ -94,6 +97,21 @@ async function deleteMatFromDB(brand, type, identifier) {
     };
 
     return dynamoDb.delete(params).promise()
+}
+
+const fileExtension = (filename) => {
+    return filename.split('.').pop();		
+}
+
+async function getSignedImageUploadURL(key) {
+    var params = {
+        Bucket: process.env.IMAGE_BUCKET,
+        Key: key,
+        Expires: 600,
+        ACL: 'public-read',
+    }
+
+    return s3.getSignedUrlPromise('putObject', params)
 }
 
 // Get an array of materials, optionally filtered by type, paginated
@@ -168,6 +186,11 @@ exports.new = async (event, context, callback) => {
     const identifier = body.identifier
     const type = body.type
 
+    const imageUploadRequested = body.imageName
+    delete body.imageName
+    const normalTexUploadRequested = body.normalTexName
+    delete body.normalTexName
+
     if (!brand || !identifier || !type) {
         callback(null, {
             statusCode: 403,
@@ -191,16 +214,55 @@ exports.new = async (event, context, callback) => {
             return;
         }
 
+        var imageURLPromise
+        if (imageUploadRequested) {
+            const now = new Date()
+            const imageFileFolder = `${type}-${identifier}-tex-${now.getTime()}`
+            const imageFileName = `${imageFileFolder}.${fileExtension(imageUploadRequested)}`
+            const imageKey = `${imageFileFolder}/${imageFileName}`
+            body.image = imageKey
+            imageURLPromise = getSignedImageUploadURL(imageKey)
+        } else if (body.image && body.image.startsWith("http")) {
+            // remove the host from as we store only the image key in the db
+            var url = new URL(body.image)
+            var path = url.pathname
+            if (path.startsWith("/")) path = path.slice(1)
+            body.image = path
+        }
+
+        var normalImageURLPromise
+        if (normalTexUploadRequested) {
+            const now = new Date()
+            const imageFileFolder = `${type}-${identifier}-normalTex-${now.getTime()}`
+            const imageFileName = `${imageFileFolder}.${fileExtension(normalTexUploadRequested)}`
+            const imageKey = `${imageFileFolder}/${imageFileName}`
+            body.normalTex = imageKey
+            normalImageURLPromise = getSignedImageUploadURL(imageKey)
+        } else if (body.normalTex && body.normalTex.startsWith("http")) {
+            // remove the host from as we store only the image key in the db
+            var url = new URL(body.normalTex)
+            var path = url.pathname
+            if (path.startsWith("/")) path = path.slice(1)
+            body.normalTex = path
+        }
+
         let createDBEntryPromise = createMatInDB(cognitoUserName, body, brand)
+        const imageUploadURL = imageURLPromise ? await imageURLPromise : undefined
+        const normalUploadURL = normalImageURLPromise ? await normalImageURLPromise : undefined
+
         const updateDBResult = await createDBEntryPromise
         console.log(`Success: db updated: ${JSON.stringify(updateDBResult)}`)
 
         var response = {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: `Success: db updated: ${JSON.stringify(updateDBResult)}` 
+            body: 
+            JSON.stringify({
+                message: `Success: db updated: ${JSON.stringify(updateDBResult)}`,
+                imageUploadURL: imageUploadURL ? imageUploadURL : "",
+                normalUploadURL: normalUploadURL ? normalUploadURL : ""
+            })
         };
-
         callback(null, response);
     } catch(error) {
         console.error('Query to request new rendering failed. Error JSON: ', JSON.stringify(error, null, 2));

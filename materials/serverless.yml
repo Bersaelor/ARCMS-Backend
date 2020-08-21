@@ -21,6 +21,7 @@ provider:
   region: eu-central-1
   environment:
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    IMAGE_BUCKET: looc-cloud-images
     STAGE: ${self:custom.myStage}
     ACCESS_STORE: store
     ACCESS_MANAGER: manager
