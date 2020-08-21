@@ -47,7 +47,6 @@ const getMaterials = async (brand, type, perPage, LastEvaluatedKey) => {
         }
     }
 
-    params.ScanIndexForward = false
     if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
 
     return dynamoDb.query(params).promise()
