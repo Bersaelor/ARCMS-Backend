@@ -82,6 +82,9 @@ async function createMatInDB(user, values, brand) {
             "status": values.status ? values.status : "unpublished"
         }
     };
+    if (values.image) params.Item.image = values.image
+    if (values.normalTex) params.Item.normalTex = values.normalTex
+
     params.Item.lastEdited = `${user}#${(new Date()).toISOString()}`
 
     return dynamoDb.put(params).promise();
