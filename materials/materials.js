@@ -19,7 +19,7 @@ function makeHeader(content) {
     };
 }
 
-const getMaterials = async (brand, type, perPage, LastEvaluatedKey) => {
+const getMaterials = async (brand, type, identifier, perPage, LastEvaluatedKey) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Limit: perPage,
@@ -34,7 +34,7 @@ const getMaterials = async (brand, type, perPage, LastEvaluatedKey) => {
         params.KeyConditionExpression = "#id = :id and begins_with(#sk, :sk)"
         params.ExpressionAttributeValues = {
             ":id": `material#${brand}`,
-            ":sk": type ? `${type}` : ""
+            ":sk": identifier ? `${type}#${identifier}` : type
         }
         params.ExpressionAttributeNames["#sk"] = "sk"
     } else {
@@ -118,6 +118,7 @@ exports.get = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const type = event.queryStringParameters && event.queryStringParameters.type;
+    const identifier = event.queryStringParameters && event.queryStringParameters.identifier;
 
     if (!brand) {
         callback(null, {
@@ -141,7 +142,7 @@ exports.get = async (event, context, callback) => {
             PreviousLastEvaluatedKey = JSON.parse(jsonString)
         }
 
-        const dataPromise = getMaterials(brand, type, perPage, PreviousLastEvaluatedKey)
+        const dataPromise = getMaterials(brand, type, identifier, perPage, PreviousLastEvaluatedKey)
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
         if (!accessLvlMayCreate(accessLvl)) {
