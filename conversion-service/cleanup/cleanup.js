@@ -66,6 +66,35 @@ function fetchAppHeaderImages() {
     });
 }
 
+const fetchMaterials = async (brand) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, image, normalTex",
+        KeyConditionExpression: "#id = :id",
+        ExpressionAttributeNames: {
+            "#id": "id",
+        },
+        ExpressionAttributeValues: {
+            ":id": `material#${brand}`
+        }
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+const fetchAllMaterials = async (brands) => {
+    let materialFetches = brands.map(brand => {
+        return fetchMaterials(brand).then(data => {
+            if (data.LastEvaluatedKey) {
+                throw `Categories for ${brand} exceed fetchLimit for query, please run multiple queries`
+            }
+            return data.Items
+        })
+    })
+    const itemArrays = await Promise.all(materialFetches)
+    return itemArrays.reduce((acc, x) => acc.concat(x), [])
+}
+
 function getS3Content(bucket, continuationToken) {
     var params = {
         Bucket: bucket,
@@ -100,6 +129,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         console.log("Fetching Models and Categories for: ", brands)
         let modelsPromise = fetchAllModels(brands)
         let categoryPromise = fetchAllCategories(brands)
+        let materialsPromise = fetchAllMaterials(brands)
         let headerImagesPromise = fetchAppHeaderImages()
         let imagesInS3Promise = getS3Content(process.env.IMAGE_BUCKET, null)
         let modelsInS3Promise = getS3Content(process.env.MODEL_BUCKET, null)
@@ -121,6 +151,12 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         let specialImageKeys = ["placeholder.png"]
         specialImageKeys.forEach(key => {
             currentImages.add(key)
+        })
+
+        let materials = await materialsPromise
+        materials.forEach(material => {
+            if (material.image) currentImages.add(material.image)
+            if (material.normalTex) currentImages.add(material.normalTex)
         })
 
         let categories = await categoryPromise

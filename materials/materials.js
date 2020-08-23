@@ -29,10 +29,6 @@ const getMaterials = async (brand, type, perPage, LastEvaluatedKey) => {
             "#s": "status",
             "#p": "parameters"
         },
-        ExpressionAttributeValues: {
-            ":id": `material#${brand}`,
-            ":sk": type ? `${type}` : ""
-        },
     };
     if (type) {
         params.KeyConditionExpression = "#id = :id and begins_with(#sk, :sk)"
