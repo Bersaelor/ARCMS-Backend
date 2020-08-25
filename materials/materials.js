@@ -9,7 +9,7 @@ const s3 = new AWS.S3();
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
 const brandSettings = require('brand_settings.json')
-const defaultPerPage = 20;
+const defaultPerPage = 50;
 
 function makeHeader(content) {
     return { 
