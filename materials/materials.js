@@ -116,7 +116,6 @@ async function getSignedImageUploadURL(key) {
 // Get an array of materials, optionally filtered by type, paginated
 exports.get = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
-    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const type = event.queryStringParameters && event.queryStringParameters.type;
     const identifier = event.queryStringParameters && event.queryStringParameters.identifier;
 
@@ -143,17 +142,6 @@ exports.get = async (event, context, callback) => {
         }
 
         const dataPromise = getMaterials(brand, type, identifier, perPage, PreviousLastEvaluatedKey)
-        // make sure the current cognito user has high enough access lvl
-        const accessLvl = await getAccessLvl(cognitoUserName, brand);
-        if (!accessLvlMayCreate(accessLvl)) {
-            const msg = "This user isn't allowed to see the list of materials"
-            callback(null, {
-                statusCode: 403,
-                headers: makeHeader('application/json' ),
-                body: JSON.stringify({ "message": msg })
-            });
-            return;
-        }
 
         const data = await dataPromise
         const LastEvaluatedKey = data.LastEvaluatedKey

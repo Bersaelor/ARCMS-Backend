@@ -53,9 +53,6 @@ functions:
             parameters:
               paths:
                 brand: true
-          authorizer:
-            name: authorizer
-            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
   new:
     handler: materials.new
