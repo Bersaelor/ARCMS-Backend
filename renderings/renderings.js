@@ -531,6 +531,27 @@ chmod +x /tmp/render.sh
     return ec2.requestSpotInstances(params).promise()
 }
 
+function findOpenSpotRequests(tagKey, tagValue) {
+    var params = {
+        Filters: [
+            {
+                Name: `tag:${tagKey}`,
+                Values: [tagValue]
+            }
+        ]
+    };
+
+    return ec2.describeSpotInstanceRequests(params).promise().then( data => {
+        var instanceIds = []
+        data.SpotInstanceRequests.forEach((instance) => {
+            if (instance.State == 'open') {
+                instanceIds.push(instance.spotInstanceRequestId);    
+            }
+        });
+        return instanceIds
+    })
+}
+
 function findInstances(tagKey, tagValue) {
     var params = {
         Filters: [
@@ -567,15 +588,39 @@ function terminateInstances(instanceIds) {
     })
 }
 
+function cancelSpotInstances(spotInstanceIds) {
+    var params = {
+        SpotInstanceRequestIds: spotInstanceIds
+    };
+
+    return new Promise((resolve, reject) => {
+        ec2.cancelSpotInstanceRequests(params, function(err, dat) {
+            if (err) { reject(err); return }
+            else resolve(data)
+        })
+    })
+}
+
 async function findAndTerminate(uploadKey) {
-    const instanceIds = await findInstances(uploadKeyTag, uploadKey)
-    console.log("instanceIds: ", instanceIds);
-    if (instanceIds.length > 0) {
-        const terminationResult = await terminateInstances(instanceIds)
-        return terminationResult    
-    } else {
-        return `No instances running for uploadKey ${uploadKey}`
-    }
+    const findOpenSpots = findOpenSpotRequests(uploadKeyTag, uploadKey).then(spotInstanceIds => {
+        if (spotInstanceIds.length > 0) {
+            console.log("Cancelling spot requests with id ", spotInstanceIds)
+            return cancelSpotInstances(spotInstanceIds)    
+        } else {
+            return `No instanceRequests open for uploadKey ${uploadKey}`
+        }    
+    })
+
+    const findRunningInstances = findInstances(uploadKeyTag, uploadKey).then(instanceIds => {
+        if (instanceIds.length > 0) {
+            console.log("Terminating ec2 instances id ", instanceIds)
+            return terminateInstances(instanceIds)    
+        } else {
+            return `No instances running for uploadKey ${uploadKey}`
+        }    
+    })
+
+    return Promise.all([findOpenSpots, findRunningInstances])
 }
 
 async function checkForWaitingRenderings(brand) {
