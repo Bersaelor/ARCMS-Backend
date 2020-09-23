@@ -477,7 +477,7 @@ chmod +x /tmp/render.sh
     const base64Script = Buffer.from(init_script).toString('base64')
 
     var params = {
-        ImageId: "ami-034cd0836aa8c9bee",
+        ImageId: "ami-03b5547e8cd21a289",
         InstanceType: instanceType,
         KeyName: "Convert3DEC2Pair",
         MaxCount: 1,
@@ -516,7 +516,7 @@ chmod +x /tmp/render.sh
             }
         ],
         LaunchSpecification: {
-            ImageId: "ami-034cd0836aa8c9bee",
+            ImageId: "ami-03b5547e8cd21a289",
             InstanceType: instanceType,
             KeyName: "Convert3DEC2Pair",
             SecurityGroupIds: ["sg-d572aabd"],
