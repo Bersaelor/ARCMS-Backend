@@ -504,6 +504,17 @@ chmod +x /tmp/render.sh
 
     var params = {
         InstanceCount: 1,
+        TagSpecifications: [
+            {
+                ResourceType: "spot-instances-request",
+                Tags: [
+                    {
+                        Key: uploadKeyTag,
+                        Value: uploadKey
+                    }
+                ]
+            }
+        ],
         LaunchSpecification: {
             ImageId: "ami-034cd0836aa8c9bee",
             InstanceType: instanceType,
@@ -722,7 +733,7 @@ exports.new = async (event, context, callback) => {
 
         callback(null, response);
     } catch(error) {
-        console.error('Query to request new rendering failed. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error('Query to request new rendering failed. Error: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
@@ -911,7 +922,7 @@ exports.delete = async (event, context, callback) => {
             body: `Expected a brand,category, model and timestamp in the call.`,
         });
         return;
-    }    
+    }
     
     console.log("Deleting from ", brand, ", for category: ", category, ", model: ", model, " - ", timestamp)
     try {
