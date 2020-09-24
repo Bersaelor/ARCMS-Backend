@@ -545,7 +545,7 @@ function findOpenSpotRequests(tagKey, tagValue) {
         var instanceIds = []
         data.SpotInstanceRequests.forEach((instance) => {
             if (instance.State == 'open') {
-                instanceIds.push(instance.spotInstanceRequestId);    
+                instanceIds.push(instance.SpotInstanceRequestId);    
             }
         });
         return instanceIds
