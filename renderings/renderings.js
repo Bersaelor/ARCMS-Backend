@@ -760,8 +760,19 @@ exports.new = async (event, context, callback) => {
         let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
         console.log("Currently running rendering instances: ", runningInstances.length)
         if (!waitingForFreeInstance) {
-            console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
-            const instanceStartResponse = await requestSpotInstance(modelS3Key, uploadKey)
+            var instanceStartResponse
+            if (parameters.debugSettings && parameters.debugSettings.rendernow === "y") {
+                console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
+                instanceStartResponse = await startInstance(modelS3Key, uploadKey).catch((error) => {
+                    if (error.code === `InsufficientInstanceCapacity`) {
+                        console.log("InsufficientInstanceCapacity, Requesting spot for rendering of model ", modelS3Key, " which will be uploaded to ", uploadKey)
+                        return requestSpotInstance(modelS3Key, uploadKey)        
+                    } else throw error
+                })
+            } else {
+                console.log("Requesting spot for rendering of model ", modelS3Key, " which will be uploaded to ", uploadKey)
+                instanceStartResponse = await requestSpotInstance(modelS3Key, uploadKey)
+            }
             console.log(`Success: ${instanceStartResponse} instances requested`)
         } else {
             console.log("Maximum instances rendering, waiting for next free instance")
