@@ -7,7 +7,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const { getAccessLvl } = require('../shared/access_methods')
 const { paginate } = require('../shared/pagination')
 
-const defaultPerPage = 20;
+const defaultPerPage = 80;
 
 function accessLvlMaySeeUsers(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
@@ -88,8 +88,8 @@ exports.all = async (event, context, callback) => {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
 
         var perPage = event.queryStringParameters.perPage ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
-        if (!perPage || perPage > 2 * defaultPerPage) {
-            perPage = defaultPerPage
+        if (!perPage || perPage > 4 * defaultPerPage) {
+            perPage = 4 * defaultPerPage
         }    
 
         var PreviousLastEvaluatedKey

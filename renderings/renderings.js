@@ -477,7 +477,7 @@ chmod +x /tmp/render.sh
     const base64Script = Buffer.from(init_script).toString('base64')
 
     var params = {
-        ImageId: "ami-034cd0836aa8c9bee",
+        ImageId: "ami-03b5547e8cd21a289",
         InstanceType: instanceType,
         KeyName: "Convert3DEC2Pair",
         MaxCount: 1,
@@ -504,8 +504,19 @@ chmod +x /tmp/render.sh
 
     var params = {
         InstanceCount: 1,
+        TagSpecifications: [
+            {
+                ResourceType: "spot-instances-request",
+                Tags: [
+                    {
+                        Key: uploadKeyTag,
+                        Value: uploadKey
+                    }
+                ]
+            }
+        ],
         LaunchSpecification: {
-            ImageId: "ami-034cd0836aa8c9bee",
+            ImageId: "ami-03b5547e8cd21a289",
             InstanceType: instanceType,
             KeyName: "Convert3DEC2Pair",
             SecurityGroupIds: ["sg-d572aabd"],
@@ -518,6 +529,27 @@ chmod +x /tmp/render.sh
     };
 
     return ec2.requestSpotInstances(params).promise()
+}
+
+function findOpenSpotRequests(tagKey, tagValue) {
+    var params = {
+        Filters: [
+            {
+                Name: `tag:${tagKey}`,
+                Values: [tagValue]
+            }
+        ]
+    };
+
+    return ec2.describeSpotInstanceRequests(params).promise().then( data => {
+        var instanceIds = []
+        data.SpotInstanceRequests.forEach((instance) => {
+            if (instance.State == 'open') {
+                instanceIds.push(instance.SpotInstanceRequestId);    
+            }
+        });
+        return instanceIds
+    })
 }
 
 function findInstances(tagKey, tagValue) {
@@ -556,15 +588,39 @@ function terminateInstances(instanceIds) {
     })
 }
 
+function cancelSpotInstances(spotInstanceIds) {
+    var params = {
+        SpotInstanceRequestIds: spotInstanceIds
+    };
+
+    return new Promise((resolve, reject) => {
+        ec2.cancelSpotInstanceRequests(params, function(err, dat) {
+            if (err) { reject(err); return }
+            else resolve(data)
+        })
+    })
+}
+
 async function findAndTerminate(uploadKey) {
-    const instanceIds = await findInstances(uploadKeyTag, uploadKey)
-    console.log("instanceIds: ", instanceIds);
-    if (instanceIds.length > 0) {
-        const terminationResult = await terminateInstances(instanceIds)
-        return terminationResult    
-    } else {
-        return `No instances running for uploadKey ${uploadKey}`
-    }
+    const findOpenSpots = findOpenSpotRequests(uploadKeyTag, uploadKey).then(spotInstanceIds => {
+        if (spotInstanceIds.length > 0) {
+            console.log("Cancelling spot requests with id ", spotInstanceIds)
+            return cancelSpotInstances(spotInstanceIds)    
+        } else {
+            return `No instanceRequests open for uploadKey ${uploadKey}`
+        }    
+    })
+
+    const findRunningInstances = findInstances(uploadKeyTag, uploadKey).then(instanceIds => {
+        if (instanceIds.length > 0) {
+            console.log("Terminating ec2 instances id ", instanceIds)
+            return terminateInstances(instanceIds)    
+        } else {
+            return `No instances running for uploadKey ${uploadKey}`
+        }    
+    })
+
+    return Promise.all([findOpenSpots, findRunningInstances])
 }
 
 async function checkForWaitingRenderings(brand) {
@@ -704,8 +760,19 @@ exports.new = async (event, context, callback) => {
         let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
         console.log("Currently running rendering instances: ", runningInstances.length)
         if (!waitingForFreeInstance) {
-            console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
-            const instanceStartResponse = await requestSpotInstance(modelS3Key, uploadKey)
+            var instanceStartResponse
+            if (parameters.debugSettings && parameters.debugSettings.rendernow === "y") {
+                console.log("Starting rendering for model ", modelS3Key, " which will be uploaded to ", uploadKey)
+                instanceStartResponse = await startInstance(modelS3Key, uploadKey).catch((error) => {
+                    if (error.code === `InsufficientInstanceCapacity`) {
+                        console.log("InsufficientInstanceCapacity, Requesting spot for rendering of model ", modelS3Key, " which will be uploaded to ", uploadKey)
+                        return requestSpotInstance(modelS3Key, uploadKey)        
+                    } else throw error
+                })
+            } else {
+                console.log("Requesting spot for rendering of model ", modelS3Key, " which will be uploaded to ", uploadKey)
+                instanceStartResponse = await requestSpotInstance(modelS3Key, uploadKey)
+            }
             console.log(`Success: ${instanceStartResponse} instances requested`)
         } else {
             console.log("Maximum instances rendering, waiting for next free instance")
@@ -722,7 +789,7 @@ exports.new = async (event, context, callback) => {
 
         callback(null, response);
     } catch(error) {
-        console.error('Query to request new rendering failed. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error('Query to request new rendering failed. Error: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
@@ -911,7 +978,7 @@ exports.delete = async (event, context, callback) => {
             body: `Expected a brand,category, model and timestamp in the call.`,
         });
         return;
-    }    
+    }
     
     console.log("Deleting from ", brand, ", for category: ", category, ", model: ", model, " - ", timestamp)
     try {
