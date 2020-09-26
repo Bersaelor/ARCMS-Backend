@@ -4,6 +4,7 @@
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
+        "mainCountry": "US",
         "preferredLanguage": "en",
         "appDownloadLink": "https://beta.itunes.apple.com/v1/app/1350106957",
         "timeZone": "America/Los_Angeles"
@@ -13,6 +14,7 @@
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
+        "mainCountry": "DE",
         "preferredLanguage": "de",
         "appDownloadLink": "",
         "timeZone": "Europe/Berlin"
@@ -22,6 +24,7 @@
         "allows3DModelUpload": true,
         "wantsDXFConversion": true,
         "orderAdress": "order@grafix-eyewear.com",
+        "mainCountry": "DE",
         "preferredLanguage": "de",
         "appDownloadLink": "https://apps.apple.com/us/app/grafix-ar/id1450301394?ls=1",
         "timeZone": "Europe/Berlin"
@@ -32,6 +35,7 @@
         "wantsDXFConversion": false,
         "allowsRendering": true,
         "orderAdress": "konrad@looc.io",
+        "mainCountry": "DE",
         "preferredLanguage": "en",
         "appDownloadLink": "https://apps.apple.com/app/id1463380262",
         "timeZone": "Europe/Berlin"
@@ -41,6 +45,7 @@
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
+        "mainCountry": "DE",
         "preferredLanguage": "de",
         "appDownloadLink": "https://apps.apple.com/us/app/id1464779760?ls=1",
         "timeZone": "Europe/Berlin"
@@ -50,6 +55,7 @@
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "orderAdress": "konrad@looc.io",
+        "mainCountry": "DE",
         "preferredLanguage": "de",
         "appDownloadLink": "https://apps.apple.com/us/app/id1464779760?ls=1",
         "timeZone": "Europe/Berlin"
