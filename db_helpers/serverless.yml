@@ -1,0 +1,51 @@
+service: ARDBHelpers # NOTE: update this with your service name
+#app: your-app-name
+#tenant: your-tenant-name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+
+custom:
+  myStage: ${opt:stage, self:provider.stage}
+  myEnvironment:
+    MESSAGE:
+      prod: "This is production environment"
+      dev: "This is development environment"
+  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
+  region: ${opt:region, self:provider.region}
+
+provider:
+  name: aws
+  stage: dev
+  runtime: nodejs10.x
+  region: eu-central-1
+  environment:
+    NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
+    REQUESTDXFTOPIC: create-dxf-for-order-${self:custom.myStage}
+    MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
+    CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    IMAGE_BUCKET: looc-cloud-images
+    MODEL_BUCKET: ar-glasses-models
+    STAGE: ${self:custom.myStage}
+    ACCESS_STORE: store
+    ACCESS_MANAGER: manager
+    ACCESS_ADMIN: admin
+
+package:
+  individually: true
+  exclude:
+    - "**/*"
+    - node_modules/**
+
+functions:
+
+  update_users:
+    handler: user/user.updateColumn
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Update all user entries of a given brand with a given value in a given column
+    package:
+      include:
+        - user/user.js
+        - brand_settings.json
