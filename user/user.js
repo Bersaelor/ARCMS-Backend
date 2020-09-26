@@ -69,6 +69,9 @@ async function createUserInDB(values) {
         }
     };
 
+    if (values.country) params.Item.country = values.country
+    if (values.region) params.Item.region = values.region
+
     return dynamoDb.put(params).promise();
 }
 
