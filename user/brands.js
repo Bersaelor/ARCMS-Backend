@@ -31,6 +31,7 @@ async function getBrands(cognitoName) {
             value.mayEditStores = accessLvlMayEditStores(value.accessLvl)
             value.mayEditFrames = accessLvlMayCreate(value.accessLvl)
             value.mayRender = accessLvlMayRender(value.accessLvl, brandSettings[brand])
+            value.mainCountry = brandSettings[brand].mainCountry
             value.role = value.accessLvl
             value.allows3DUpload = allows3DUpload
             delete(value.sk)

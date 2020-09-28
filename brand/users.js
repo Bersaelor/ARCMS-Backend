@@ -26,10 +26,11 @@ async function getUsers(brand, perPage, LastEvaluatedKey, filter) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "sk-id-index",
-        ProjectionExpression: "id, accessLvl, company, firstName, lastName, address, zipCode, customerId, city, telNr, mailCC, maxDevices",
+        ProjectionExpression: "id, accessLvl, company, firstName, lastName, address, zipCode, customerId, city, country, #region, telNr, mailCC, maxDevices",
         KeyConditionExpression: shouldFilter ? "#sk = :value and begins_with(id, :filter)" : "#sk = :value",
         ExpressionAttributeNames:{
-            "#sk": "sk"
+            "#sk": "sk",
+            "#region": "region"
         },
         ExpressionAttributeValues: shouldFilter ?
          { ":value": `${brand}#user`, ":filter": filter } 
