@@ -63,14 +63,15 @@ const updateStores = async (brand, user, newStores, storesToDelete) => {
         return {
             PutRequest: {
                 Item: {
-                    "id": { "S": id },
-                    "sk": { "S": `${user}#${index}` },
-                    "address": { "S": store.address || "" },
-                    "zipCode": { "S": store.address || "" },
-                    "city": { "S": store.address || "" },
-                    "country": { "S": store.address || "" },
-                    "telNr": { "S": store.address || "" },
-                    "email": { "S": store.address || "" },
+                    "id": id,
+                    "sk": `${user}#${index}`,
+                    "company": store.company || "",
+                    "address": store.address || "",
+                    "zipCode": store.zipCode || "",
+                    "city": store.city || "",
+                    "country": store.country || "",
+                    "telNr": store.telNr || "",
+                    "email": store.email || "",        
                 }
             }
         }
@@ -88,7 +89,6 @@ const updateStores = async (brand, user, newStores, storesToDelete) => {
             [process.env.CANDIDATE_TABLE]: [ ...puts, ...deletes]
         }
     }
-    console.log("Params: ", params)
     return dynamoDb.batchWrite(params).promise()
 }
 
