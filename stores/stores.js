@@ -21,7 +21,7 @@ function makeHeader(content) {
 const fetchStoresForBrand = async (brand, perPage, user, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, address, zipCode, city, country, telNr, email",
+        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -79,8 +79,10 @@ const updateStores = async (brand, user, newStores, storesToDelete) => {
     const deletes = storesToDelete.map((store) => {
         return {
             DeleteRequest: {
-                "id": store.id,
-                "sk": store.sk
+                Key: {
+                    "id": store.id,
+                    "sk": store.sk    
+                }
             }
         }
     })
@@ -175,7 +177,7 @@ exports.new = async (event, context, callback) => {
             statusCode: 200,
             headers: makeHeader('application/json' ),
             body: JSON.stringify({
-                "message": `Updated ${newStores.length}, deleted ${storesToDelete} old stores`,
+                "message": `Updated ${newStores.length}, deleted ${storesToDelete.length} old stores`,
             })
         });
     } catch (error) {
