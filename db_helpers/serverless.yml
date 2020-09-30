@@ -49,3 +49,13 @@ functions:
       include:
         - user/user.js
         - brand_settings.json
+  
+  create_default_stores:
+    handler: store/store.createDefaultStore
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Create a store entry for every user, copying the users values
+    package:
+      include:
+        - store/store.js
+        - brand_settings.json
