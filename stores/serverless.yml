@@ -112,6 +112,7 @@ functions:
     handler: geolocation.populate
     role: ${self:custom.users-role}
     memorySize: 512
+    timeout: 300
     description: Fill the map db with datapoints for all stores of this brand
     package:
       include:
