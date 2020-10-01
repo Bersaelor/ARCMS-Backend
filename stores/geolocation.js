@@ -59,7 +59,6 @@ const fetchStoresForBrand = async (brand, perPage, PreviousLastEvaluatedKey) => 
         Limit: perPage,
     }; 
     if (PreviousLastEvaluatedKey) { params.ExclusiveStartKey = PreviousLastEvaluatedKey }
-    console.log("fetchStoresForBrand.params: ", params)
     const data = await dynamoDb.query(params).promise()
     return { LastEvaluatedKey: data.LastEvaluatedKey, stores: data.Items }
 }
@@ -71,7 +70,7 @@ const fetchAllStoresForBrand = async (brand) => {
     do {
         const data = await fetchStoresForBrand(brand, defaultPerPage, LastEvaluatedKey)
         LastEvaluatedKey = data.LastEvaluatedKey
-        stores = stores.concat(data.Items)
+        stores = stores.concat(data.stores)
     } while (LastEvaluatedKey !== undefined)
     return stores
 }
@@ -132,7 +131,6 @@ exports.populate = async (event, context, callback) => {
         }) 
         const storesPromise = fetchAllStoresForBrand(brand)
         const response = await Promise.all([createTablePromise, storesPromise])
-        console.log("response: ", response);
 
         const storePromises = response[1].map(store => {
             return fetchCoordinates(store).then(location => {
