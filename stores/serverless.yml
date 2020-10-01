@@ -119,6 +119,8 @@ functions:
         - geolocation.js
         - shared/**
         - node_modules/**
+    environment: 
+      GOOGLE_KEY: ${ssm:/Geocoding_APIKey~true}
     events:
       - http:
           path: /geo/{brand}/populate

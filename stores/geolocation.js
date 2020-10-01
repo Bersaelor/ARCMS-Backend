@@ -81,8 +81,12 @@ const fetchCoordinates = async (store) => {
         `https://maps.googleapis.com/maps/api/geocode/json?key=${process.env.GOOGLE_KEY}&address=${address}`,
         {method: 'GET'});
 	const json = await response.json();
-    console.log("Receieved response: ", json)
-    return json.geometry.location
+    if (json && json.results && json.results.length > 0 && json.results[0].geometry && json.results[0].geometry.location) {
+        return json.results[0].geometry.location
+    } else {
+        console.log(`No location found for:`, store.sk)
+        return undefined
+    }
 }
 
 const writeEntryToTable = async (brand, store, location) => {
@@ -134,7 +138,12 @@ exports.populate = async (event, context, callback) => {
 
         const storePromises = response[1].map(store => {
             return fetchCoordinates(store).then(location => {
-                return writeEntryToTable(brand, store, location)
+                if (location) {
+                    console.log(`Found ${store.sk}'s location: `, location)
+                    return writeEntryToTable(brand, store, location)    
+                } else {
+                    return {}
+                }
             })  
         })
         const puts = Promise.all(storePromises)
