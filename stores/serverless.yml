@@ -107,3 +107,26 @@ functions:
           authorizer:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  populate-map:
+    handler: geolocation.populate
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Fill the map db with datapoints for all stores of this brand
+    package:
+      include:
+        - geolocation.js
+        - shared/**
+        - node_modules/**
+    events:
+      - http:
+          path: /geo/{brand}/populate
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
