@@ -11,7 +11,7 @@ async function getUsers(brand, perPage, LastEvaluatedKey) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "sk-id-index",
-        ProjectionExpression: "id, sk, company, address, zipCode, city, country, telnr",
+        ProjectionExpression: "id, sk, company, address, zipCode, city, country, telNr",
         KeyConditionExpression: "#sk = :value",
         ExpressionAttributeNames:{
             "#sk": "sk"
