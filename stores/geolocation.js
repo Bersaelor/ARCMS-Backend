@@ -61,8 +61,7 @@ const fetchStoresForBrand = async (brand, perPage, PreviousLastEvaluatedKey) => 
     if (PreviousLastEvaluatedKey) { params.ExclusiveStartKey = PreviousLastEvaluatedKey }
     console.log("fetchStoresForBrand.params: ", params)
     const data = await dynamoDb.query(params).promise()
-    const stores = data.Items && data.Items.map(convertStoredModel)
-    return { LastEvaluatedKey: data.LastEvaluatedKey, stores: stores }
+    return { LastEvaluatedKey: data.LastEvaluatedKey, stores: data.Items }
 }
 
 const fetchAllStoresForBrand = async (brand) => {
