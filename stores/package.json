@@ -8,7 +8,8 @@
   },
   "license": "MIT-0",
   "dependencies": {
-    "dynamodb-geo-bersaelor-test": "^0.4.1",
+    "aws-sdk": "^2.662.0",
+    "dynamodb-geo": "^0.4.0",
     "node-fetch": "^2.6.1"
   }
 }

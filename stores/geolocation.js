@@ -9,7 +9,7 @@ const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 
 const ddb = new AWS.DynamoDB() 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
-const ddbGeo = require('dynamodb-geo-bersaelor-test')
+const ddbGeo = require('dynamodb-geo')
 const haskKeyLength = 5
 
 const fetch = require('node-fetch');
@@ -129,7 +129,18 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
     const myGeoTableManager = new ddbGeo.GeoDataManager(config)
     console.log("Checking for stores in table ", config.tableName)
 
-    return myGeoTableManager.queryRectangle({
+    const rParams = {
+        RadiusInMeter: 500000,
+        CenterPoint: {
+            latitude: minLat,
+            longitude: minLng
+        }
+    }
+    console.log("rParams: ", rParams)
+    const storesInRadius = await myGeoTableManager.queryRadius(rParams)
+    console.log("storesInRadius: ", storesInRadius)
+
+    const params = {
         MinPoint: {
             latitude: minLat,
             longitude: minLng
@@ -138,7 +149,10 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
             latitude: maxLat,
             longitude: maxLng
         }
-    }).then((stores) => {
+    }
+    console.log("findStoresOnMap.params: ", params)
+
+    return myGeoTableManager.queryRectangle(params).then((stores) => {
         console.log("stores: ", stores)
         return stores.map(v => convertMapAttribute(v))
     })
@@ -205,15 +219,22 @@ exports.populate = async (event, context, callback) => {
     }
 }
 
+const parseFloatQuery = (event, name) => {
+    if (event.queryStringParameters && event.queryStringParameters[name]) {
+        return parseFloat(event.queryStringParameters[name])
+    }
+    return undefined
+}
+
 // Get store locations on the map
 exports.get = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
-    const minLat = event.queryStringParameters && event.queryStringParameters.minLat;
-    const minLng = event.queryStringParameters && event.queryStringParameters.minLng;
-    const maxLat = event.queryStringParameters && event.queryStringParameters.maxLat;
-    const maxLng = event.queryStringParameters && event.queryStringParameters.maxLng;
+    const minLat = parseFloatQuery(event, 'minLat')
+    const minLng = parseFloatQuery(event, 'minLng')
+    const maxLat = parseFloatQuery(event, 'maxLat')
+    const maxLng = parseFloatQuery(event, 'maxLng')
 
-    if (!minLat || !minLng || !maxLat || !maxLng) {
+    if (minLat === undefined || minLng === undefined || maxLat === undefined || maxLng === undefined) {
         callback(null, {
             statusCode: 403,
             headers: makeHeader('text/plain'),
@@ -224,7 +245,9 @@ exports.get = async (event, context, callback) => {
 
     try {
         console.log("Fetching stores for brand ", brand, ` Lat: ${minLat} - ${maxLat}, Long: ${minLng} - ${maxLng}`)
-        const stores = await findStoresOnMap(brand, minLat, minLng, maxLat, maxLng)
+        const stores = await findStoresOnMap(
+            brand, minLat, minLng, maxLat, maxLng
+        )
 
         callback(null, {
             statusCode: 200,
