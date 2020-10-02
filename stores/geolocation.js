@@ -18,6 +18,14 @@ function tableName(brand) {
     return `arcms-geo-${brand}`
 }
 
+function makeHeader(content) {
+    return { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': content
+    };
+}
+
 const deleteTable = async (brand) => {
     try {
         const response = await ddb.deleteTable({ TableName: tableName(brand)}).promise().then((response) => {
@@ -94,23 +102,25 @@ const writeEntryToTable = async (brand, store, location) => {
     config.hashKeyLength = haskKeyLength
     const myGeoTableManager = new ddbGeo.GeoDataManager(config)
 
-    myGeoTableManager.putPoint({
+    const params = {
         RangeKeyValue: { S: `${store.id}#${store.sk}` },
         GeoPoint: {
-          latitude: location.lat,
-          longitude: location.lng
+            latitude: location.lat,
+            longitude: location.lng
         },
-        PutItemInput: { 
-          Item: { 
-            address: { S: store.address },
-            zipCode: { S: store.zipCode },
-            city: { S: store.city },
-            country: { S: store.country },
-            telNr: { S: store.telNr },
-            email: { S: store.email }
-          },
+        PutItemInput: {
+            Item: {
+                address: { S: store.address },
+                zipCode: { S: store.zipCode },
+                city: { S: store.city },
+                country: { S: store.country || "" },
+                telNr: { S: store.telNr || "" },
+                email: { S: store.email || "" }
+            },
         }
-      }).promise()
+    }
+    console.dir(params, { depth: null });
+    myGeoTableManager.putPoint(params).promise()
 }
 
 exports.populate = async (event, context, callback) => {
@@ -137,24 +147,32 @@ exports.populate = async (event, context, callback) => {
         const response = await Promise.all([createTablePromise, storesPromise])
 
         const storePromises = response[1].map(store => {
-            return fetchCoordinates(store).then(location => {
-                if (location) {
-                    console.log(`Found ${store.sk}'s location: `, location)
-                    return writeEntryToTable(brand, store, location)    
-                } else {
-                    return {}
-                }
-            })  
+            if (store.address && store.zipCode && store.city) {
+                return fetchCoordinates(store).then(location => {
+                    if (location) {
+                        return writeEntryToTable(brand, store, location)    
+                    } else {
+                        return {}
+                    }
+                })      
+            } else {
+                return {}
+            }
         })
         const puts = Promise.all(storePromises)
 
         callback(null, {
-            body: `Created ${puts.length} store entries`,
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                "message": `Created ${puts.length} store entries`,
+            })
         });
     } catch(error) {
         console.error('Query failed to load data. Error: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
             body: `Encountered error ${error}`,
         });
         return;
