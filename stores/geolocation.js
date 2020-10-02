@@ -127,20 +127,8 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
     const config = new ddbGeo.GeoDataManagerConfiguration(ddb, tableName(brand))
     config.hashKeyLength = haskKeyLength
     const myGeoTableManager = new ddbGeo.GeoDataManager(config)
-    console.log("Checking for stores in table ", config.tableName)
 
-    const rParams = {
-        RadiusInMeter: 500000,
-        CenterPoint: {
-            latitude: minLat,
-            longitude: minLng
-        }
-    }
-    console.log("rParams: ", rParams)
-    const storesInRadius = await myGeoTableManager.queryRadius(rParams)
-    console.log("storesInRadius: ", storesInRadius)
-
-    const params = {
+    return myGeoTableManager.queryRectangle({
         MinPoint: {
             latitude: minLat,
             longitude: minLng
@@ -149,10 +137,7 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
             latitude: maxLat,
             longitude: maxLng
         }
-    }
-    console.log("findStoresOnMap.params: ", params)
-
-    return myGeoTableManager.queryRectangle(params).then((stores) => {
+    }).then((stores) => {
         console.log("stores: ", stores)
         return stores.map(v => convertMapAttribute(v))
     })
