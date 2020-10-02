@@ -138,13 +138,19 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
             longitude: maxLng
         }
     }).then((stores) => {
-        console.log("stores: ", stores)
         return stores.map(v => convertMapAttribute(v))
     })
 }
 
 const convertMapAttribute = (dbEntry) => {
-    const store = {...dbEntry}
+    var store = {}
+    store.address = dbEntry.address.S
+    store.zipCode = dbEntry.zipCode.S
+    store.city = dbEntry.city.S
+    store.country = dbEntry.country.S
+    store.telNr = dbEntry.telNr.S
+    store.email = dbEntry.email.S
+    store.coordinates = JSON.parse(dbEntry.geoJson.S).coordinates
     return store
 }
 
