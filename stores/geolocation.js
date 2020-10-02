@@ -9,7 +9,7 @@ const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 
 const ddb = new AWS.DynamoDB() 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
-const ddbGeo = require('dynamodb-geo')
+const ddbGeo = require('dynamodb-geo-bersaelor-test')
 const haskKeyLength = 5
 
 const fetch = require('node-fetch');
@@ -127,6 +127,7 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
     const config = new ddbGeo.GeoDataManagerConfiguration(ddb, tableName(brand))
     config.hashKeyLength = haskKeyLength
     const myGeoTableManager = new ddbGeo.GeoDataManager(config)
+    console.log("Checking for stores in table ", config.tableName)
 
     return myGeoTableManager.queryRectangle({
         MinPoint: {
@@ -138,6 +139,7 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
             longitude: maxLng
         }
     }).then((stores) => {
+        console.log("stores: ", stores)
         return stores.map(v => convertMapAttribute(v))
     })
 }
@@ -221,7 +223,7 @@ exports.get = async (event, context, callback) => {
     }
 
     try {
-        console.log("Fetching stores for brand ", brand)
+        console.log("Fetching stores for brand ", brand, ` Lat: ${minLat} - ${maxLat}, Long: ${minLng} - ${maxLng}`)
         const stores = await findStoresOnMap(brand, minLat, minLng, maxLat, maxLng)
 
         callback(null, {
@@ -230,11 +232,11 @@ exports.get = async (event, context, callback) => {
             body: JSON.stringify(stores)
         });
     } catch(err) {
-        console.error('Query failed to load data. Error: ', error);
+        console.error('Query failed to load data. Error: ', err);
         callback(null, {
-            statusCode: error.statusCode || 501,
+            statusCode: err.statusCode || 501,
             headers: makeHeader('text/plain'),
-            body: `Encountered error ${error}`,
+            body: `Encountered error ${err}`,
         });
         return;
     }
