@@ -123,6 +123,30 @@ const writeEntryToTable = async (brand, store, location) => {
     myGeoTableManager.putPoint(params).promise()
 }
 
+const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
+    const config = new ddbGeo.GeoDataManagerConfiguration(ddb, tableName(brand))
+    config.hashKeyLength = haskKeyLength
+    const myGeoTableManager = new ddbGeo.GeoDataManager(config)
+
+    return myGeoTableManager.queryRectangle({
+        MinPoint: {
+            latitude: minLat,
+            longitude: minLng
+        },
+        MaxPoint: {
+            latitude: maxLat,
+            longitude: maxLng
+        }
+    }).then((stores) => {
+        return stores.map(v => convertMapAttribute(v))
+    })
+}
+
+const convertMapAttribute = (dbEntry) => {
+    const store = {...dbEntry}
+    return store
+}
+
 exports.populate = async (event, context, callback) => {
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
@@ -169,6 +193,43 @@ exports.populate = async (event, context, callback) => {
             })
         });
     } catch(error) {
+        console.error('Query failed to load data. Error: ', error);
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
+}
+
+// Get store locations on the map
+exports.get = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+    const minLat = event.queryStringParameters && event.queryStringParameters.minLat;
+    const minLng = event.queryStringParameters && event.queryStringParameters.minLng;
+    const maxLat = event.queryStringParameters && event.queryStringParameters.maxLat;
+    const maxLng = event.queryStringParameters && event.queryStringParameters.maxLng;
+
+    if (!minLat || !minLng || !maxLat || !maxLng) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected minLat, minLng, maxLat & maxLng as query params.`,
+        });
+        return;
+    }
+
+    try {
+        console.log("Fetching stores for brand ", brand)
+        const stores = await findStoresOnMap(brand, minLat, minLng, maxLat, maxLng)
+
+        callback(null, {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify(stores)
+        });
+    } catch(err) {
         console.error('Query failed to load data. Error: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,

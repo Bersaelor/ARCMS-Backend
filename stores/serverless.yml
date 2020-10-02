@@ -20,6 +20,17 @@ provider:
   stage: dev
   runtime: nodejs10.x
   region: eu-central-1
+  apiKeys:
+    - value: shbaohotdeilsoyriscy 
+      description: A string to restrict access to this api to authorized apps
+  usagePlan:
+    quota:
+      limit: 10000
+      offset: 2
+      period: MONTH
+    throttle:
+      burstLimit: 200
+      rateLimit: 100
   environment:
     NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
     MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
@@ -124,7 +135,7 @@ functions:
     events:
       - http:
           path: /geo/{brand}/populate
-          method: get
+          method: post
           cors: true
           request:
             parameters:
@@ -133,3 +144,25 @@ functions:
           authorizer:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  geo-get-stores:
+    handler: geolocation.get
+    role: ${self:custom.users-role}
+    memorySize: 512
+    timeout: 300
+    description: Get store locations on the map
+    package:
+      include:
+        - geolocation.js
+        - shared/**
+        - node_modules/**
+    events:
+      - http:
+          path: /geo/{brand}/
+          private: true
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
