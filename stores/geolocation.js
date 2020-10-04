@@ -54,7 +54,7 @@ const createTable = async (brand) => {
 const fetchStoresForBrand = async (brand, perPage, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email",
+        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email, lat, lng",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -81,7 +81,7 @@ const fetchAllStoresForBrand = async (brand) => {
     return stores
 }
 
-const writeEntryToTable = async (brand, store, location) => {
+const writeEntryToTable = async (brand, store) => {
     const config = new ddbGeo.GeoDataManagerConfiguration(ddb, tableName(brand))
     config.hashKeyLength = haskKeyLength
     const myGeoTableManager = new ddbGeo.GeoDataManager(config)
@@ -89,8 +89,8 @@ const writeEntryToTable = async (brand, store, location) => {
     const params = {
         RangeKeyValue: { S: `${store.id}#${store.sk}` },
         GeoPoint: {
-            latitude: location.lat,
-            longitude: location.lng
+            latitude: store.lat,
+            longitude: store.lng
         },
         PutItemInput: {
             Item: {
@@ -162,14 +162,8 @@ exports.populate = async (event, context, callback) => {
         const response = await Promise.all([createTablePromise, storesPromise])
 
         const storePromises = response[1].map(store => {
-            if (store.address && store.zipCode && store.city) {
-                return fetchCoordinates(store).then(location => {
-                    if (location) {
-                        return writeEntryToTable(brand, store, location)    
-                    } else {
-                        return {}
-                    }
-                })      
+            if (store.lat && store.lng) {
+                return writeEntryToTable(brand, store)    
             } else {
                 return {}
             }
