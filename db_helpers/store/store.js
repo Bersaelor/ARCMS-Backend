@@ -5,7 +5,8 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-const defaultPerPage = 100;
+const defaultPerPage = 30;
+const { fetchCoordinates } = require('shared/get_geocoordinates')
 
 async function getUsers(brand, perPage, LastEvaluatedKey) {
     var params = {
@@ -27,7 +28,7 @@ async function getUsers(brand, perPage, LastEvaluatedKey) {
     return dynamoDb.query(params).promise()
 }
 
-async function createStore(brand, user) {
+async function createStore(brand, user, location) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
@@ -42,8 +43,19 @@ async function createStore(brand, user) {
             "email": user.id
         }
     };
+    if (location && location.lat) params.Item.lat = location.lat
+    if (location && location.lng) params.Item.lng = location.lng
 
     return dynamoDb.put(params).promise();
+}
+
+const fetchLocation = async (user) => {
+    if (user.address && user.zipCode && user.city) {
+        return fetchCoordinates(user)
+    } else {
+        console.log(`Can't fetch address for user ${user.id}`)
+        return undefined
+    }
 }
 
 // Create a store entry for every user, copying the users settings
@@ -72,7 +84,8 @@ exports.createDefaultStore = async (event, context, callback) => {
         var updates = 0
         for (let index = 0; index < users.length; index++) {
             const user = users[index]
-            const data = await createStore(brand, user)
+            const location = await fetchLocation(user)
+            const data = await createStore(brand, user, location)
             updates += 1
         }
 

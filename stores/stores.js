@@ -7,6 +7,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
+const { fetchCoordinates } = require('shared/get_geocoordinates')
 
 const defaultPerPage = 80;
 
@@ -21,7 +22,7 @@ function makeHeader(content) {
 const fetchStoresForBrand = async (brand, perPage, user, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email",
+        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email, lat, lng",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -60,7 +61,7 @@ const updateStores = async (brand, user, newStores, storesToDelete) => {
     const id = `${brand}#store`
 
     const puts = newStores.map((store, index) => {
-        return {
+        var params = {
             PutRequest: {
                 Item: {
                     "id": id,
@@ -75,6 +76,9 @@ const updateStores = async (brand, user, newStores, storesToDelete) => {
                 }
             }
         }
+        if (store.lat) params.PutRequest.Item.lat = store.lat
+        if (store.lng) params.PutRequest.Item.lng = store.lng
+        return params
     })
     const deletes = storesToDelete.map((store) => {
         return {
@@ -99,6 +103,38 @@ const convertStoredModel = (storedModel) => {
     return model
 }
 
+const samePlace = (storeA, storeB) => {
+    return storeA.address === storeB.address && storeA.address === storeB.address && storeA.address === storeB.address
+}
+
+const addCoords = async (stores, oldStores) => {
+    const fetchCooPromises = stores.map((store, index) => {
+        if (index < oldStores.length && samePlace(store, oldStores[index]) && oldStores[index].lat && oldStores[index].lng) {
+            console.log(`Store ${store.sk} didn't change address, reusing last lat&long`)
+            var updatedStore = {...store}
+            updatedStore.lat = oldStores[index].lat
+            updatedStore.lng = oldStores[index].lng
+            return updatedStore
+        }
+        if (store.address && store.zipCode && store.city) {
+            return fetchCoordinates(store).then(location => {
+                if (location) {
+                    var updatedStore = {...store}
+                    updatedStore.lat = location.lat
+                    updatedStore.lng = location.lng
+                    return updatedStore    
+                } else {
+                    console.log(`Failed to get location for store ${store.sk}`)
+                    return store
+                }
+            })      
+        } else {
+            console.log(`Can't fetch address for store ${store.sk}`)
+            return store
+        }
+    })
+    return Promise.all(fetchCooPromises)
+}
 
 // Get an array of stores, given a brand and optionally user, paginated
 exports.get = async (event, context, callback) => {
@@ -170,7 +206,10 @@ exports.new = async (event, context, callback) => {
 
         const oldStores = (await dataPromise).stores
         const storesToDelete = oldStores.length > newStores.length ? oldStores.slice(newStores.length) : []
+        console.log(`Fetching coordinates of ${newStores.length} stores`)
+        newStores = await addCoords(newStores, oldStores)
         console.log(`Overwriting ${newStores.length}, deleting ${storesToDelete} old stores`)
+
         const status = await updateStores(brand, user, newStores, storesToDelete)
         console.log("Status response: ", status)
         callback(null, {

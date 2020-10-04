@@ -59,6 +59,7 @@ functions:
       include:
         - stores.js
         - shared/**
+        - node_modules/node-fetch/**
     events:
       - http:
           path: /{brand}
@@ -81,6 +82,9 @@ functions:
       include:
         - stores.js
         - shared/**
+        - node_modules/node-fetch/**
+    environment: 
+      GOOGLE_KEY: ${ssm:/Geocoding_APIKey~true}
     events:
       - http:
           path: /{brand}/{user}
@@ -104,6 +108,7 @@ functions:
       include:
         - stores.js
         - shared/**
+        - node_modules/node-fetch/**
     events:
       - http:
           path: /{brand}/{user}/{id}
@@ -130,8 +135,6 @@ functions:
         - geolocation.js
         - shared/**
         - node_modules/**
-    environment: 
-      GOOGLE_KEY: ${ssm:/Geocoding_APIKey~true}
     events:
       - http:
           path: /geo/{brand}/populate

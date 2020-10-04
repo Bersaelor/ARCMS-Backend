@@ -55,7 +55,11 @@ functions:
     role: ${self:custom.users-role}
     memorySize: 512
     description: Create a store entry for every user, copying the users values
+    environment: 
+      GOOGLE_KEY: ${ssm:/Geocoding_APIKey~true}
     package:
       include:
         - store/store.js
         - brand_settings.json
+        - shared/**
+        - node_modules/node-fetch/**

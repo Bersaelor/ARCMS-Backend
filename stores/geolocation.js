@@ -12,8 +12,6 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const ddbGeo = require('dynamodb-geo')
 const haskKeyLength = 5
 
-const fetch = require('node-fetch');
-
 function tableName(brand) {
     return `arcms-geo-${brand}`
 }
@@ -81,20 +79,6 @@ const fetchAllStoresForBrand = async (brand) => {
         stores = stores.concat(data.stores)
     } while (LastEvaluatedKey !== undefined)
     return stores
-}
-
-const fetchCoordinates = async (store) => {
-    const address = encodeURI(`${store.address} ${store.zipCode} ${store.city}`)
-	const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?key=${process.env.GOOGLE_KEY}&address=${address}`,
-        {method: 'GET'});
-	const json = await response.json();
-    if (json && json.results && json.results.length > 0 && json.results[0].geometry && json.results[0].geometry.location) {
-        return json.results[0].geometry.location
-    } else {
-        console.log(`No location found for:`, store.sk)
-        return undefined
-    }
 }
 
 const writeEntryToTable = async (brand, store, location) => {
