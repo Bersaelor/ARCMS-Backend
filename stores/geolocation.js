@@ -10,7 +10,7 @@ const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 const ddb = new AWS.DynamoDB() 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const ddbGeo = require('dynamodb-geo')
-const haskKeyLength = 5
+const haskKeyLength = 4
 
 function tableName(brand) {
     return `arcms-geo-${brand}`
@@ -54,7 +54,7 @@ const createTable = async (brand) => {
 const fetchStoresForBrand = async (brand, perPage, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email, lat, lng",
+        ProjectionExpression: "id, sk, address, company, zipCode, city, country, telNr, email, lat, lng",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -95,6 +95,7 @@ const writeEntryToTable = async (brand, store) => {
         PutItemInput: {
             Item: {
                 address: { S: store.address },
+                company: { S: store.company },
                 zipCode: { S: store.zipCode },
                 city: { S: store.city },
                 country: { S: store.country || "" },
@@ -127,11 +128,13 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
 }
 
 const convertMapAttribute = (dbEntry) => {
+    console.log("dbEntry: ", dbEntry)
     var store = {}
     store.address = dbEntry.address.S
     store.zipCode = dbEntry.zipCode.S
     store.city = dbEntry.city.S
     store.country = dbEntry.country.S
+    if (dbEntry.company) store.company = dbEntry.company.S
     store.telNr = dbEntry.telNr.S
     store.email = dbEntry.email.S
     store.coordinates = JSON.parse(dbEntry.geoJson.S).coordinates
