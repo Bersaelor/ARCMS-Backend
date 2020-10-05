@@ -54,6 +54,7 @@ functions:
     handler: store/store.createDefaultStore
     role: ${self:custom.users-role}
     memorySize: 512
+    timeout: 300
     description: Create a store entry for every user, copying the users values
     environment: 
       GOOGLE_KEY: ${ssm:/Geocoding_APIKey~true}
