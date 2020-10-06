@@ -128,8 +128,8 @@ const findStoresOnMap = async (brand, minLat, minLng, maxLat, maxLng) => {
 }
 
 const convertMapAttribute = (dbEntry) => {
-    console.log("dbEntry: ", dbEntry)
     var store = {}
+    store.id = `${dbEntry.hashKey.N}-${dbEntry.rangeKey.S}`
     store.address = dbEntry.address.S
     store.zipCode = dbEntry.zipCode.S
     store.city = dbEntry.city.S
