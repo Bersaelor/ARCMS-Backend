@@ -141,7 +141,7 @@ exports.get = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const user = event.queryStringParameters && event.queryStringParameters.user;
     var PreviousLastEvaluatedKey
-    if (event.queryStringParameters.nextPageKey) {
+    if (event.queryStringParameters && event.queryStringParameters.nextPageKey) {
         let jsonString = Buffer.from(event.queryStringParameters.nextPageKey, 'base64').toString('ascii')
         PreviousLastEvaluatedKey = JSON.parse(jsonString)
     }
