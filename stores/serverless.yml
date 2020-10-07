@@ -72,6 +72,15 @@ functions:
           authorizer:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+      - http:
+          path: /{brand}/stores
+          method: get
+          private: true
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
 
   new:
     handler: stores.new
