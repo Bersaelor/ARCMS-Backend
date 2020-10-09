@@ -206,7 +206,7 @@ exports.new = async (event, context, callback) => {
         const accessLvl = await accessLvlPromise
         // users who aren't managers can only update their own store entries
         if (!accessLvlMayCreate(accessLvl) && cognitoUserName.toLowerCase() !== user.toLowerCase()) {
-            const msg = `user ${cognitoUserName} isn't allowed to create or update categories for ${user}`
+            const msg = `user ${cognitoUserName} isn't allowed to create or update stores for ${user}`
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('application/json'),
@@ -243,5 +243,44 @@ exports.new = async (event, context, callback) => {
 
 // Delete store from the db
 exports.delete = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
+    const brand = event.pathParameters.brand.toLowerCase()
+    const user = event.pathParameters.id.toLowerCase()
+    const hash = event.pathParameters.id.toLowerCase()
+
+    try {
+        // make sure the current cognito user has high enough access lvl
+        const accessLvl = await getAccessLvl(cognitoUserName, brand);
+        // users who aren't managers can only update their own store entries
+        if (!accessLvlMayCreate(accessLvl) && cognitoUserName.toLowerCase() !== user.toLowerCase()) {
+            const msg = `user ${cognitoUserName} isn't allowed to delete stores for ${user}`
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
+
+        console.log(`Deleting store ${brand}-${user}-${hash} stores`)
+        const sk = `${brand}#${hash}`
+        const response = await deleteStore(brand, sk)
+        console.log("Delete response: ", response)
+        callback(null, {
+            statusCode: 200,
+            headers: makeHeader('application/json' ),
+            body: JSON.stringify({
+                "message": `Deleted store ${sk}, for brand ${brand}`,
+            })
+        });
+    } catch (error) {
+        console.error('Query failed to load data. Error: ', error);
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 
 }
