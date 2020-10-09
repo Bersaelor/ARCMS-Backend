@@ -64,7 +64,19 @@ functions:
       - http:
           path: /{brand}
           method: get
-          cors: true
+          cors: 
+            origin: '*'
+            allowCredentials: true
+            cacheControl: 'max-age=600, s-maxage=600'
+            maxAge: 600
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - Cache-Control
           request:
             parameters:
               paths:
