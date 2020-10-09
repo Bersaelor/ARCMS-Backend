@@ -11,10 +11,11 @@ const { fetchCoordinates } = require('shared/get_geocoordinates')
 
 const defaultPerPage = 80;
 
-function makeHeader(content) {
+function makeHeader(content, maxAge = 60) {
     return { 
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
+        'Cache-Control': `max-age=${maxAge},public`,
         'Content-Type': content
     };
 }
@@ -22,7 +23,7 @@ function makeHeader(content) {
 const fetchStoresForBrand = async (brand, perPage, user, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email, lat, lng",
+        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email, lat, lng, company",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -100,6 +101,9 @@ const updateStores = async (brand, user, newStores, storesToDelete) => {
 
 const convertStoredModel = (storedModel) => {
     var model = storedModel
+    model.coordinates = [storedModel.lng || 12.15, storedModel.lat || 51.15]
+    delete model.lat
+    delete model.lng
     return model
 }
 
@@ -156,7 +160,7 @@ exports.get = async (event, context, callback) => {
     }
 
     try {
-        var perPage = event.queryStringParameters.perPage ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
+        var perPage = event.queryStringParameters && event.queryStringParameters.perPage ? parseInt(event.queryStringParameters.perPage, 10) : undefined;
         if (!perPage || perPage > 4 * defaultPerPage) {
             perPage = 4 * defaultPerPage
         }
@@ -164,12 +168,14 @@ exports.get = async (event, context, callback) => {
         console.log("Fetching stores for brand ", brand, " and user ", user)
         const data = await fetchStoresForBrand(brand, perPage, user, PreviousLastEvaluatedKey)
 
+        // respond with 1 day caching
+        const day = 60 * 60 * 24
         callback(null, {
             statusCode: 200,
-            headers: makeHeader('application/json' ),
+            headers: makeHeader('application/json', day),
             body: JSON.stringify(paginate(data.stores, perPage, data.LastEvaluatedKey))
         });
-    } catch(err) {
+    } catch(error) {
         console.error('Query failed to load data. Error: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,

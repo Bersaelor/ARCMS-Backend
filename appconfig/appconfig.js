@@ -125,17 +125,19 @@ exports.get = async (event, context, callback) => {
         const data = await getConfig(brand, stage)
         const model = data.Count > 0 ? convertStoredConfig(data.Items[0]) : undefined
     
+        const cache = showTestingContent ? 0 : 60 * 60 * 24
+
         var response
         if (model) {
             response = {
                 statusCode: 200,
-                headers: makeHeader('application/json'),
+                headers: makeHeader('application/json', cache),
                 body: JSON.stringify(model)
             };
         } else {
             response = {
                 statusCode: 404,
-                headers: makeHeader('application/json'),
+                headers: makeHeader('application/json', cache),
                 body: JSON.stringify({ message: `No config found for brand ${brand}` })
             };
         }
