@@ -58,15 +58,17 @@ const deleteStore = async (brand, sk) => {
     return dynamoDb.delete(params).promise()
 }
 
-const updateStores = async (brand, user, newStores, storesToDelete) => {
+const updateStores = async (brand, user, newStores, storesToDelete, createUniqueSKs) => {
     const id = `${brand}#store`
 
+    let timeStamp = (new Date()).getTime()
     const puts = newStores.map((store, index) => {
+        const sk = createUniqueSKs ? `${user}#${timeStamp}-${index}` : `${user}#${index}`
         var params = {
             PutRequest: {
                 Item: {
                     "id": id,
-                    "sk": `${user}#${index}`,
+                    "sk": sk,
                     "company": store.company || "",
                     "address": store.address || "",
                     "zipCode": store.zipCode || "",
@@ -113,7 +115,7 @@ const samePlace = (storeA, storeB) => {
 
 const addCoords = async (stores, oldStores) => {
     const fetchCooPromises = stores.map((store, index) => {
-        if (index < oldStores.length && samePlace(store, oldStores[index]) && oldStores[index].lat && oldStores[index].lng) {
+        if (oldStores && index < oldStores.length && samePlace(store, oldStores[index]) && oldStores[index].lat && oldStores[index].lng) {
             console.log(`Store ${store.sk} didn't change address, reusing last lat&long`)
             var updatedStore = {...store}
             updatedStore.lat = oldStores[index].lat
@@ -193,13 +195,16 @@ exports.new = async (event, context, callback) => {
     const user = event.pathParameters.user.toLowerCase()
     var newStores = JSON.parse(event.body)
 
+    const isCreatingNonVTO = brand === user
+
     try {
-        // fetch the existing entries, to determine whether entries have to be removed
-        const dataPromise = fetchStoresForBrand(brand, defaultPerPage, user, undefined)
+        // for VTO users, fetch the existing entries, to determine whether entries have to be removed
+        // for non VTO users, we are not interested in existing stores and just add the new ones as new entries
+        const dataPromise = isCreatingNonVTO ? undefined : fetchStoresForBrand(brand, defaultPerPage, user, undefined)
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand);
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise
-        // users who aren't managers can update their own store entries
+        // users who aren't managers can only update their own store entries
         if (!accessLvlMayCreate(accessLvl) && cognitoUserName.toLowerCase() !== user.toLowerCase()) {
             const msg = `user ${cognitoUserName} isn't allowed to create or update categories for ${user}`
             callback(null, {
@@ -210,13 +215,13 @@ exports.new = async (event, context, callback) => {
             return;
         }
 
-        const oldStores = (await dataPromise).stores
-        const storesToDelete = oldStores.length > newStores.length ? oldStores.slice(newStores.length) : []
+        const oldStores = dataPromise ? (await dataPromise).stores : undefined
+        const storesToDelete = oldStores && oldStores.length > newStores.length ? oldStores.slice(newStores.length) : []
         console.log(`Fetching coordinates of ${newStores.length} stores`)
         newStores = await addCoords(newStores, oldStores)
         console.log(`Overwriting ${newStores.length}, deleting ${storesToDelete} old stores`)
 
-        const status = await updateStores(brand, user, newStores, storesToDelete)
+        const status = await updateStores(brand, user, newStores, storesToDelete, isCreatingNonVTO)
         console.log("Status response: ", status)
         callback(null, {
             statusCode: 200,
