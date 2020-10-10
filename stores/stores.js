@@ -63,7 +63,7 @@ const updateStores = async (brand, user, newStores, storesToDelete, createUnique
 
     let timeStamp = (new Date()).getTime()
     const puts = newStores.map((store, index) => {
-        const sk = createUniqueSKs ? `${user}#${timeStamp}-${index}` : `${user}#${index}`
+        const sk = createUniqueSKs ? (store.sk || `${user}#${timeStamp}-${index}`) : `${user}#${index}`
         var params = {
             PutRequest: {
                 Item: {
