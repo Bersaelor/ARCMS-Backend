@@ -139,6 +139,7 @@ const convertMapAttribute = (dbEntry) => {
     store.telNr = dbEntry.telNr.S
     store.email = dbEntry.email.S
     store.coordinates = JSON.parse(dbEntry.geoJson.S).coordinates
+    store.isVTO = dbEntry.isVTO.BOOL
     return store
 }
 
