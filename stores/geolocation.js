@@ -100,7 +100,8 @@ const writeEntryToTable = async (brand, store) => {
                 city: { S: store.city },
                 country: { S: store.country || "" },
                 telNr: { S: store.telNr || "" },
-                email: { S: store.email || "" }
+                email: { S: store.email || "" },
+                isVTO: { BOOL: store.sk && !store.sk.startsWith(brand)  }
             },
         }
     }
