@@ -58,8 +58,9 @@ const deleteStore = async (brand, sk) => {
     return dynamoDb.delete(params).promise()
 }
 
-const updateStores = async (brand, user, newStores, storesToDelete, createUniqueSKs) => {
+const updateStores = async (brand, user, newStores, storesToDelete, isCreatingNonVTO) => {
     const id = `${brand}#store`
+    const createUniqueSKs = isCreatingNonVTO
 
     let timeStamp = (new Date()).getTime()
     const puts = newStores.map((store, index) => {
@@ -103,8 +104,10 @@ const updateStores = async (brand, user, newStores, storesToDelete, createUnique
 }
 
 const convertStoredModel = (storedModel) => {
+    const brand = storedModel.id.split('#')[0]
     var model = storedModel
     model.coordinates = [storedModel.lng || 12.15, storedModel.lat || 51.15]
+    model.isVTO = storedModel.sk && !storedModel.sk.startsWith(brand) 
     delete model.lat
     delete model.lng
     return model
