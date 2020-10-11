@@ -54,7 +54,7 @@ const createTable = async (brand) => {
 const fetchStoresForBrand = async (brand, perPage, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, address, company, zipCode, city, country, telNr, email, lat, lng",
+        ProjectionExpression: "id, sk, address, company, zipCode, city, country, web, telNr, email, lat, lng",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -99,6 +99,7 @@ const writeEntryToTable = async (brand, store) => {
                 zipCode: { S: store.zipCode },
                 city: { S: store.city },
                 country: { S: store.country || "" },
+                web: { S: store.web || "" },
                 telNr: { S: store.telNr || "" },
                 email: { S: store.email || "" },
                 isVTO: { BOOL: store.sk && !store.sk.startsWith(brand)  }
@@ -136,8 +137,9 @@ const convertMapAttribute = (dbEntry) => {
     store.city = dbEntry.city.S
     store.country = dbEntry.country.S
     if (dbEntry.company) store.company = dbEntry.company.S
-    store.telNr = dbEntry.telNr.S
-    store.email = dbEntry.email.S
+    store.web = dbEntry.web && dbEntry.web.S
+    store.telNr = dbEntry.telNr && dbEntry.telNr.S
+    store.email = dbEntry.email && dbEntry.email.S
     store.coordinates = JSON.parse(dbEntry.geoJson.S).coordinates
     store.isVTO = dbEntry.isVTO.BOOL
     return store

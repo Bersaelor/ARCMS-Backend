@@ -23,7 +23,7 @@ function makeHeader(content, maxAge = 60) {
 const fetchStoresForBrand = async (brand, perPage, user, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, email, lat, lng, company",
+        ProjectionExpression: "id, sk, address, zipCode, city, country, telNr, web, email, lat, lng, company",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -74,6 +74,7 @@ const updateStores = async (brand, user, newStores, storesToDelete, createUnique
                     "zipCode": store.zipCode || "",
                     "city": store.city || "",
                     "country": store.country || "",
+                    "web": store.web || "",
                     "telNr": store.telNr || "",
                     "email": store.email || "",        
                 }
