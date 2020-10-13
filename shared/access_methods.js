@@ -9,13 +9,13 @@ exports.getAccessLvl = async (cognitoUserName, brand) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "accessLvl",
-        KeyConditionExpression: "#id = :value and sk = :brand",
+        KeyConditionExpression: "#id = :v and sk = :b",
         ExpressionAttributeNames:{
             "#id": "id"
         },
         ExpressionAttributeValues: {
-            ":value": cognitoUserName,
-            ":brand": `${brand}#user`
+            ":v": cognitoUserName,
+            ":b": `${brand}#user`
         }
     };
 
