@@ -21,6 +21,7 @@
     },
     "grafix": {
         "name": "Grafix",
+        "AppAgentName": "Grafix",
         "allows3DModelUpload": true,
         "wantsDXFConversion": true,
         "orderAdress": "order@grafix-eyewear.com",
@@ -31,6 +32,7 @@
     },
     "loocfun": {
         "name": "My LooC",
+        "AppAgentName": "LooCAR",
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "allowsRendering": true,

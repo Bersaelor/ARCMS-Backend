@@ -1,0 +1,9 @@
+{
+  "name": "Statistics",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "athena-express": "^6.0.4"
+  }
+}
