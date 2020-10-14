@@ -60,6 +60,30 @@ const getBrandAppDataHits = async (brand, from, to, appAgentName) => {
     return athenaExpress.query(query)
 }
 
+async function loadAllOrdersFromDB(brand, from, to) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        IndexName: "id-sk2-index",
+        ProjectionExpression: "id, sk, sk2, isTesting",
+        KeyConditionExpression: "#id = :value AND sk2 BETWEEN :from AND :to",
+        FilterExpression: "attribute_not_exists(#isTesting) or #isTesting = :null",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#isTesting": "isTesting",
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#order`,
+            ":from": dateToSQL(from),
+            ":to": dateToSQL(to),
+            ":null": null
+        },
+        ScanIndexForward: false
+    };
+
+    return dynamoDb.query(params).promise()
+}
+
+
 const analyzeAgentArray = (userAgents) => {
     var appVersions = {}
     var osVersions = {}
@@ -88,13 +112,14 @@ const analyzeAgentArray = (userAgents) => {
     }
 }
 
-const writeToDb = async (brand, day, appDataAnalysis) => {
+const writeToDb = async (brand, day, appDataAnalysis, orderCount) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
             "id": `${brand}#stats`,
             "sk": `${day.toISOString()}`,
-            "appData": JSON.stringify(appDataAnalysis)
+            "appData": JSON.stringify(appDataAnalysis),
+            "orderCount": orderCount
         }
     };
 
@@ -113,15 +138,20 @@ exports.appData = async (event, context, callback) => {
         const brands = Object.keys(brandSettings)
 
         let promises = brands
-            .filter( brand => brandSettings[brand].AppAgentName !== undefined )
-            .map( brand => {
-                return getBrandAppDataHits(brand, dayBefore, day, brandSettings[brand].AppAgentName)
-                    .then( data => {
-                        const userAgents = data.Items.map(item => item.user_agent )
+            .filter(brand => brandSettings[brand].AppAgentName !== undefined)
+            .map(brand => {
+                const appDataPromise = getBrandAppDataHits(brand, dayBefore, day, brandSettings[brand].AppAgentName)
+                    .then(data => {
+                        const userAgents = data.Items.map(item => item.user_agent)
                         return analyzeAgentArray(userAgents)
-                    }).then(appDataAnalysis => {
-                        return writeToDb(brand, dayBefore, appDataAnalysis)
                     })
+                const orderCountPromise = loadAllOrdersFromDB(brand, dayBefore, day).then(data => {
+                    return data.Items && data.Items.length || 0
+                })
+                return Promise.all([appDataPromise, orderCountPromise]).then( values => {
+                    const [appDataAnalysis, orderCount] = values
+                    return writeToDb(brand, dayBefore, appDataAnalysis, orderCount)
+                })
             })
 
 		let results = await Promise.all(promises)
