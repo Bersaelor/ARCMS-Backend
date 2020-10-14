@@ -7,13 +7,13 @@ aws.config.update({region: process.env.AWS_REGION})
 const AthenaExpress = require("athena-express");
 const brandSettings = require('brand_settings.json')
 
-const ATHENA_DB = 'apic_cloudfront_logs'
+const apic_log_table = 'apic_cloudfront_logs'
 const ATHENA_OUTPUT_LOCATION = 's3://looc-ar-api-statistics/query-results/'
 
 const athenaExpressConfig = {
 	aws, /* required */
+    db: 'default',
 	s3: ATHENA_OUTPUT_LOCATION, /* optional */
-    db: ATHENA_DB, /* optional */
 	formatJson: true, /* optional default=true */
 	retry: 200, /* optional default=200 */
     getStats: false /* optional default=false */
@@ -28,7 +28,7 @@ const getBrandAppDataHits = async (brand, appAgentName) => {
     let query = {
         sql: `
         SELECT user_agent
-        FROM apic_cloudfront_logs 
+        FROM ${apic_log_table} 
         WHERE 
         (
         "date" BETWEEN DATE '2020-10-12' AND DATE '2020-10-13' AND

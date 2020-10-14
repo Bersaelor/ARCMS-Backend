@@ -6,7 +6,7 @@ custom:
     MESSAGE:
       prod: "This is production environment"
       dev: "This is development environment"
-  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
+  users-role: arn:aws:iam::338756162532:role/StatisticsUser
   region: ${opt:region, self:provider.region}
 
 provider:
@@ -37,7 +37,7 @@ functions:
   daily-appData:
     handler: statistics.appData
     role: ${self:custom.users-role}
-    memorySize: 512
+    memorySize: 128
     timeout: 300
     description: Queries the cloudfront logs for the appData
     package:
