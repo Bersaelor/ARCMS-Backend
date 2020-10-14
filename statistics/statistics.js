@@ -88,6 +88,19 @@ const analyzeAgentArray = (userAgents) => {
     }
 }
 
+const writeToDb = async (brand, day, appDataAnalysis) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Item: {
+            "id": `${brand}#stats`,
+            "sk": `${day.toISOString()}`,
+            "appData": JSON.stringify(appDataAnalysis)
+        }
+    };
+
+    return dynamoDb.put(params).promise();
+}
+
 // Queries the cloudfront logs for the appData
 exports.appData = async (event, context, callback) => {
     var day = new Date(event.time) 
@@ -105,9 +118,9 @@ exports.appData = async (event, context, callback) => {
                 return getBrandAppDataHits(brand, dayBefore, day, brandSettings[brand].AppAgentName)
                     .then( data => {
                         const userAgents = data.Items.map(item => item.user_agent )
-                        const analysis = analyzeAgentArray(userAgents)
-                        console.log("analysis: ", analysis)
-                        return analysis
+                        return analyzeAgentArray(userAgents)
+                    }).then(appDataAnalysis => {
+                        return writeToDb(brand, dayBefore, appDataAnalysis)
                     })
             })
 
