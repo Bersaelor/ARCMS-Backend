@@ -41,6 +41,14 @@ const iOSVersions = {
     "20.1.0": "14.2"
 }
 
+function makeHeader(content) {
+    return { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': content
+    };
+}
+
 const getBrandAppDataHits = async (brand, from, to, appAgentName) => {
     let query = {
         sql: `\
@@ -83,6 +91,32 @@ async function loadAllOrdersFromDB(brand, from, to) {
     return dynamoDb.query(params).promise()
 }
 
+const getStats = async (brand, fromDate, toDate) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, appData, orderCount",
+        KeyConditionExpression: "#id = :value AND #sk BETWEEN :from AND :to",
+        ExpressionAttributeNames:{
+            "#id": "id",
+            "#sk": "sk"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#stats`,
+            ":from": dateToSQL(fromDate),
+            ":to": dateToSQL(toDate)
+        },
+    };
+
+    return dynamoDb.query(params).promise().then(data => {
+        return data.Items.map(item => {
+            return {
+                date: item.sk,
+                orderCount: item.orderCount || 0,
+                appData: item.appData && JSON.parse(item.appData) || {}
+            }
+        })
+    })
+}
 
 const analyzeAgentArray = (userAgents) => {
     var appVersions = {}
@@ -159,4 +193,46 @@ exports.appData = async (event, context, callback) => {
 	} catch (error) {
 		console.log(error);
 	}
+}
+
+//  Gets a list of app statistics for a given date range
+exports.get = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+
+    const from = event.queryStringParameters && event.queryStringParameters.from;
+    const to = event.queryStringParameters && event.queryStringParameters.to;
+
+    if (!brand || !from || !to) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected a brand, from and to parameter in the call.`,
+        });
+        return;
+    }    
+
+    console.log("Checking for statistics for ", brand, ", from ", from, " to ", to)
+    try {
+        var fromDate = new Date(from)
+        fromDate.setHours(0, 0, 0, 0)
+        var toDate = new Date(to)
+        toDate.setDate(toDate.getDate() + 1)
+        toDate.setHours(0, 0, 0, 0)
+
+        const items = await getStats(brand, fromDate, toDate)
+    
+        callback(null, {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify(items)
+        });
+    } catch(error) {
+        console.error('Query failed to delete. Error JSON: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 }

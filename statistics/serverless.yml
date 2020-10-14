@@ -6,7 +6,8 @@ custom:
     MESSAGE:
       prod: "This is production environment"
       dev: "This is development environment"
-  users-role: arn:aws:iam::338756162532:role/StatisticsUser
+  stats-role: arn:aws:iam::338756162532:role/StatisticsUser
+  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
   region: ${opt:region, self:provider.region}
 
 provider:
@@ -36,7 +37,7 @@ package:
 functions:
   daily-appData:
     handler: statistics.appData
-    role: ${self:custom.users-role}
+    role: ${self:custom.stats-role}
     memorySize: 128
     timeout: 300
     description: Queries the cloudfront logs for the appData
@@ -46,4 +47,27 @@ functions:
         - brand_settings.json
         - node_modules/**
 
+  get-appStatistics:
+    handler: statistics.get
+    role: ${self:custom.users-role}
+    memorySize: 256
+    timeout: 300
+    description: Gets a list of app statistics for a given date range
+    package:
+      include:
+        - statistics.js
+        - brand_settings.json
+        - node_modules/**
+    events:
+      - http:
+          path: /{brand}/
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
 
