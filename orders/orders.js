@@ -71,7 +71,7 @@ async function loadOrderFromDB(brand, orderSK) {
     return dynamoDb.query(params).promise()
 }
 
-async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, orderSK, customerId) {
+async function writeOrderToDB(brand, orderString, contactName, orderSK, customerId, isTesting) {
     const email = orderSK.split('#')[0]
     const timeString = orderSK.split('#')[1]
     const sanitize = (value) => ( value ? value : "n.A." ) 
@@ -89,13 +89,15 @@ async function writeOrderToDB(cognitoUserName, brand, orderString, contactName, 
         }
     };
 
+    if (isTesting) params.Item.isTesting = true
+
     return dynamoDb.put(params).promise();
 }
 
 async function getContactNameAndCustomerId(cognitoUserName, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "firstName, lastName, customerId, mailCC",
+        ProjectionExpression: "firstName, lastName, customerId, mailCC, accessLvl",
         KeyConditionExpression: "#id = :value and sk = :brand",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -117,7 +119,7 @@ async function getContactNameAndCustomerId(cognitoUserName, brand) {
             } else {
                 let item = data.Items[0]
                 let contactName = `${item.firstName ? item.firstName : "?"} ${item.lastName ? item.lastName : "?"}`
-                resolve({ contactName: contactName, customerId: item.customerId, mailCC: item.mailCC });
+                resolve({ contactName: contactName, customerId: item.customerId, mailCC: item.mailCC, role: item.accessLvl });
             }
         });
     });
@@ -449,11 +451,12 @@ exports.create = async (event, context, callback) => {
     
         const bodyString = JSON.stringify(body)
     
-        const {contactName, customerId, mailCC} = await getContactNameAndCustomerId(cognitoUserName, brand)
+        const {contactName, customerId, mailCC, role} = await getContactNameAndCustomerId(cognitoUserName, brand)
 
+        const isTesting = role === process.env.ACCESS_ADMIN || role == process.env.ACCESS_MANAGER;
         const now = new Date()
         const orderSK = `${cognitoUserName}#${now.toISOString()}`
-        const writeSuccessPromise = writeOrderToDB(cognitoUserName, brand, bodyString, contactName, orderSK, customerId)
+        const writeSuccessPromise = writeOrderToDB(brand, bodyString, contactName, orderSK, customerId, isTesting)
         const notifiyViaEmailPromise = postNewOrderNotification(bodyString, cognitoUserName, mailCC, brand, orderSK, contactName, customerId)
         if (brandSettings[brand].wantsDXFConversion) {
             // extract the unique frame combinations from the list and split conversion jobs into chunks of 10
