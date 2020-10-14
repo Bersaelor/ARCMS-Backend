@@ -21,37 +21,47 @@ const athenaExpressConfig = {
 const athenaExpress = new AthenaExpress(athenaExpressConfig);
 const dynamoDb = new aws.DynamoDB.DocumentClient();
 
-
 const RESULT_SIZE = 1000
 
-const getBrandAppDataHits = async (brand, appAgentName) => {
+const dateToSQL = (date) => {
+    return date.toISOString().split('T')[0]
+}
+
+const getBrandAppDataHits = async (brand, from, to, appAgentName) => {
     let query = {
-        sql: `
-        SELECT user_agent
-        FROM ${apic_log_table} 
-        WHERE 
-        (
-        "date" BETWEEN DATE '2020-10-12' AND DATE '2020-10-13' AND
-        "uri" LIKE '%${brand}/app-data%' AND
-        "user_agent" LIKE '${appAgentName}%' AND
-        "query_string" = '-'
-        )
-        LIMIT ${RESULT_SIZE};
-        `
+        sql: 
+`SELECT user_agent\
+FROM ${apic_log_table} \
+WHERE \
+(\
+"date" BETWEEN DATE '${dateToSQL(from)}' AND DATE '${dateToSQL(to)}' AND\
+"uri" LIKE '%${brand}/app-data%' AND\
+"user_agent" LIKE '${appAgentName}%' AND\
+"query_string" = '-'\
+)\
+LIMIT ${RESULT_SIZE};\
+`
     }
+    console.log("Query: ", query)
 
     return athenaExpress.query(query)
 }
 
 // Queries the cloudfront logs for the appData
 exports.appData = async (event, context, callback) => {
+    var day = new Date(event.time) 
+    day.setHours(1, 0, 0, 0)
+
+    var dayBefore = new Date(day.getTime())
+    dayBefore.setDate(day.getDate() - 1)
+
     try {
         const brands = Object.keys(brandSettings)
 
         let promises = brands
             .filter( brand => brandSettings[brand].AppAgentName !== undefined )
             .map( brand => {
-                return getBrandAppDataHits(brand, brandSettings[brand].AppAgentName)
+                return getBrandAppDataHits(brand, dayBefore, day, brandSettings[brand].AppAgentName)
             })
 
 		let results = await Promise.all(promises)
