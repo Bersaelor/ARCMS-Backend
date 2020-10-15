@@ -68,6 +68,26 @@ const getBrandAppDataHits = async (brand, from, to, appAgentName) => {
     return athenaExpress.query(query)
 }
 
+const getStoresOnMapHits = async (brand, from, to, appAgentName) => {
+    let query = {
+        sql: `\
+        SELECT COUNT(user_agent)\
+        FROM ${apic_log_table} \
+        WHERE \
+        (\
+        "date" BETWEEN DATE '${dateToSQL(from)}' AND DATE '${dateToSQL(to)}' AND\
+        "uri" LIKE '%stores/geo/${brand}%' AND\
+        "user_agent" LIKE '${appAgentName}%'\
+        )\
+        LIMIT ${RESULT_SIZE};\
+        `
+    }
+
+    return athenaExpress.query(query).then(data => {
+        return data.Items && data.Items.length > 0 && data.Items[0]._col0 || 0
+    })
+}
+
 async function loadAllOrdersFromDB(brand, from, to) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -94,7 +114,7 @@ async function loadAllOrdersFromDB(brand, from, to) {
 const getStats = async (brand, fromDate, toDate) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, appData, orderCount",
+        ProjectionExpression: "sk, appData, mapHits, orderCount",
         KeyConditionExpression: "#id = :value AND #sk BETWEEN :from AND :to",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -112,6 +132,7 @@ const getStats = async (brand, fromDate, toDate) => {
             return {
                 date: item.sk,
                 orderCount: item.orderCount || 0,
+                mapHits: item.mapHits || 0,
                 appData: item.appData && JSON.parse(item.appData) || {}
             }
         })
@@ -146,14 +167,15 @@ const analyzeAgentArray = (userAgents) => {
     }
 }
 
-const writeToDb = async (brand, day, appDataAnalysis, orderCount) => {
+const writeToDb = async (brand, day, appDataAnalysis, orderCount, mapHits) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
             "id": `${brand}#stats`,
             "sk": `${day.toISOString()}`,
             "appData": JSON.stringify(appDataAnalysis),
-            "orderCount": orderCount
+            "orderCount": orderCount,
+            "mapHits": mapHits
         }
     };
 
@@ -179,12 +201,13 @@ exports.appData = async (event, context, callback) => {
                         const userAgents = data.Items.map(item => item.user_agent)
                         return analyzeAgentArray(userAgents)
                     })
+                const mapRequestsPromise = getStoresOnMapHits(brand, dayBefore, day, brandSettings[brand].AppAgentName)
                 const orderCountPromise = loadAllOrdersFromDB(brand, dayBefore, day).then(data => {
                     return data.Items && data.Items.length || 0
                 })
-                return Promise.all([appDataPromise, orderCountPromise]).then( values => {
-                    const [appDataAnalysis, orderCount] = values
-                    return writeToDb(brand, dayBefore, appDataAnalysis, orderCount)
+                return Promise.all([appDataPromise, orderCountPromise, mapRequestsPromise]).then( values => {
+                    const [appDataAnalysis, orderCount, mapHits] = values
+                    return writeToDb(brand, dayBefore, appDataAnalysis, orderCount, mapHits)
                 })
             })
 
