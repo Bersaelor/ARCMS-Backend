@@ -182,7 +182,7 @@ functions:
         - node_modules/**
     events:
       - http:
-          path: /geo/{brand}/
+          path: /stores/geo/{brand}/
           private: true
           method: get
           cors: true
