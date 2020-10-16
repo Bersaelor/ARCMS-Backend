@@ -176,7 +176,7 @@ exports.populate = async (event, context, callback) => {
         const accessLvl = await getAccessLvl(cognitoUserName, brand)
 
         if (!accessLvlMayCreate(accessLvl)) {
-            const msg = `The ${cognitoUserName} isn't allowed to populate the geo locations`
+            const msg = `The ${cognitoUserName} isn't allowed to look at the statistics`
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('application/json' ),

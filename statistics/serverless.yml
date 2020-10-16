@@ -46,6 +46,7 @@ functions:
         - statistics.js
         - brand_settings.json
         - node_modules/**
+        - shared/**
 
   get-appStatistics:
     handler: statistics.get
@@ -58,6 +59,8 @@ functions:
         - statistics.js
         - brand_settings.json
         - node_modules/**
+        - shared/**
+
     events:
       - http:
           path: /{brand}/

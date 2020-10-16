@@ -6,6 +6,7 @@ const aws = require('aws-sdk');
 aws.config.update({region: process.env.AWS_REGION})
 const AthenaExpress = require("athena-express");
 const brandSettings = require('brand_settings.json')
+const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 
 const apic_log_table = 'apic_cloudfront_logs'
 const ATHENA_OUTPUT_LOCATION = 's3://looc-ar-api-statistics/query-results/'
@@ -224,6 +225,7 @@ exports.appData = async (event, context, callback) => {
 
 //  Gets a list of app statistics for a given date range
 exports.get = async (event, context, callback) => {
+    const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
 
     const from = event.queryStringParameters && event.queryStringParameters.from;
@@ -240,13 +242,29 @@ exports.get = async (event, context, callback) => {
 
     console.log("Checking for statistics for ", brand, ", from ", from, " to ", to)
     try {
+        const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
+
         var fromDate = new Date(from)
         fromDate.setHours(0, 0, 0, 0)
         var toDate = new Date(to)
         toDate.setDate(toDate.getDate() + 1)
         toDate.setHours(0, 0, 0, 0)
 
-        const items = await getStats(brand, fromDate, toDate)
+        const itemPromise = getStats(brand, fromDate, toDate)
+
+        const [items, accessLvl] = await Promise.all([itemPromise, accessLvlPromise])
+
+        console.log("accessLvl: ", accessLvl)
+
+        if (!accessLvlMayCreate(accessLvl)) {
+            const msg = `The ${cognitoUserName} isn't allowed to view the app statistics`
+            callback(null, {
+                statusCode: 403,
+                headers: makeHeader('application/json' ),
+                body: JSON.stringify({ "message": msg })
+            });
+            return;
+        }
     
         callback(null, {
             statusCode: 200,
