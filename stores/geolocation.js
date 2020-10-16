@@ -7,6 +7,7 @@ AWS.config.update({region: process.env.AWS_REGION})
 
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 
+const cloudfront = new AWS.CloudFront;
 const ddb = new AWS.DynamoDB() 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const ddbGeo = require('dynamodb-geo')
@@ -106,7 +107,6 @@ const writeEntryToTable = async (brand, store) => {
             },
         }
     }
-    console.dir(params, { depth: null });
     myGeoTableManager.putPoint(params).promise()
 }
 
@@ -145,6 +145,29 @@ const convertMapAttribute = (dbEntry) => {
     return store
 }
 
+async function invalidateStoreCache(brand) {
+    return new Promise((resolve, reject) => {
+        const now = new Date()
+        const params = { 
+            DistributionId: "E2B3LFAX7VM8JV",
+            InvalidationBatch: {
+                CallerReference: `${now.getTime()}`,
+                Paths: {
+                  Quantity: '2',
+                  Items: [
+                    `/${brand}/stores*`,
+                    `/stores/geo/${brand}*`
+                  ]
+                }
+            }
+        }
+        cloudfront.createInvalidation(params, (err, data) => {
+            if (err) reject(err)
+            else resolve(data)
+        })
+    });
+}
+
 exports.populate = async (event, context, callback) => {
     const cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
@@ -175,13 +198,14 @@ exports.populate = async (event, context, callback) => {
                 return {}
             }
         })
-        const puts = Promise.all(storePromises)
+        const puts = await Promise.all(storePromises)
+        const invalidation = await invalidateStoreCache(brand)
 
         callback(null, {
             statusCode: 200,
             headers: makeHeader('application/json' ),
             body: JSON.stringify({
-                "message": `Created ${puts.length} store entries`,
+                "message": `Created ${puts.length} store entries, invalidation: ${invalidation}`,
             })
         });
     } catch(error) {

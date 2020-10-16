@@ -92,7 +92,7 @@ async function loadAllOrdersFromDB(brand, from, to) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         IndexName: "id-sk2-index",
-        ProjectionExpression: "id, sk, sk2, isTesting",
+        ProjectionExpression: "id, sk, sk2, isTesting, orderJSON",
         KeyConditionExpression: "#id = :value AND sk2 BETWEEN :from AND :to",
         FilterExpression: "attribute_not_exists(#isTesting) or #isTesting = :null",
         ExpressionAttributeNames:{
@@ -108,7 +108,13 @@ async function loadAllOrdersFromDB(brand, from, to) {
         ScanIndexForward: false
     };
 
-    return dynamoDb.query(params).promise()
+    return dynamoDb.query(params).promise().then(data => {
+        if (!data.Items || data.Items.length < 1) return 0
+        return data.Items.reduce((acc, item) => {
+            let order = JSON.parse(item.orderJSON)
+            return acc + order.length
+        }, 0)
+    })
 }
 
 const getStats = async (brand, fromDate, toDate) => {
@@ -202,9 +208,7 @@ exports.appData = async (event, context, callback) => {
                         return analyzeAgentArray(userAgents)
                     })
                 const mapRequestsPromise = getStoresOnMapHits(brand, dayBefore, day, brandSettings[brand].AppAgentName)
-                const orderCountPromise = loadAllOrdersFromDB(brand, dayBefore, day).then(data => {
-                    return data.Items && data.Items.length || 0
-                })
+                const orderCountPromise = loadAllOrdersFromDB(brand, dayBefore, day)
                 return Promise.all([appDataPromise, orderCountPromise, mapRequestsPromise]).then( values => {
                     const [appDataAnalysis, orderCount, mapHits] = values
                     return writeToDb(brand, dayBefore, appDataAnalysis, orderCount, mapHits)
