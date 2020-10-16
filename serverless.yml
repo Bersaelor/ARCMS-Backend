@@ -456,6 +456,7 @@ functions:
   users-by-brand:
     handler: brand/users.all
     role: ${self:custom.users-role}
+    timeout: 30
     memorySize: 512
     description: Get all users for a given brand
     package:

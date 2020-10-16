@@ -180,13 +180,14 @@ const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, 
     return dynamoDb.put(params).promise();
 }
 
-const saveReceiptInDB = async (brand, category, id, timeStamp, user, duration, cost, parameters) => {
+const saveRenderReceiptInDB = async (brand, category, id, timeStamp, user, duration, cost, parameters) => {
     const timeString = (new Date()).toISOString()
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
             "id": `receipt#${brand}`,
             "sk": timeString,
+            "sk2": `${rendering}#${timeString}`,
             "category": category,
             "model": id,
             "timeStamp": timeStamp,
@@ -834,7 +835,7 @@ exports.finished = async (event, context, callback) => {
             const cost = Math.ceil(100 * renderingTimeInS / 3600 * costPerHour) / 100
 
             console.log("Saving receipt for rendering: ", rendering)
-            const receiptPromise = saveReceiptInDB(brand, category, modelId, timeStamp, rendering.user, renderingTimeInS, cost, rendering.parameters)
+            const receiptPromise = saveRenderReceiptInDB(brand, category, modelId, timeStamp, rendering.user, renderingTimeInS, cost, rendering.parameters)
             const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, cost)
             const receiptWriteSuccess = await receiptPromise
             console.log("Updating model with finished ", key, " in db success: ", updateSuccess, receiptWriteSuccess)    

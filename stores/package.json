@@ -1,0 +1,15 @@
+{
+  "name": "geoapi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "MIT-0",
+  "dependencies": {
+    "node-fetch": "^2.6.1",
+    "aws-sdk": "^2.539.0",
+    "dynamodb-geo": "^0.4.0"
+  }
+}

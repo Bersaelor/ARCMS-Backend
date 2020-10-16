@@ -143,7 +143,7 @@ exports.appData = async (event, context, callback) => {
     const showTestingContent = testing && testing === "true"
 
     const catPromise = getCategorys(brand)
-    const modelPromise = getAllModels(brand)
+    const modelPromise = brand && getAllModels(brand)
 
     const catData = await catPromise
     const categories = catData.Items.filter(cat => {

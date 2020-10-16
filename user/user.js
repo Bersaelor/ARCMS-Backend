@@ -91,6 +91,46 @@ async function getBrands(cognitoName) {
     return dynamoDb.query(params).promise()
 }
 
+const getStores = async (brand, user) => {
+    const params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "id, sk",
+        KeyConditionExpression: "#id = :value and begins_with(sk, :user)",
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#store`,
+            ":user": `${user}#`
+        },
+    }; 
+    return dynamoDb.query(params).promise().then(data => {
+        return data.Items
+    })
+}
+
+const deleteStores = async (stores) => {
+    const deletes = stores.map((store) => {
+        return {
+            DeleteRequest: {
+                Key: {
+                    "id": store.id,
+                    "sk": store.sk    
+                }
+            }
+        }
+    })
+
+    const params = {
+        RequestItems: {
+            [process.env.CANDIDATE_TABLE]: deletes
+        }
+    }
+
+    return dynamoDb.batchWrite(params).promise()
+}
+
+
 async function deleteUserFromDB(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -392,11 +432,16 @@ exports.delete = async (event, context, callback) => {
             });
             return;
         }
+
+        const storeDeletePromise = getStores(brand, id).then(stores => {
+            return deleteStores(stores)
+        })
         
         const data = await brandsOfIdPromise
         let brands = data.Items.map((v) => v.sk.slice(0, -5))
         console.log(id, " is member of ", brands, " brands.")
-        let deletableUserAccessLvl = data.Items.find(value => value.sk.slice(0, -5) === brand).accessLvl
+        let brandUser = data.Items.find(value => value.sk.slice(0, -5) === brand)
+        let deletableUserAccessLvl = brandUser && brandUser.accessLvl
         console.log(`In brand "${brand}" this user is a ${deletableUserAccessLvl}.`)
    
         if (deletableUserAccessLvl === process.env.ACCESS_ADMIN) {
@@ -420,10 +465,12 @@ exports.delete = async (event, context, callback) => {
         let devices = await getDevices(id, brand)
         console.log("devices: ", devices)
 
-        const userDeletionResponse = await dbDeletionPromise
-        console.log("userDeletionResponse: ", userDeletionResponse)
-        const deviceDeletionResponse = await deviceDeletionPromise
-        console.log("deviceDeletionResponse: ", deviceDeletionResponse)
+        const deleteResponse = await Promise.all([
+            storeDeletePromise,
+            dbDeletionPromise,
+            deviceDeletionPromise
+        ])
+        console.log("deletion response: ", deleteResponse)
 
         if (cognitoDeletionPromise) {
             const cognitoDeletionResponse = await cognitoDeletionPromise
@@ -438,7 +485,7 @@ exports.delete = async (event, context, callback) => {
 
         callback(null, response);
     } catch (error) {
-        console.error('Query failed to load data. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error('Delete failed Error JSON: ', error);
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
