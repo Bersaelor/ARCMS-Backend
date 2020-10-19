@@ -130,7 +130,9 @@ exports.newRequest = async (event, context, callback) => {
         const modelParts = await makeModelParts(part2ColorMap, svgString)
         const { model } = combineModel(
             modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, 
-            { bridgeSize: props.defaultBridgeSize, glasWidth: props.defaultGlasWidth, glasHeight: props.defaultGlasHeight }
+            { bridgeSize: props.defaultBridgeSize, glasWidth: props.defaultGlasWidth, glasHeight: props.defaultGlasHeight },
+            false,
+            undefined
         )
         const renderOptions = { usePOLYLINE: true }
         const dxf = makerjs.exporter.toDXF(model, renderOptions)

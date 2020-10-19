@@ -187,7 +187,7 @@ const saveRenderReceiptInDB = async (brand, category, id, timeStamp, user, durat
         Item: {
             "id": `receipt#${brand}`,
             "sk": timeString,
-            "sk2": `${rendering}#${timeString}`,
+            "sk2": `rendering#${timeString}`,
             "category": category,
             "model": id,
             "timeStamp": timeStamp,
