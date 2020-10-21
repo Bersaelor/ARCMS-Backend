@@ -41,7 +41,7 @@ async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
     const localizedOrder = localizeOrder(order, locale)
     const brandName = brandSettings[brand].name
     const subject = Mustache.render(strings[locale].subject_store, { BRAND_NAME: brandName })
-    const htmlTemplate = fs.readFileSync(`./email-notifications/store_${locale}.html`, "utf8")
+    const htmlTemplate = fs.readFileSync(`./templates/store_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
     const downloadLink = brandSettings[brand].appDownloadLink
 
@@ -69,7 +69,7 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK, customerCon
     const locale = brandSettings[brand].preferredLanguage
     const localizedOrder = localizeOrder(order, locale)
     const subject = Mustache.render(strings[locale].subject_manu, {STORE: storeEmail, FRAME_COUNT: order.length})
-    const htmlTemplate = fs.readFileSync(`./email-notifications/manufacturer_${locale}.html`, "utf8")
+    const htmlTemplate = fs.readFileSync(`./templates/manufacturer_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
     const downloadLink = brandSettings[brand].appDownloadLink
     const htmlBody = Mustache.render(htmlTemplate, {
