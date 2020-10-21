@@ -60,7 +60,6 @@ functions:
         - brand_settings.json
         - node_modules/**
         - shared/**
-
     events:
       - http:
           path: /{brand}/
@@ -73,4 +72,14 @@ functions:
           authorizer:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  sum_up_monthly_usage:
+    handler: accounting/accounting.monthlyStores
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Count all brands stores used this month and create a receipt for the used stors
+    package:
+      include:
+        - accounting/accounting.js
+        - brand_settings.json
 

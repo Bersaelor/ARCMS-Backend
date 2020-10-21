@@ -179,7 +179,6 @@ functions:
         - shared/**
         - brand_settings.json
 
-
   update-rendering-status:
     handler: renderings.updateStatus
     role: ${self:custom.users-role}

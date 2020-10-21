@@ -208,7 +208,7 @@ const getReceipts = async (brand, year, month, LastEvaluatedKey) => {
 
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, category, model, #t, #u, #d, cost, #p",
+        ProjectionExpression: "sk, sk2, category, model, #t, #u, #d, cost, #p",
         KeyConditionExpression: "#id = :value and begins_with(#sk, :sk)",
         ExpressionAttributeNames: {
             "#id": "id",
@@ -232,7 +232,9 @@ const getReceipts = async (brand, year, month, LastEvaluatedKey) => {
 const convertStoredReceipt = (stored) => {
     var converted = stored
     converted.date = converted.sk
+    converted.type = converted.sk2 && converted.sk2.split("#")[0]
     delete converted.sk
+    delete converted.sk2
     try {
         converted.parameters = stored.parameters ? JSON.parse(stored.parameters) : {}
     } catch (error) {
