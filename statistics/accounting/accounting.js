@@ -20,6 +20,7 @@ async function loadStoreCountFromDB(brand) {
         if (!data.Items || data.Items.length < 1) return 0
         return data.Items.reduce((acc, item) => {
             if (!item.country) return acc
+            if (item.sk && item.sk.startsWith(brand)) return acc
             const oldCount = acc[item.country]
             acc[item.country] = oldCount !== undefined ? oldCount + 1 : 1
             return acc
