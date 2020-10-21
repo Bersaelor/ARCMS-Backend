@@ -29,13 +29,14 @@ async function loadStoreCountFromDB(brand) {
 }
 
 const saveMonthlyReceiptInDB = async (brand, cost, parameters) => {
-    const timeString = (new Date()).toISOString().substring(0, 7);
+    const fullTimeString = (new Date()).toISOString()
+    const timeString = fullTimeString.substring(0, 7);
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Item: {
             "id": `receipt#${brand}`,
             "sk": timeString,
-            "sk2": `monthlyCost#${timeString}`,
+            "sk2": `monthlyCost#${fullTimeString}`,
             "cost": cost,
             "parameters": parameters ? JSON.stringify(parameters) : "{}"
         }
