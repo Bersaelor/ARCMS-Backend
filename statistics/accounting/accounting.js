@@ -20,11 +20,15 @@ async function loadStoreCountFromDB(brand) {
         if (!data.Items || data.Items.length < 1) return 0
         return data.Items.reduce((acc, item) => {
             if (!item.country) return acc
-            if (item.sk && item.sk.startsWith(brand)) return acc
-            const oldCount = acc[item.country]
-            acc[item.country] = oldCount !== undefined ? oldCount + 1 : 1
+            if (item.sk && item.sk.startsWith(brand)) {
+                const oldCount = acc.nonVTO[item.country]
+                acc.nonVTO[item.country] = oldCount !== undefined ? oldCount + 1 : 1    
+            } else {
+                const oldCount = acc.vto[item.country]
+                acc.vto[item.country] = oldCount !== undefined ? oldCount + 1 : 1    
+            }
             return acc
-        }, {})
+        }, { vto: {}, nonVTO: {}})
     })
 }
 
@@ -58,16 +62,25 @@ exports.monthlyStores = async (event, context, callback) => {
                 const storeCountPromise = loadStoreCountFromDB(brand)
                 return storeCountPromise.then( storeCounts => {
                     console.log(`freeCountries: `, settings.freeCountries)
-                    const totalNonFreeCountryStores = Object.keys(storeCounts).reduce((acc, countryCode) => {
-                        if (settings.freeCountries.includes(countryCode)) return acc
-                        console.log(`Adding costs for ${storeCounts[countryCode]} stores from ${countryCode}`)
-                        const count = storeCounts[countryCode]
-                        return acc + count
-                    }, 0)
+                    const nonVTO = storeCounts.nonVTO
+                    var vtoFree = {}
+                    var vtoPaying = {}
+                    Object.keys(storeCounts.vto).forEach((countryCode) => {
+                        if (settings.freeCountries.includes(countryCode)) {
+                            vtoFree[countryCode] = storeCounts.vto[countryCode]
+                        } else {
+                            vtoPaying[countryCode] = storeCounts.vto[countryCode]
+                        }
+                    })
+                    const totalNonFreeCountryStores = Object.values(vtoPaying).reduce((acc, item) => acc + item, 0)
                     const cost = settings.costPerStore * totalNonFreeCountryStores
                     console.log(`Brand '${brand}', cost: ${cost}, stores: `, storeCounts)
-
-                    return saveMonthlyReceiptInDB(brand, cost, storeCounts)    
+                    const parameters = {
+                        nonVTO: nonVTO,
+                        vtoFree: vtoFree,
+                        vtoPaying: vtoPaying
+                    }
+                    return saveMonthlyReceiptInDB(brand, cost, parameters)    
                 })
             })
 
