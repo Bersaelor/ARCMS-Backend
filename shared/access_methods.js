@@ -45,7 +45,7 @@ exports.accessLvlMayCreate = (accessLvl) => {
 exports.accessLvlMayRender = (accessLvl, brandSettings) => {
     if (!accessLvl) return false
     // all admins may render
-    if (accessLvl == process.env.ACCESS_ADMIN) return true
+    if (accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER) return true
 
     if (!brandSettings) return false
     
