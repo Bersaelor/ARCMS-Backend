@@ -16,7 +16,7 @@ const pricing = new AWS.Pricing({
 const { getAccessLvl, accessLvlMayRender } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
 const brandSettings = require('brand_settings.json')
-const costCalculation = require('CostCalculation.js')
+const { costCalculation } = require('CostCalculation.js')
 const instanceType = "g4dn.xlarge"
 const defaultPerPage = 20;
 
