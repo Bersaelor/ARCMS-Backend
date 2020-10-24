@@ -16,8 +16,19 @@ const pricing = new AWS.Pricing({
 const { getAccessLvl, accessLvlMayRender } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
 const brandSettings = require('brand_settings.json')
+const costCalculation = require('CostCalculation.js')
 const instanceType = "g4dn.xlarge"
 const defaultPerPage = 20;
+
+const scenes = {
+    "empty_white.blend": {
+        title: 'Empty with shadows', 
+        fileName: 'empty_white.blend',
+        frames: 120,
+        minAngle: -66,
+        maxAngle: 66
+    }
+}
 
 const first = obj => obj[Object.keys(obj)[0]];
 
@@ -839,14 +850,17 @@ exports.finished = async (event, context, callback) => {
             console.log("ec2Price: ", ec2Price)
 
             const costPerHour = ec2Price || 1.0
-            const cost = Math.ceil(100 * renderingTimeInS / 3600 * costPerHour) / 100
+            const realCost = Math.ceil(100 * renderingTimeInS / 3600 * costPerHour) / 100
+            const sceneName = rendering.parameters.scene
+            const scene = scenes[sceneName]
+            const cost = costCalculation(scene, rendering.parameters.type, rendering.parameters.resolution, rendering.parameters.samples)
 
             console.log("Saving receipt for rendering: ", rendering)
             var receiptPromise = undefined
             if (rendering.forceFree === undefined || rendering.forceFree === false) {
                 receiptPromise = saveRenderReceiptInDB(brand, category, modelId, timeStamp, rendering.user, renderingTimeInS, cost, rendering.parameters)
             }
-            const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, rendering.forceFree ? 0 : cost, cost)
+            const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, rendering.forceFree ? 0 : cost, realCost)
             const receiptWriteSuccess = receiptPromise ? await receiptPromise : undefined
             console.log("Updating model with finished ", key, " in db success: ", updateSuccess, receiptWriteSuccess)    
 
