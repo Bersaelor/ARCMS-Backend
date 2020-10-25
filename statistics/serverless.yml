@@ -1,0 +1,85 @@
+service: STATISTICS # NOTE: update this with your service name
+
+custom:
+  myStage: ${opt:stage, self:provider.stage}
+  myEnvironment:
+    MESSAGE:
+      prod: "This is production environment"
+      dev: "This is development environment"
+  stats-role: arn:aws:iam::338756162532:role/StatisticsUser
+  users-role: arn:aws:iam::338756162532:role/ARCMSLambda
+  region: ${opt:region, self:provider.region}
+
+provider:
+  name: aws
+  stage: dev
+  runtime: nodejs10.x
+  region: eu-central-1
+  environment:
+    NEWORDERTOPIC: new-glasses-order-${self:custom.myStage}
+    REQUESTDXFTOPIC: create-dxf-for-order-${self:custom.myStage}
+    MESSAGE: ${self:custom.myEnvironment.MESSAGE.${self:custom.myStage}}
+    CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    IMAGE_BUCKET: looc-cloud-images
+    MODEL_BUCKET: ar-glasses-models
+    STAGE: ${self:custom.myStage}
+    ACCESS_STORE: store
+    ACCESS_MANAGER: manager
+    ACCESS_ADMIN: admin
+
+package:
+  individually: true
+  exclude:
+    - "**/*"
+    - node_modules/**
+
+
+functions:
+  daily-appData:
+    handler: statistics.appData
+    role: ${self:custom.stats-role}
+    memorySize: 128
+    timeout: 300
+    description: Queries the cloudfront logs for the appData
+    package:
+      include:
+        - statistics.js
+        - brand_settings.json
+        - node_modules/**
+        - shared/**
+
+  get-appStatistics:
+    handler: statistics.get
+    role: ${self:custom.users-role}
+    memorySize: 256
+    timeout: 300
+    description: Gets a list of app statistics for a given date range
+    package:
+      include:
+        - statistics.js
+        - brand_settings.json
+        - node_modules/**
+        - shared/**
+    events:
+      - http:
+          path: /{brand}/
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                brand: true
+          authorizer:
+            name: authorizer
+            arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
+
+  sum_up_monthly_usage:
+    handler: accounting/accounting.monthlyStores
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Count all brands stores used this month and create a receipt for the used stors
+    package:
+      include:
+        - accounting/accounting.js
+        - brand_settings.json
+

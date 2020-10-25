@@ -7,6 +7,7 @@ AWS.config.update({region: process.env.AWS_REGION})
 
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 
+const cloudfront = new AWS.CloudFront;
 const ddb = new AWS.DynamoDB() 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const ddbGeo = require('dynamodb-geo')
@@ -54,7 +55,7 @@ const createTable = async (brand) => {
 const fetchStoresForBrand = async (brand, perPage, PreviousLastEvaluatedKey) => {
     const params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, sk, address, company, zipCode, city, country, web, telNr, email, lat, lng",
+        ProjectionExpression: "id, sk, address, company, zipCode, city, country, web, telNr, email, lat, lng, isFlagship",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id"
@@ -102,11 +103,11 @@ const writeEntryToTable = async (brand, store) => {
                 web: { S: store.web || "" },
                 telNr: { S: store.telNr || "" },
                 email: { S: store.email || "" },
-                isVTO: { BOOL: store.sk && !store.sk.startsWith(brand)  }
+                isVTO: { BOOL: store.sk && !store.sk.startsWith(brand)  },
+                isFlagship: { BOOL: store.isFlagship === true }
             },
         }
     }
-    console.dir(params, { depth: null });
     myGeoTableManager.putPoint(params).promise()
 }
 
@@ -142,7 +143,31 @@ const convertMapAttribute = (dbEntry) => {
     store.email = dbEntry.email && dbEntry.email.S
     store.coordinates = JSON.parse(dbEntry.geoJson.S).coordinates
     store.isVTO = dbEntry.isVTO.BOOL
+    store.isFlagship = dbEntry.isFlagship && dbEntry.isFlagship.BOOL
     return store
+}
+
+async function invalidateStoreCache(brand) {
+    return new Promise((resolve, reject) => {
+        const now = new Date()
+        const params = { 
+            DistributionId: "E2B3LFAX7VM8JV",
+            InvalidationBatch: {
+                CallerReference: `${now.getTime()}`,
+                Paths: {
+                  Quantity: '2',
+                  Items: [
+                    `/${brand}/stores*`,
+                    `/stores/geo/${brand}*`
+                  ]
+                }
+            }
+        }
+        cloudfront.createInvalidation(params, (err, data) => {
+            if (err) reject(err)
+            else resolve(data)
+        })
+    });
 }
 
 exports.populate = async (event, context, callback) => {
@@ -153,7 +178,7 @@ exports.populate = async (event, context, callback) => {
         const accessLvl = await getAccessLvl(cognitoUserName, brand)
 
         if (!accessLvlMayCreate(accessLvl)) {
-            const msg = `The ${cognitoUserName} isn't allowed to populate the geo locations`
+            const msg = `The ${cognitoUserName} isn't allowed to look at the statistics`
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('application/json' ),
@@ -175,13 +200,14 @@ exports.populate = async (event, context, callback) => {
                 return {}
             }
         })
-        const puts = Promise.all(storePromises)
+        const puts = await Promise.all(storePromises)
+        const invalidation = await invalidateStoreCache(brand)
 
         callback(null, {
             statusCode: 200,
             headers: makeHeader('application/json' ),
             body: JSON.stringify({
-                "message": `Created ${puts.length} store entries`,
+                "message": `Created ${puts.length} store entries, invalidation: ${invalidation}`,
             })
         });
     } catch(error) {

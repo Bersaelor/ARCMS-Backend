@@ -443,7 +443,7 @@ function setConnectingLinesToGoal(connectingPaths, modifiedShape, goalPoint) {
  * @param defaultSizes the default size parameters
  * @param partial the partial step for debugging purposes
  */
-function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, step) {
+function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, mergeHinge, step) {
     var warnings = [];
     if (!parts.shape || !parts.pad || !parts.bridge) {
         console.error("ERROR: So far only glasses that have a shape, bridge and pad can be combined!");
@@ -455,7 +455,9 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
     let pad = clone(parts.pad);
     let hinge = parts.hinge && clone(parts.hinge);
     let originalHingeMeas = hinge && makerjs_1.default.measure.modelExtents(hinge);
+    let lens = parts.lens && clone(parts.lens);
     var bridge = clone(parts.bridge);
+
     // check connections and post warnings
     let shapePadConnections = findConnections(shape, pad);
     if (shapePadConnections.length < 1) {
@@ -475,6 +477,7 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
     let shapeMeas = makerjs_1.default.measure.modelExtents(shape);
     let padMeas = makerjs_1.default.measure.modelExtents(pad);
     let padMin = padMeas.low[0];
+
     let bridgeFactor = 1 - (defaultSizes.bridgeSize - bridgeSize) / (2 * bridgeMeas.width);
     let bridgeXTranslation = (bridgeSize - defaultSizes.bridgeSize) / 2;
     let verticalFactor = glasHeight / defaultSizes.glasHeight;
@@ -483,6 +486,7 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
     let floatingPointIncreaser = 1.00001;
     // scale bridge around center
     bridge = m.distort(bridge, bridgeFactor * floatingPointIncreaser, verticalFactor * floatingPointIncreaser);
+
     // scale shape
     m.moveRelative(shape, [-shapeMeas.low[0], 0]);
     m.originate(shape);
@@ -490,17 +494,34 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
     m.moveRelative(shape, [shapeMeas.low[0], 0]);
     // translate shape because bridge moved it's left start
     m.moveRelative(shape, [bridgeXTranslation, 0]);
+
+    if (lens) {
+        m.moveRelative(lens, [-shapeMeas.low[0], 0])
+        m.originate(lens)
+        lens = m.distort(lens, horizontalFactor, verticalFactor, false, 0.5)
+        m.moveRelative(lens, [shapeMeas.low[0], 0])
+        m.moveRelative(lens, [bridgeXTranslation, 0])    
+    }
+
     if (bridgeShapeConnections.length > 0) {
         reconnectShapes([bridge, shape], bridgeShapeConnections, 1, 0);
     }
+
     if (step === 'scaled_parts')
         return { model: { models: { bridge: bridge, shape: shape, pad: pad, hinge: hinge } }, warnings: warnings };
+
     // move the hinge so it connects properly to the shape
-    if (hinge && shapeHingeConnections.length > 0) {
+    if (hinge && shapeHingeConnections.length > 0 && mergeHinge) {
         // Seems pointless, but the next line is so far needed otherwise atlas at 60-18-37 doesn't work
         hinge = m.distort(hinge, 1, 1);
         reconnectShapes([shape, hinge], shapeHingeConnections, 1, 0);
+    } else if (hinge && !mergeHinge) {
+        // move the hinge out a little, so it's not over the shape
+        let shapeMax = makerjs_1.default.measure.modelExtents(shape).high[0];
+        let hingeMin = originalHingeMeas.low[0];
+        m.moveRelative(hinge, [(shapeMax - hingeMin) + 2, 0]);
     }
+
     // move the pad
     let lineInShape = shapePadConnections.length > 0 && shapePadConnections[0][0];
     let lineInPad = shapePadConnections.length > 0 && shapePadConnections[0][1];
@@ -517,38 +538,42 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
         totalPadTranslation[0] = minPadX - padMin;
     }
     m.moveRelative(pad, totalPadTranslation);
+
     // connect the pads to the shape on the connecting line
     m.originate({ models: { shape: shape, pad: pad } });
     if (lineInShape && lineInPad) {
         pad = m.distort(pad, 1, 1);
         // connecting the pad to the shape is special as we're trying to keep the angle of attack of the arm the same
         let shapeLine = lineInModel(shape, lineInShape);
-        let { pathsToTop, pathsToBottom } = findPreviousAndNextLine(pad, lineInPad.line);
-        let linesToTop = justLines(pathsToTop);
-        let linesToBottom = justLines(pathsToBottom);
-        if (shapeLine) {
-            let topPoint = top(shapeLine);
-            let bottomPoint = bottom(shapeLine);
-            let padLineToTop = findLineNotequal(linesToTop, lineInPad.line);
-            if (padLineToTop) {
-                let topHorizontalChange = p.subtract(topPoint, origin(padLineToTop))[0];
-                if (Math.abs(topHorizontalChange) > tol) {
-                    // move the pad up/down so that the angle of the line stays the same
-                    let slopeVec = p.subtract(end(padLineToTop), origin(padLineToTop));
-                    if (Math.abs(slopeVec[0]) > tol) {
-                        let slope = slopeVec[1] / slopeVec[0];
-                        let verticalChange = -slope * topHorizontalChange;
-                        m.moveRelative(pad, [0, verticalChange]);
-                        m.originate({ models: { shape: shape, pad: pad } });
+        let connectingLines = findPreviousAndNextLine(pad, lineInPad.line);
+        if (connectingLines) {
+            let { pathsToTop, pathsToBottom } = connectingLines;
+            let linesToTop = justLines(pathsToTop);
+            let linesToBottom = justLines(pathsToBottom);
+            if (shapeLine) {
+                let topPoint = top(shapeLine);
+                let bottomPoint = bottom(shapeLine);
+                let padLineToTop = findLineNotequal(linesToTop, lineInPad.line);
+                if (padLineToTop) {
+                    let topHorizontalChange = p.subtract(topPoint, origin(padLineToTop))[0];
+                    if (Math.abs(topHorizontalChange) > tol) {
+                        // move the pad up/down so that the angle of the line stays the same
+                        let slopeVec = p.subtract(end(padLineToTop), origin(padLineToTop));
+                        if (Math.abs(slopeVec[0]) > tol) {
+                            let slope = slopeVec[1] / slopeVec[0];
+                            let verticalChange = -slope * topHorizontalChange;
+                            m.moveRelative(pad, [0, verticalChange]);
+                            m.originate({ models: { shape: shape, pad: pad } });
+                        }
                     }
                 }
+                linesToTop.forEach(lineInfo => setPointEqual(lineInfo, pad, topPoint));
+                linesToBottom.forEach(lineInfo => setPointEqual(lineInfo, pad, bottomPoint));
             }
-            linesToTop.forEach(lineInfo => setPointEqual(lineInfo, pad, topPoint));
-            linesToBottom.forEach(lineInfo => setPointEqual(lineInfo, pad, bottomPoint));
-        }
-        else {
-            warnings.push({ term: "frameupload.dxfwarning.noLineConnects1And2", data: { PART1: "pad", PART2: "shape" }, severity: "error" });
-            console.log("ERROR: Found connecting lines in the original, but couldn't find them during the algorithm!");
+            else {
+                warnings.push({ term: "frameupload.dxfwarning.noLineConnects1And2", data: { PART1: "pad", PART2: "shape" }, severity: "error" });
+                console.log("ERROR: Found connecting lines in the original, but couldn't find them during the algorithm!");
+            }
         }
     }
     else {
@@ -572,6 +597,7 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
         m.moveRelative(holes, [bridgeXTranslation, 0]);
         shape = m.combineSubtraction(shape, holes);
     }
+
     // holes in the hinge
     if (originalHingeMeas && parts.hinge_holes) {
         let holes = clone(parts.hinge_holes);
@@ -585,18 +611,22 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
         });
         hinge = m.combineSubtraction(hinge, holes);
     }
+
     if (shapePadConnections.length < 1) {
         console.log("No commonLines found, not even trying to combine");
         warnings.push({ term: "frameupload.dxfwarning.missingConnection", data: {}, severity: "error" });
         let fullFrame = { models: parts };
         return { model: fullFrame, warnings: warnings };
     }
+
     // convert the shapes into chains, to filter out artefacts
     pad = cleanupViaChains(pad);
     bridge = cleanupViaChains(bridge);
     shape = cleanupViaChains(shape);
+
     if (step === 'chained_parts')
         return { model: { models: { bridge: bridge, shape: shape, pad: pad, hinge: hinge } }, warnings: warnings };
+    
     // combine the shapes into glasses
     // let options = {pointMatchingDistance: 0.005}
     let bridgeAndShape = m.combine(bridge, shape, false, true, false, true);
@@ -606,17 +636,31 @@ function combineModel(parts, bridgeSize, glasWidth, glasHeight, defaultSizes, st
     if (step === 'bridge&Shape&Hinge')
         return { model: { models: { bridgeShapeAndHinge: bridgeShapeAndHinge, pad: pad } }, warnings: warnings };
     var fullSide = m.combine(bridgeShapeAndHinge, pad, false, true, false, true);
+
     // mirror the fullside and combine it together into a fullframe
     fullSide = cleanupViaChains(fullSide);
     if (step === 'fullside')
         return { model: fullSide, warnings: warnings };
+    
     let mirroredSide = m.mirror(fullSide, true, false);
     let mirrorConnections = findConnections(fullSide, mirroredSide);
     if (mirrorConnections.length > 0)
         reconnectShapes([fullSide, mirroredSide], mirrorConnections, 0, 1);
     mirroredSide = cleanupViaChains(mirroredSide);
     m.moveRelative(mirroredSide, [0.0001, 0]);
+    
     let fullFrame = m.combine(fullSide, mirroredSide, false, true, false, true, { trimDeadEnds: false });
+ 
+    if (!mergeHinge && hinge) {
+        let leftHinge = m.mirror(hinge, true, false);
+        fullFrame = { models: { fullFrame: fullFrame, hinge: hinge, leftHinge: leftHinge } };
+    }
+
+    if (lens) {
+        let leftLens = m.mirror(lens, true, false);
+        fullFrame = { models: { fullFrame: fullFrame, lens: lens, leftLens: leftLens } };
+    }
+
     return { model: fullFrame, warnings: warnings };
 }
 exports.combineModel = combineModel;

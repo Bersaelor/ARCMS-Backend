@@ -16,8 +16,19 @@ const pricing = new AWS.Pricing({
 const { getAccessLvl, accessLvlMayRender } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
 const brandSettings = require('brand_settings.json')
+const { costCalculation } = require('CostCalculation.js')
 const instanceType = "g4dn.xlarge"
 const defaultPerPage = 20;
+
+const scenes = {
+    "empty_white.blend": {
+        title: 'Empty with shadows', 
+        fileName: 'empty_white.blend',
+        frames: 120,
+        minAngle: -66,
+        maxAngle: 66
+    }
+}
 
 const first = obj => obj[Object.keys(obj)[0]];
 
@@ -142,7 +153,7 @@ const getWaitingRenderings = async (brand) => {
 const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     let params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, #p, renderStarted, #s, #u, modelS3Key",
+        ProjectionExpression: "sk, #p, renderStarted, #s, #u, modelS3Key, forceFree",
         KeyConditionExpression: "#id = :value and #sk = :sk",
         ExpressionAttributeNames:{
             "#id": "id",
@@ -160,7 +171,7 @@ const getRenderingFromDB = async (brand, category, model, timeStamp) => {
     return dynamoDb.query(params).promise()
 }
 
-const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, user, waitingForFreeInstance, renderStarted) => {
+const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, timeStamp, user, waitingForFreeInstance, renderStarted, forceFree) => {
     const timeString = (new Date(timeStamp)).toISOString()
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
@@ -174,7 +185,7 @@ const createRenderingInDB = async (brand, category, id, parameters, modelS3Key, 
             "status": waitingForFreeInstance ? statusStrings.waitingForResource : statusStrings.requested
         }
     };
-
+    if (forceFree) params.Item.forceFree = forceFree
     if (renderStarted) params.Item.renderStarted = renderStarted
 
     return dynamoDb.put(params).promise();
@@ -187,7 +198,7 @@ const saveRenderReceiptInDB = async (brand, category, id, timeStamp, user, durat
         Item: {
             "id": `receipt#${brand}`,
             "sk": timeString,
-            "sk2": `${rendering}#${timeString}`,
+            "sk2": `rendering#${timeString}`,
             "category": category,
             "model": id,
             "timeStamp": timeStamp,
@@ -208,7 +219,7 @@ const getReceipts = async (brand, year, month, LastEvaluatedKey) => {
 
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, category, model, #t, #u, #d, cost, #p",
+        ProjectionExpression: "sk, sk2, category, model, #t, #u, #d, cost, #p",
         KeyConditionExpression: "#id = :value and begins_with(#sk, :sk)",
         ExpressionAttributeNames: {
             "#id": "id",
@@ -232,7 +243,9 @@ const getReceipts = async (brand, year, month, LastEvaluatedKey) => {
 const convertStoredReceipt = (stored) => {
     var converted = stored
     converted.date = converted.sk
+    converted.type = converted.sk2 && converted.sk2.split("#")[0]
     delete converted.sk
+    delete converted.sk2
     try {
         converted.parameters = stored.parameters ? JSON.parse(stored.parameters) : {}
     } catch (error) {
@@ -298,11 +311,11 @@ const getEC2Pricing = async () => {
     })
 }
 
-async function updateModel(s3key, brand, category, modelId, timeStamp, finishedTimeStamp, cost) {
+async function updateModel(s3key, brand, category, modelId, timeStamp, finishedTimeStamp, cost, realcost) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         Key: {id: `rendering#${brand}`, sk: `${category}#${modelId}#${timeStamp}` },
-        UpdateExpression: `set finished = :f, #s = :status, s3key = :s3key, cost = :cost`,
+        UpdateExpression: `set finished = :f, #s = :status, s3key = :s3key, cost = :cost, realcost = :realcost`,
         ExpressionAttributeNames:{
             "#s": "status",
         },
@@ -310,7 +323,8 @@ async function updateModel(s3key, brand, category, modelId, timeStamp, finishedT
             ":f": finishedTimeStamp,
             ":status" : statusStrings.finished,
             ":s3key": s3key,
-            ":cost": cost
+            ":cost": cost,
+            ":realcost": realcost
         },
     };
 
@@ -719,6 +733,7 @@ exports.new = async (event, context, callback) => {
     const category = body.category
     const modelId = body.model
     const parameters = body.parameters
+    const askForFreeRendering = body.forceFree
 
     if (!brand || !category || !modelId) {
         callback(null, {
@@ -745,6 +760,8 @@ exports.new = async (event, context, callback) => {
             return;
         }
 
+        const forceFree = accessLvl == process.env.ACCESS_ADMIN && askForFreeRendering
+
         const modelData = await modelPromise
         if (!modelData || !modelData.Items || modelData.Items.length == 0 || !modelData.Items[0].modelFile) {
             const msg = `Failed to find model with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
@@ -756,7 +773,7 @@ exports.new = async (event, context, callback) => {
         const waitingForFreeInstance = runningInstances.length >= maxRenderInstances
         let timeStamp = (new Date()).getTime()
         const renderStarted = !waitingForFreeInstance ? timeStamp : undefined
-        let createDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp, cognitoUserName, waitingForFreeInstance, renderStarted)
+        let createDBEntryPromise = createRenderingInDB(brand, category, modelId, parameters, modelS3Key, timeStamp, cognitoUserName, waitingForFreeInstance, renderStarted, forceFree)
         let uploadKey = makeUploadKey(brand, category, modelId, timeStamp)
         let saveParametersPromise = writeParametersToS3(parameters, uploadKey)
         console.log("Currently running rendering instances: ", runningInstances.length)
@@ -829,15 +846,22 @@ exports.finished = async (event, context, callback) => {
             const renderingTimeInS = Math.max(60, (finishedTimeStamp - startedTimeStamp) / 1000)
             console.log("Rendering took ", renderingTimeInS, "s")
             const ec2Price = await ec2pricingPromise
+
             console.log("ec2Price: ", ec2Price)
 
             const costPerHour = ec2Price || 1.0
-            const cost = Math.ceil(100 * renderingTimeInS / 3600 * costPerHour) / 100
+            const realCost = Math.ceil(100 * renderingTimeInS / 3600 * costPerHour) / 100
+            const sceneName = rendering.parameters.scene
+            const scene = scenes[sceneName]
+            const cost = costCalculation(scene, rendering.parameters.type, rendering.parameters.resolution, rendering.parameters.samples)
 
             console.log("Saving receipt for rendering: ", rendering)
-            const receiptPromise = saveRenderReceiptInDB(brand, category, modelId, timeStamp, rendering.user, renderingTimeInS, cost, rendering.parameters)
-            const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, cost)
-            const receiptWriteSuccess = await receiptPromise
+            var receiptPromise = undefined
+            if (rendering.forceFree === undefined || rendering.forceFree === false) {
+                receiptPromise = saveRenderReceiptInDB(brand, category, modelId, timeStamp, rendering.user, renderingTimeInS, cost, rendering.parameters)
+            }
+            const updateSuccess = await updateModel(key, brand, category, modelId, timeStamp, finishedTimeStamp, rendering.forceFree ? 0 : cost, realCost)
+            const receiptWriteSuccess = receiptPromise ? await receiptPromise : undefined
             console.log("Updating model with finished ", key, " in db success: ", updateSuccess, receiptWriteSuccess)    
 
             callback(null, {msg: "Success"})

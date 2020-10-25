@@ -148,7 +148,7 @@ functions:
   populate-map:
     handler: geolocation.populate
     role: ${self:custom.users-role}
-    memorySize: 512
+    memorySize: 192
     timeout: 300
     description: Fill the map db with datapoints for all stores of this brand
     package:
@@ -182,7 +182,7 @@ functions:
         - node_modules/**
     events:
       - http:
-          path: /geo/{brand}/
+          path: /stores/geo/{brand}/
           private: true
           method: get
           cors: true

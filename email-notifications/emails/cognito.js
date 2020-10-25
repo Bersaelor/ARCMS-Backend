@@ -6,7 +6,7 @@ const AWS = require('aws-sdk');
 const Mustache = require('../node_modules/mustache/mustache.min.js');
 const fs = require("fs");
 const brandSettings = require('../brand_settings.json')
-const brandTexts = require('./brand_texts.json')
+const brandTexts = require('../brand_texts.json')
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 const subjects = {
@@ -75,7 +75,7 @@ exports.verification = async (event, context, callback) => {
     const isPasswordVerification = event.triggerSource === "CustomMessage_ForgotPassword"
     const mailType = isPasswordVerification ? "verification" : "welcome"
     const fileName = `${mailType}_${locale}`
-    const htmlTemplate = fs.readFileSync(`./email-notifications/${fileName}.html`, "utf8")
+    const htmlTemplate = fs.readFileSync(`./templates/${fileName}.html`, "utf8")
     const downloadLink = brandSettings[brand].appDownloadLink
 
     const htmlBody = Mustache.render(htmlTemplate, {

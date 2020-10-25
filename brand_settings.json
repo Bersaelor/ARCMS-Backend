@@ -21,6 +21,11 @@
     },
     "grafix": {
         "name": "Grafix",
+        "AppAgentName": "Grafix",
+        "MonthlyCostSettings": {
+            "freeCountries": ["DE", "CH", "AT"],
+            "costPerStore": 2
+        },
         "allows3DModelUpload": true,
         "wantsDXFConversion": true,
         "orderAdress": "order@grafix-eyewear.com",
@@ -31,6 +36,7 @@
     },
     "loocfun": {
         "name": "My LooC",
+        "AppAgentName": "LooCAR",
         "allows3DModelUpload": true,
         "wantsDXFConversion": false,
         "allowsRendering": true,

@@ -49,6 +49,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
     events:
       - http:
           path: /{brand}/renderings
@@ -72,6 +73,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
     events:
       - http:
           path: /{brand}/renderings
@@ -95,6 +97,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
     events:
       - http:
           path: /{brand}/renderings/{category}/{model}/{timestamp}
@@ -121,6 +124,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
     events:
       - http:
           path: /{brand}/receipts
@@ -144,6 +148,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
     events:
       - http:
           path: /{brand}/costs
@@ -167,6 +172,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
 
   save-rendering-logs:
     handler: renderings.savelog
@@ -178,7 +184,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
-
+        - CostCalculation.js
 
   update-rendering-status:
     handler: renderings.updateStatus
@@ -190,6 +196,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
 
   check-for-waiting-renderings:
     handler: renderings.checkWaiting
@@ -201,6 +208,7 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
 
   cleanup-renderings:
     handler: renderings.cleanup
@@ -213,3 +221,4 @@ functions:
         - renderings.js
         - shared/**
         - brand_settings.json
+        - CostCalculation.js
