@@ -58,7 +58,7 @@ async function sendMail(sender, to, subject, htmlBody, files) {
     })
 }
 
-async function mailToManufacturer(brand, orderSK, files) {
+async function mailToManufacturer(brand, orderSK, files, errors) {
     let brandMail = brandSettings[brand].orderAdress
     if(!brandMail) {
         throw `There is no manufacturer address saved for brand ${brand}`
@@ -71,6 +71,15 @@ async function mailToManufacturer(brand, orderSK, files) {
     const orderDate = new Date(dateISOString)
     const localizedDate = orderDate.toLocaleString(locale, { timeZone: brandSettings[brand].timeZone })
     console.log("customer: ", customer, ", date: ", orderDate.toString())
+
+    var errorText = undefined
+    if (errors.length > 0) {
+        errorText = `<p>Problems found:</p>
+            <ul>
+                ${ errors.map(s => "<li>" + s + "</li>").join() }
+            </ul>
+        `
+    }
 
     var htmlBody, subject 
     if (locale.startsWith('de')) {
@@ -85,6 +94,7 @@ async function mailToManufacturer(brand, orderSK, files) {
         <BR><BR>
         <p>Mit freundlichen Grüßen</p>
         <p>🤖</p>
+        ${ errorText || "" }
         </body>
     </html>
     `    
@@ -116,37 +126,59 @@ exports.newRequest = async (event, context, callback) => {
         var start = new Date()
 
         let modelData = await getModel(brand, frame.category, frame.name)
-        if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].svgFile) return undefined
+        if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].svgFile) {
+            let msg = `Can't convert dxf for ${frame.name} as no dxf reference file was uploaded yet`
+            return msg
+        }
         const props = JSON.parse(modelData.Items[0].props)
         const dxfPart2ColorMap = modelData.Items[0].dxfPart2ColorMap
         if (!dxfPart2ColorMap || !props.defaultBridgeSize || !props.defaultGlasWidth || !props.defaultGlasHeight) {
-            console.error("Failed to get necessary values from modelData: ", modelData)
-            return undefined
+            let msg = `Failed to get necessary modelData from model ${frame.name}'s: ${modelData}`
+            console.error(msg)
+            return msg
         }
+
         const part2ColorMap = JSON.parse(dxfPart2ColorMap)
-        const svgFile = modelData.Items[0].svgFile
-        const svgPromise = getFile(svgFile)
-        const svgString = (await svgPromise).Body.toString('utf-8')
-        const modelParts = await makeModelParts(part2ColorMap, svgString)
-        const { model } = combineModel(
-            modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, 
-            { bridgeSize: props.defaultBridgeSize, glasWidth: props.defaultGlasWidth, glasHeight: props.defaultGlasHeight },
-            false,
-            undefined
-        )
-        const renderOptions = { usePOLYLINE: true }
-        const dxf = makerjs.exporter.toDXF(model, renderOptions)
-        const fileName = `${frame.name}-${frame.glasWidth}-${frame.bridgeWidth}-${frame.glasHeight}.dxf`
-        var duration = new Date() - start
-        console.log(`Created dxf of length ${dxf.length} for ${frame.name} in %dms`, duration)
-        return { filename: fileName, content: dxf }
+        const necessaryParts = ['bridge', 'shape', 'pad']
+        const missingparts = necessaryParts.filter(name => part2ColorMap[name] === undefined)
+        if (missingparts.length > 0) {
+            let msg = `The color map of the model ${frame.name} doesn't contain ${missingparts.join(', ')} which is required`
+            console.error(msg)
+            return msg
+        }
+
+        try {
+            const svgFile = modelData.Items[0].svgFile
+            const svgPromise = getFile(svgFile)
+            const svgString = (await svgPromise).Body.toString('utf-8')
+            const modelParts = await makeModelParts(part2ColorMap, svgString)
+
+            const { model } = combineModel(
+                modelParts, frame.bridgeWidth, frame.glasWidth, frame.glasHeight, 
+                { bridgeSize: props.defaultBridgeSize, glasWidth: props.defaultGlasWidth, glasHeight: props.defaultGlasHeight },
+                false,
+                undefined
+            )
+            const renderOptions = { usePOLYLINE: true }
+            const dxf = makerjs.exporter.toDXF(model, renderOptions)
+            const fileName = `${frame.name}-${frame.glasWidth}-${frame.bridgeWidth}-${frame.glasHeight}.dxf`
+            var duration = new Date() - start
+            console.log(`Created dxf of length ${dxf.length} for ${frame.name} in %dms`, duration)
+            return { filename: fileName, content: dxf }    
+        } catch (error) {
+            let msg = `Failed to convert model ${frame.name} because of ${error }`
+            console.error(msg)
+            return msg
+        }
     })
 
-    const outPutDXFFiles = (await Promise.all(fetchDataPromises)).filter(value => value !== undefined)
-    if (outPutDXFFiles.length < 1) {
+    const output = await Promise.all(fetchDataPromises)
+    const outPutDXFFiles = output.filter(value => (value !== undefined && value.filename))
+    const errors = output.filter(value => (value !== undefined && typeof value === 'string'))
+    if (outPutDXFFiles.length < 1 && errors < 1) {
         console.log("No models were converted, not sending email")
         return
     }
-    const emailResult = await mailToManufacturer(brand, orderSK, outPutDXFFiles)
+    const emailResult = await mailToManufacturer(brand, orderSK, outPutDXFFiles, errors)
     console.log("emailResult: ", emailResult)
 };
