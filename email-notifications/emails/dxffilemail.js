@@ -127,13 +127,13 @@ exports.newRequest = async (event, context, callback) => {
 
         let modelData = await getModel(brand, frame.category, frame.name)
         if (!modelData.Count || modelData.Count < 1 || !modelData.Items[0].props || !modelData.Items[0].svgFile) {
-            let msg = `Can't convert dxf for ${frame.name} as no dxf reference file was uploaded yet`
+            let msg = `Can't convert dxf for '${frame.name}' as no dxf reference file was uploaded yet`
             return msg
         }
         const props = JSON.parse(modelData.Items[0].props)
         const dxfPart2ColorMap = modelData.Items[0].dxfPart2ColorMap
         if (!dxfPart2ColorMap || !props.defaultBridgeSize || !props.defaultGlasWidth || !props.defaultGlasHeight) {
-            let msg = `Failed to get necessary modelData from model ${frame.name}'s: ${modelData}`
+            let msg = `Failed to get necessary modelData from model '${frame.name}': ${modelData}`
             console.error(msg)
             return msg
         }
@@ -142,7 +142,7 @@ exports.newRequest = async (event, context, callback) => {
         const necessaryParts = ['bridge', 'shape', 'pad']
         const missingparts = necessaryParts.filter(name => part2ColorMap[name] === undefined)
         if (missingparts.length > 0) {
-            let msg = `The color map of the model ${frame.name} doesn't contain ${missingparts.join(', ')} which is required`
+            let msg = `The color map of the model '${frame.name}' doesn't contain ${missingparts.join(', ')} which is required`
             console.error(msg)
             return msg
         }
@@ -166,7 +166,7 @@ exports.newRequest = async (event, context, callback) => {
             console.log(`Created dxf of length ${dxf.length} for ${frame.name} in %dms`, duration)
             return { filename: fileName, content: dxf }    
         } catch (error) {
-            let msg = `Failed to convert model ${frame.name} because of ${error }`
+            let msg = `Failed to convert model '${frame.name}' because of ${error }`
             console.error(msg)
             return msg
         }

@@ -43,7 +43,7 @@ exports.getAllModels = async (brand) => {
 exports.getCategorys = async (brand) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, image, #s, localizedTitles, localizedDetails",
+        ProjectionExpression: "sk, image, #s, localizedTitles, localizedDetails, promoted",
         KeyConditionExpression: "#id = :value",
         ExpressionAttributeNames:{
             "#id": "id",

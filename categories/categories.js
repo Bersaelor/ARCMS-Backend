@@ -34,6 +34,7 @@ function convertStoredCategory(storedCategory) {
     category.localizedTitles = JSON.parse(storedCategory.localizedTitles)
     category.localizedDetails = JSON.parse(storedCategory.localizedDetails)
     category.image = "https://images.looc.io/" + storedCategory.image
+    category.promoted = storedCategory.promoted !== undefined ? storedCategory.promoted : false
     return category
 }
 
@@ -63,6 +64,21 @@ async function updateCategoryStatus(status, name, brand) {
         ExpressionAttributeNames: {'#s' : 'status'},
         ExpressionAttributeValues: {
             ':value' : status,
+        },
+        ReturnValues: "ALL_NEW"
+    };
+
+    return dynamoDb.update(params).promise()
+}
+
+async function updateCategoryPromoted(promoted, name, brand) {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Key: {id: `${brand}#category`, sk: name },
+        UpdateExpression: 'set #p = :value',
+        ExpressionAttributeNames: {'#p' : 'promoted'},
+        ExpressionAttributeValues: {
+            ':value' : promoted,
         },
         ReturnValues: "ALL_NEW"
     };
@@ -302,17 +318,18 @@ exports.setStatus = async (event, context, callback) => {
     try {
         const accessLvlPromise = getAccessLvl(cognitoUserName, brand)
 
-        if (!body.status || (body.status !== "unpublished" && body.status !== "testing" && body.status !== "published")) {
+        const hasStatus = body.status && (body.status === "unpublished" || body.status === "testing" || body.status === "published")
+        const hasPromotion = body.promoted !== undefined
+
+        if (!hasStatus && !hasPromotion) {
             callback(null, {
                 statusCode: 403,
                 headers: makeHeader('application/json' ),
-                body: JSON.stringify({ "message": "The new status should be valid" })
+                body: JSON.stringify({ "message": "The new status should be valid, or a promotion status set" })
             });
             return;
         }
-        const status = body.status
 
-        // make sure the current cognito user has high enough access lvl
         const accessLvl = await accessLvlPromise;
         if (!accessLvlMayCreate(accessLvl)) {
             const msg = "This user isn't allowed to create or update categories"
@@ -324,8 +341,14 @@ exports.setStatus = async (event, context, callback) => {
             return;
         }
 
-        const updateSuccess = await updateCategoryStatus(status, name, brand)
-        console.log("Set status ", status ," of Category ", name ," in db success: ", updateSuccess)
+        // make sure the current cognito user has high enough access lvl
+        const promises = Promise.all([
+            hasStatus ? updateCategoryStatus(body.status, name, brand) : 0,
+            hasPromotion ? updateCategoryPromoted(body.promoted, name, brand) : 0
+        ])
+        const result = await promises
+        const updateSuccess = result[0] || result[1]
+        console.log("Set status ", body.status , " , promoted: ", body.promoted, " of Category ", name ," in db success: ", updateSuccess)
         const category = convertStoredCategory(updateSuccess.Attributes)
 
         const response = {
