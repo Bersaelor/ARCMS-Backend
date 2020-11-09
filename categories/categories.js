@@ -177,6 +177,11 @@ exports.appData = async (event, context, callback) => {
         return convertStoredModel(model)
     }).filter(model => {
         return categoryNames.includes(model.category)
+    }).map(model => {
+        const category = categories.find(cat => cat.name === model.category)
+        const isPromoted = category && category.promoted
+        model.promoted = isPromoted
+        return model
     })
 
     console.log(`Returning ${categories.length} categories and ${models.length} models from DynDB for brand ${brand} showTestingContent: ${showTestingContent}`)
