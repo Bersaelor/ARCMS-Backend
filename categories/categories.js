@@ -7,8 +7,9 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const cloudfront = new AWS.CloudFront;
 const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
-const { convertStoredModel } = require('../shared/convert_models')
+const { convertStoredModel, convertStoredMaterial } = require('../shared/convert_models')
 const { getAllModels, getCategorys } = require('../shared/get_dyndb_models')
+const { getMaterials } = require('shared/get_materials')
 
 async function getSignedImageUploadURL(key, type) {
     var params = {
@@ -25,6 +26,19 @@ async function getSignedImageUploadURL(key, type) {
             else resolve(url); 
         });
     });
+}
+
+async function getAllMaterials(brand) {
+    var LastEvaluatedKey
+    var defaultPerPage = 100
+    var result = []
+    do {
+        const data = await getMaterials(brand, undefined, undefined, defaultPerPage, LastEvaluatedKey)
+        LastEvaluatedKey = data.LastEvaluatedKey
+        const materials = data.Items.map(mat => convertStoredMaterial(mat))
+        result = result.concat(materials)
+    } while (LastEvaluatedKey !== undefined)
+    return result
 }
 
 function convertStoredCategory(storedCategory) {
@@ -161,36 +175,53 @@ exports.appData = async (event, context, callback) => {
     const catPromise = getCategorys(brand)
     const modelPromise = brand && getAllModels(brand)
 
-    const catData = await catPromise
-    const categories = catData.Items.filter(cat => {
-        return cat.status === "published" || (showTestingContent && cat.status === "testing")
-    }).map((cat) => {
-        return convertStoredCategory(cat)
-    })
+    try {
+        const data = await Promise.all([catPromise, modelPromise, getAllMaterials(brand)])
+        console.log("data: ", data)
+        const catData = data[0]
+        const modelData = data[1]
+        const materials = data[2]
+        const categories = catData.Items.filter(cat => {
+            return cat.status === "published" || (showTestingContent && cat.status === "testing")
+        }).map((cat) => {
+            return convertStoredCategory(cat)
+        })
 
-    const categoryNames = categories.map(cat => cat.name)
+        const categoryNames = categories.map(cat => cat.name)
 
-    const modelData = await modelPromise
-    const models = modelData.Items.filter(model => {
-        return model.status === "published" || (showTestingContent && model.status === "testing")
-    }).map(model => {
-        return convertStoredModel(model)
-    }).filter(model => {
-        return categoryNames.includes(model.category)
-    }).map(model => {
-        const category = categories.find(cat => cat.name === model.category)
-        const isPromoted = category && category.promoted
-        model.promoted = isPromoted
-        return model
-    })
+        const models = modelData.Items.filter(model => {
+            return model.status === "published" || (showTestingContent && model.status === "testing")
+        }).map(model => {
+            return convertStoredModel(model)
+        }).filter(model => {
+            return categoryNames.includes(model.category)
+        }).map(model => {
+            const category = categories.find(cat => cat.name === model.category)
+            const isPromoted = category && category.promoted
+            model.promoted = isPromoted
+            return model
+        })
 
-    console.log(`Returning ${categories.length} categories and ${models.length} models from DynDB for brand ${brand} showTestingContent: ${showTestingContent}`)
+        console.log(`Returning ${categories.length} categories and ${models.length} models from DynDB for brand ${brand} showTestingContent: ${showTestingContent}`)
 
-    callback(null, {
-        statusCode: 200,
-        headers: makeHeader('application/json', testing ? 0 : 60 * 60 * 24 * 7),
-        body: JSON.stringify({ categories: categories, models: models })
-    });
+        callback(null, {
+            statusCode: 200,
+            headers: makeHeader('application/json', testing ? 0 : 60 * 60 * 24 * 7),
+            body: JSON.stringify({
+                categories: categories,
+                models: models,
+                materials: materials
+            })
+        });
+    } catch (error) {
+        console.error(`Query for appData failed. Error ${error}`);
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 };
 
 // Refresh the cached appdata of categories and models manually before it's expired
