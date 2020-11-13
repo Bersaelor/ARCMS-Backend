@@ -120,9 +120,10 @@ async function invalidateAppDataCache(brand) {
             InvalidationBatch: {
                 CallerReference: `${now.getTime()}`,
                 Paths: {
-                  Quantity: '1',
+                  Quantity: '2',
                   Items: [
                     `/${brand}/app-data`,
+                    `/${brand}/appconfig`
                   ]
                 }
             }
