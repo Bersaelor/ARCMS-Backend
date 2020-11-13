@@ -8,7 +8,8 @@ const s3 = new AWS.S3();
 
 const { getAccessLvl, accessLvlMayCreate } = require('shared/access_methods')
 const { paginate } = require('shared/pagination')
-const brandSettings = require('brand_settings.json')
+const { getMaterials } = require('shared/get_materials')
+const { convertStoredMaterial } = require('shared/convert_models')
 const defaultPerPage = 50;
 
 function makeHeader(content) {
@@ -17,54 +18,6 @@ function makeHeader(content) {
         'Access-Control-Allow-Credentials': true,
         'Content-Type': content
     };
-}
-
-const getMaterials = async (brand, type, identifier, perPage, LastEvaluatedKey) => {
-    var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        Limit: perPage,
-        ProjectionExpression: "sk, localizedNames, #p, #s, lastEdited, image, normalTex",
-        ExpressionAttributeNames: {
-            "#id": "id",
-            "#s": "status",
-            "#p": "parameters"
-        },
-    };
-    if (type) {
-        params.KeyConditionExpression = "#id = :id and begins_with(#sk, :sk)"
-        params.ExpressionAttributeValues = {
-            ":id": `material#${brand}`,
-            ":sk": identifier ? `${type}#${identifier}` : type
-        }
-        params.ExpressionAttributeNames["#sk"] = "sk"
-    } else {
-        params.KeyConditionExpression = "#id = :id"
-        params.ExpressionAttributeValues = {
-            ":id": `material#${brand}`
-        }
-    }
-
-    if (LastEvaluatedKey) { params.ExclusiveStartKey = LastEvaluatedKey }
-
-    return dynamoDb.query(params).promise()
-}
-
-const convertStoredMaterial = (stored) => {
-    var converted = stored
-    let skComponents = stored.sk.split('#')
-    converted.type = skComponents[0]
-    converted.identifier = skComponents[1]
-    delete converted.sk
-    try {
-        converted.localizedNames = converted.localizedNames ? JSON.parse(converted.localizedNames) : undefined
-        converted.parameters = stored.parameters ? JSON.parse(stored.parameters) : {}
-    } catch (error) {
-        console.log("Failed to convert json because: ", error)
-    }
-    if (stored.image) converted.image = "https://images.looc.io/" + stored.image
-    if (stored.normalTex) converted.normalTex = "https://images.looc.io/" + stored.normalTex
-
-    return converted
 }
 
 async function createMatInDB(user, values, brand) {
