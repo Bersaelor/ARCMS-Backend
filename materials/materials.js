@@ -141,7 +141,8 @@ exports.new = async (event, context, callback) => {
         return;
     }    
 
-    console.log("Creating material for: ", brand, ", ", identifier, ", type: ", type)
+    console.log(`Creating material for: ${brand}, ${identifier}, type: ${type},
+     imageUploadRequested: ${imageUploadRequested}, normalTexUploadRequested: ${normalTexUploadRequested}`)
     try {
         // make sure the current cognito user has high enough access lvl
         const accessLvl = await getAccessLvl(cognitoUserName, brand);
@@ -168,6 +169,7 @@ exports.new = async (event, context, callback) => {
             var url = new URL(body.image)
             var path = url.pathname
             if (path.startsWith("/")) path = path.slice(1)
+            console.log("Cleaning up image so it only contains the S3Key: ", path)
             body.image = path
         }
 
@@ -184,6 +186,7 @@ exports.new = async (event, context, callback) => {
             var url = new URL(body.normalTex)
             var path = url.pathname
             if (path.startsWith("/")) path = path.slice(1)
+            console.log("Cleaning up normalTex so it only contains the S3Key: ", path)
             body.normalTex = path
         }
 
