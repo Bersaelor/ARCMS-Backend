@@ -383,6 +383,12 @@ function findSize(frame, name) {
     return item.chosenSize
 }
 
+function isSpecialOrder(frame) {
+    const details = frame.frameOrderDetailItems
+    if (!details) return false
+    return details.find(el => el.isSpecial && el.isSpecial === true)
+}
+
 function unique(frames) {
     var temp = {}
     frames.forEach(frame => {
@@ -398,6 +404,7 @@ function extractNecessaryModels(orderBody) {
     }
 
     var frames = orderBody.map(frame => {
+        if (!isSpecialOrder(frame)) return null
         const bridgeWidth = findSize(frame, 'OrderOption.BridgeWidth')
         const glasWidth = findSize(frame, 'OrderOption.GlasWidth')
         const glasHeight = findSize(frame, 'OrderOption.GlasHeight')
