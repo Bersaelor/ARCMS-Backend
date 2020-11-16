@@ -81,6 +81,7 @@ exports.verification = async (event, context, callback) => {
     const htmlBody = Mustache.render(htmlTemplate, {
         TITLE: brandTexts[brand].title || "",
         APP_NAME: appName,
+        HEADER_IMAGE_SRC: brandTexts[brand].email_header_link || "",
         BRAND_EMAIL: contactAddress,
         BRAND_IDENTIFIER: brand,
         BRAND_NAME: brandName,

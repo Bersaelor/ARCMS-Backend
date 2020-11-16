@@ -2,6 +2,7 @@
 {
     "domvetro": {
         "title": "DOM VETRO",
+        "email_header_link": "https://cms.looc.io/pics/emailheader.jpeg",
         "legal_footer": {
             "de" : "Dom Vetro LLC, vertreten durch Geschäftsführer Mathias Schröder. Diese Nachricht wurde von der Dom Vetro LLC, 3345 La Cienega Pl., Los Angeles, California, 90016, United States, Deutschland erzeugt und versendet.",
             "en" : "Dom Vetro LLC, This message was produced and distributed by Dom Vetro LLC, 3345 La Cienega Pl., Los Angeles, California, 90016, United States."
@@ -9,6 +10,7 @@
     },
     "ede": {
         "title": "ForSec",
+        "email_header_link": "https://cms.looc.io/pics/emailheader.jpeg",
         "legal_footer": {
             "de" : "E/D/E Einkaufsbüro Deutscher Eisenhändler GmbH. Diese Nachricht wurde von der E/D/E Einkaufsbüro Deutscher Eisenhändler GmbH, EDE Platz 1, D-42389 Wuppertal, Deutschland erzeugt und versendet.",
             "en" : "E/D/E Einkaufsbüro Deutscher Eisenhändler GmbH. This message was produced and distributed by E/D/E Einkaufsbüro Deutscher Eisenhändler GmbH, EDE Platz 1, D-42389 Wuppertal, Germany."
@@ -17,6 +19,7 @@
     "grafix": {
         "title": "GRAFIX – EYEWEAR",
         "appname": "GRAFIX 4.0",
+        "email_header_link": "https://cms.looc.io/pics/grafixheader.jpeg",
         "legal_footer": {
             "de" : "MOM GmbH, vertreten durch Geschäftsführer Mathias Schröder. Diese Nachricht wurde von der MOM GmbH, Jahnstraße 27, 14712 Rathenow, Deutschland erzeugt und versendet.",
             "en" : "MOM GmbH, managed through Mathias Schröder, This message was produced and distributed by MOM GmbH, Jahnstraße 27, 14712 Rathenow, Germany."
@@ -24,6 +27,7 @@
     },
     "loocfun": {
         "title": "My LooC",
+        "email_header_link": "https://cms.looc.io/pics/emailheader.jpeg",
         "legal_footer": {
             "de" : "LooC GmbH, vertreten durch Geschäftsführer Konrad Feiler. Diese Nachricht wurde von der LooC GmbH, Prenzlauer Allee 53, 10405 Berlin, Deutschland erzeugt und versendet.",
             "en" : "LooC GmbH, managed through Konrad Feiler, This message was produced and distributed by LooC GmbH, Prenzlauer Allee 53, 10405 Berlin, Germany."
@@ -31,6 +35,7 @@
     },
     "markust": {
         "title": "MARKUS T",
+        "email_header_link": "https://cms.looc.io/pics/emailheader.jpeg",
         "legal_footer": {
             "de" : "Markus Temming GmbH, vertreten durch Geschäftsführer Markus Temming. Diese Nachricht wurde von der Markus Temming GmbH, An der Manufaktur 1, 33334 Gütersloh, Deutschland erzeugt und versendet.",
             "en" : "Markus Temming GmbH, managed through Markus Temming, This message was produced and distributed by Markus Temming GmbH, An der Manufaktur 1, 33334 Gütersloh, Germany."
@@ -38,6 +43,7 @@
     },
     "safeeyes": {
         "title": "SAFE EYES",
+        "email_header_link": "https://cms.looc.io/pics/emailheader.jpeg",
         "legal_footer": {
             "de" : "Temming Verwaltung GmbH, vertreten durch Geschäftsführer Markus Temming. Diese Nachricht wurde von der Temming Verwaltung GmbH, An der Manufaktur 1, 33334 Gütersloh, Deutschland erzeugt und versendet.",
             "en" : "Temming Verwaltung GmbH, managed through Markus Temming, This message was produced and distributed by Temming Verwaltung GmbH, An der Manufaktur 1, 33334 Gütersloh, Germany."
