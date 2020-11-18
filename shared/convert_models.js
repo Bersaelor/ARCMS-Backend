@@ -17,3 +17,21 @@ exports.convertStoredModel = (storedModel) => {
     model.image = "https://images.looc.io/" + storedModel.image
     return model
 }
+
+exports.convertStoredMaterial = (stored) => {
+    var converted = stored
+    let skComponents = stored.sk.split('#')
+    converted.type = skComponents[0]
+    converted.identifier = skComponents[1]
+    delete converted.sk
+    try {
+        converted.localizedNames = converted.localizedNames ? JSON.parse(converted.localizedNames) : undefined
+        converted.parameters = stored.parameters ? JSON.parse(stored.parameters) : {}
+    } catch (error) {
+        console.log("Failed to convert json because: ", error)
+    }
+    if (stored.image) converted.image = "https://images.looc.io/" + stored.image
+    if (stored.normalTex) converted.normalTex = "https://images.looc.io/" + stored.normalTex
+
+    return converted
+}

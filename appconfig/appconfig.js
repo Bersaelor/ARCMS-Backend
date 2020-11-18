@@ -127,6 +127,8 @@ exports.get = async (event, context, callback) => {
     
         const cache = showTestingContent ? 0 : 60 * 60 * 24
 
+        console.log(`Cache: ${cache} for model:`, model)
+
         var response
         if (model) {
             response = {
