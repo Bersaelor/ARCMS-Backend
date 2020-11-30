@@ -27,6 +27,7 @@ function fetchAllModels(brands) {
                     'image': model.image,
                     'modelFile': model.modelFile,
                     'usdzFile': model.usdzFile,
+                    'gltfFile': model.gltfFile,
                     'dxfFile': model.dxfFile,
                     'svgFile': model.svgFile
                 }
@@ -143,6 +144,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
                 currentImages.add(model.image)
                 currentModelFiles.add(model.modelFile)
                 currentModelFiles.add(model.usdzFile)
+                currentModelFiles.add(model.gltfFile)
                 currentModelFiles.add(model.dxfFile)
                 currentModelFiles.add(model.svgFile)
             })

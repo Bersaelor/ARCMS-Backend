@@ -82,6 +82,7 @@ async function createModelInDB(user, values, brand, category) {
     if (values.svgFile) { params.Item.svgFile = values.svgFile }
     if (values.status) { params.Item.status = values.status }
     if (values.usdzFile) { params.Item.usdzFile = values.usdzFile }
+    if (values.gltfFile) { params.Item.gltfFile = values.gltfFile }
     if (values.dxfPart2ColorMap) { params.Item.dxfPart2ColorMap = JSON.stringify(values.dxfPart2ColorMap)}
     params.Item.lastEdited = `${user}#${(new Date()).toISOString()}`
 
@@ -413,6 +414,7 @@ exports.createNew = async (event, context, callback) => {
             if (existingModel.modelFile) body.modelFile = existingModel.modelFile                
             if (!modelUploadRequested) {
                 if (existingModel.usdzFile) body.usdzFile = existingModel.usdzFile                
+                if (existingModel.gltfFile) body.gltfFile = existingModel.gltfFile                
             }
             if (existingModel.dxfFile) body.dxfFile = existingModel.dxfFile
             if (!dxfUploadRequested) {
@@ -616,6 +618,52 @@ exports.updateAfterFileConversion = async (event, context, callback) => {
 
             const updateSuccess = await updateModel("usdzFile", key, modelId, brand, category)
             console.log("Updating usdzFile to ", key, " in db success: ", updateSuccess)    
+
+            callback(null, {msg: "Success"})
+        }
+    } catch (error) {
+        callback(error, {msg: `Failed to save data because of ${error.toString()}`})
+    }
+}
+
+// Update the metadata in the DB when a model's gltf file has been encrypted
+exports.updateGltfFile = async (event, context, callback) => {
+    try {
+        for (const index in event.Records) {
+            const record = event.Records[index]
+            const key = record.s3.object.key
+            const brand = key.split('/')[1]
+            const category = key.split('/')[2]
+            const parsedPath = path.parse(key)
+            const file = parsedPath.base
+            const dashSeparated = parsedPath.name.split('-')
+            dashSeparated.pop() // pop the timestamp
+            const modelId = dashSeparated.join('-')
+
+            console.log(`New encrypted gltf file ${file} has been created in S3, brand: ${brand}, category: ${category}, modelId: ${modelId}`)
+    
+            const modelData = await getModel(brand, category, modelId)
+
+            if (!modelData || !modelData.Items || modelData.Items.length == 0) {
+                const msg = `Failed to find model with brand: ${brand}, category: ${category}, modelId: ${modelId} in DB`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const model = modelData.Items[0]
+            const originalModelFilename = path.parse(model.modelFile).name
+
+            console.log("originalModelFilename: ", originalModelFilename)
+            if (originalModelFilename !== parsedPath.name) {
+                const msg = `Saved originalModelFilename: ${originalModelFilename} is different then ${file}, not saving`
+                console.error(msg)
+                callback(null, {msg: msg})
+                return
+            }
+
+            const updateSuccess = await updateModel("gltfFile", key, modelId, brand, category)
+            console.log("Updating gltfFile to ", key, " in db success: ", updateSuccess)    
 
             callback(null, {msg: "Success"})
         }

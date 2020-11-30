@@ -112,6 +112,24 @@ functions:
           - suffix: .ark
         existing: true
 
+  update-encrypted-gltf:
+    handler: models/models.updateGltfFile
+    role: ${self:custom.users-role}
+    memorySize: 512
+    description: Update the metadata in the DB when a model's gltf file has been encrypted
+    package:
+      include:
+        - models/models.js
+        - shared/**
+    events:
+      - s3:
+        bucket: ar-glasses-models
+        event: s3:ObjectCreated:*
+        rules:
+          - prefix: arkit/
+          - suffix: .uni
+        existing: true
+
   dxf2svg:
     handler: models/dxfConversion.convert
     role: ${self:custom.ec2-role}
