@@ -81,7 +81,7 @@ functions:
     handler: models/usdzConversion.convert
     role: ${self:custom.ec2-role}
     memorySize: 512
-    description: Convert gltf files deposited into s3/original
+    description: Convert glb files deposited into s3/original
     package:
       include:
         - models/usdzConversion.js
@@ -91,7 +91,7 @@ functions:
         event: s3:ObjectCreated:*
         rules:
           - prefix: original/
-          - suffix: .gltf
+          - suffix: .glb
         existing: true
 
   update-after-conversion:

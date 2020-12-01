@@ -121,7 +121,7 @@ function convert(downloadPath, uploadPath) {
         const isMacOS = process.platform === "darwin";
         const exeName = isMacOS ? 'models/COLLADA2GLTF-macos' : 'COLLADA2GLTF-bin'
         console.log(`Spawning ${exeName} with arguments ${[downloadPath, uploadPath]}`)
-        const bash = spawn(exeName, [downloadPath, uploadPath])
+        const bash = spawn(exeName, [downloadPath, uploadPath, '-b'])
         bash.stdout.on('data', data => {
             console.log(`stdout: ${data}`);
         });
@@ -189,7 +189,7 @@ async function updateModel(key, value, name, brand, category) {
 async function convertToGLTF(fileName, extension, bucket, key, parsedPath) {
     const downloadPath = `/tmp/${fileName}${extension}`
     const fixedDaePath = `/tmp/${fileName}_fixed.dae`
-    const uploadPath = `/tmp/${fileName}.gltf`
+    const uploadPath = `/tmp/${fileName}.glb`
 
     console.log(`downloadPath: ${downloadPath}, uploadPath: ${uploadPath}`)
     
@@ -198,7 +198,7 @@ async function convertToGLTF(fileName, extension, bucket, key, parsedPath) {
     await download(bucket, key, downloadPath)
     await fixEmptyNodes(downloadPath, fixedDaePath)
     await convert(fixedDaePath, uploadPath)
-    const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.gltf`, uploadPath)
+    const uploadRes = await upload(bucket, `${parsedPath.dir}/${fileName}.glb`, uploadPath)
     console.log("Upload result: ", uploadRes)
     await cleanup([downloadPath, fixedDaePath, uploadPath])
 }
@@ -267,7 +267,7 @@ exports.convert = async (event, context, callback) => {
         // test the file conversion locally
         const parsedPath = path.parse(event.file)
         const fileName = parsedPath.name
-        const uploadPath = `models/tests/${fileName}.gltf`
+        const uploadPath = `models/tests/${fileName}.glb`
         const fixedDaePath = `models/tests/${fileName}_fixed.dae`
         await fixEmptyNodes(event.file, fixedDaePath)
         await convert(fixedDaePath, uploadPath)
