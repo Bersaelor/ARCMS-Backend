@@ -40,6 +40,7 @@ async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
     const locale = brandSettings[brand].preferredLanguage
     const localizedOrder = localizeOrder(order, locale)
     const brandName = brandSettings[brand].name
+    const disclaimer = doesOrderContainSpecialSize(order) ? brandSettings[brand].specialSizeDisclaimer : brandSettings[brand].disclaimer
     const subject = Mustache.render(strings[locale].subject_store, { BRAND_NAME: brandName })
     const htmlTemplate = fs.readFileSync(`./templates/store_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
@@ -51,6 +52,7 @@ async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
         BRAND_EMAIL: brandMail,
         BRAND_NAME: brandName,
         ISTESTENVIRONMENT: process.env.STAGE != "prod",
+        DISCLAIMER: disclaimer || "",
         SPECIALSIZEDISCLAIMER: doesOrderContainSpecialSize(order),
         DOWNLOADLINK: downloadLink,
     })
