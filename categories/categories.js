@@ -181,7 +181,8 @@ exports.appData = async (event, context, callback) => {
         console.log("data: ", data)
         const catData = data[0]
         const modelData = data[1]
-        const materials = data[2]
+        const materials = data[2].filter(mat => mat.status === "published" || (showTestingContent && mat.status === "testing"))
+
         const categories = catData.Items.filter(cat => {
             return cat.status === "published" || (showTestingContent && cat.status === "testing")
         }).map((cat) => {
