@@ -28,6 +28,7 @@ const dateToSQL = (date) => {
     return date.toISOString().split('T')[0]
 }
 
+// from https://en.wikipedia.org/wiki/Darwin_(operating_system)
 const iOSVersions = {
     "18.0.0": "12.0",
     "18.2.0": "12.1",
