@@ -66,6 +66,14 @@ function deleteObject(bucket, key) {
     return s3.deleteObjects(params).promise()
 }
 
+function makeHeader(content) {
+    return { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': content
+    };
+}
+
 // Get an array of files for a given brand, category, model
 exports.getList = async (event, context, callback) => {
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
@@ -98,6 +106,13 @@ exports.getList = async (event, context, callback) => {
 
         const prefix = `metafiles/${brand}/${category}/${modelid}`
         const fileData = await getS3Content(process.env.MODEL_BUCKET, prefix, null)
+
+        // Example fileData.Contents dictionary entry:
+        // ETag: ""8b5f3a00ee6476fadb0bc0f3ccc7f38f""
+        // Key: "metafiles/loocfun/classic/001panto/IMG_E3ABBBD76582-1.jpeg"
+        // LastModified: "2021-01-18T21:59:45.000Z"
+        // Size: 2100629
+        // StorageClass: "STANDARD"
 
         callback(null, {
             statusCode: 200,
