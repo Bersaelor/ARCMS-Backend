@@ -178,7 +178,6 @@ exports.appData = async (event, context, callback) => {
 
     try {
         const data = await Promise.all([catPromise, modelPromise, getAllMaterials(brand)])
-        console.log("data: ", data)
         const catData = data[0]
         const modelData = data[1]
         const materials = data[2].filter(mat => mat.status === "published" || (showTestingContent && mat.status === "testing"))
