@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
-const { getAccessLvl , accessLvlMayCreate } = require('../shared/access_methods')
+const { getAccessLvl , accessLvlMayCreate } = require('./shared/access_methods')
 
 function getS3Content(bucket, prefix, continuationToken) {
     var params = {
@@ -66,6 +66,7 @@ function deleteObject(bucket, key) {
     return s3.deleteObjects(params).promise()
 }
 
+// Get an array of files for a given brand, category, model
 exports.getList = async (event, context, callback) => {
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
@@ -114,6 +115,7 @@ exports.getList = async (event, context, callback) => {
     }
 };
 
+// Get an upload url for uploading a new file
 exports.getUploadURL = async (event, context, callback) => {
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
@@ -166,6 +168,7 @@ exports.getUploadURL = async (event, context, callback) => {
     }
 };
 
+// Get a download url for a given file
 exports.requestFile = async (event, context, callback) => {
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
@@ -218,6 +221,7 @@ exports.requestFile = async (event, context, callback) => {
     }
 };
 
+// Request a specific file to be deleted
 exports.requestFileDeletion = async (event, context, callback) => {
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()

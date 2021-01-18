@@ -28,6 +28,7 @@ provider:
       burstLimit: 200
       rateLimit: 100
   environment:
+    CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
     MODEL_BUCKET: ar-glasses-models
     STAGE: ${self:custom.myStage}
     ACCESS_STORE: store
@@ -49,6 +50,7 @@ functions:
     package:
       include:
         - metafiles.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/{modelid}/files
@@ -72,6 +74,7 @@ functions:
     package:
       include:
         - metafiles.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/{modelid}/newUpload
@@ -95,6 +98,7 @@ functions:
     package:
       include:
         - metafiles.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/{modelid}/files/{filename}
@@ -119,6 +123,7 @@ functions:
     package:
       include:
         - metafiles.js
+        - shared/**
     events:
       - http:
           path: /{brand}/category/{category}/{modelid}/files/{filename}
