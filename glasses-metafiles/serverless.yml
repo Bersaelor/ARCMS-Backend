@@ -29,6 +29,7 @@ provider:
       rateLimit: 100
   environment:
     CANDIDATE_TABLE: arcms-brandUserOrders-${self:custom.myStage}
+    API_HOST_URL: https://api.looc.io/metafiles
     MODEL_BUCKET: ar-glasses-models
     STAGE: ${self:custom.myStage}
     ACCESS_STORE: store

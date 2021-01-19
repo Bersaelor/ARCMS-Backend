@@ -26,6 +26,7 @@ async function getSignedUploadURL(key) {
     var params = {
         Bucket: process.env.MODEL_BUCKET,
         Key: key,
+        StorageClass: "STANDARD_IA",
         Expires: 600,
     }
 
@@ -52,19 +53,14 @@ async function getSignedDownloadURL(key) {
     });
 }
 
-function deleteObject(bucket, key) {
+function deleteObject(key) {
     var params = {
-        Bucket: bucket,
-        Delete: {
-            Objects: [
-                {
-                    Key: key
-                }
-            ]
-        },
+        Bucket: process.env.MODEL_BUCKET,
+        Key: key
     }
+    console.log("deleteObject.params: ", params)
 
-    return s3.deleteObjects(params).promise()
+    return s3.deleteObject(params).promise()
 }
 
 // Example fileData.Contents dictionary entry:
@@ -73,22 +69,27 @@ function deleteObject(bucket, key) {
 // LastModified: "2021-01-18T21:59:45.000Z"
 // Size: 2100629
 // StorageClass: "STANDARD"
-function convertFile(file) {
+function convertFile(file, downloadPrefix) {
     var result = {}
     const parsedPath = path.parse(file.Key)
     result.name = parsedPath.base
     result.size = file.Size
     result.lastModified = file.LastModified
+    result.downloadURL = path.join(downloadPrefix, parsedPath.name)
 
     return result
 }
 
-function makeHeader(content) {
-    return { 
+function makeHeader(content, location) {
+    const headers = { 
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
         'Content-Type': content
     };
+
+    if (location) headers.Location = location;
+
+    return headers;
 }
 
 // Get an array of files for a given brand, category, model
@@ -123,7 +124,8 @@ exports.getList = async (event, context, callback) => {
 
         const prefix = `metafiles/${brand}/${category}/${modelid}`
         const fileData = await getS3Content(process.env.MODEL_BUCKET, prefix, null)
-        const files = Object.values(fileData.Contents).map(file => convertFile(file))
+        const downloadPrefix = path.join(process.env.API_HOST_URL, 'metafiles', brand, 'category', category, modelid, 'files')
+        const files = Object.values(fileData.Contents).map(file => convertFile(file, downloadPrefix))
 
         callback(null, {
             statusCode: 200,
@@ -200,7 +202,7 @@ exports.requestFile = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const modelid = event.pathParameters.modelid.toLowerCase()
     const category = event.pathParameters.category.toLowerCase()
-    const fileName = event.pathParameters.fileName.toLowerCase()
+    const fileName = event.pathParameters.filename.toLowerCase()
 
     if (!modelid || !brand || !category || !fileName) {
         callback(null, {
@@ -232,7 +234,7 @@ exports.requestFile = async (event, context, callback) => {
             statusCode: 200,
             headers: makeHeader('application/json'),
             body: JSON.stringify({
-                message: "Upload URL successfully created",
+                message: "Download URL successfully created",
                 downloadURL: downloadURL ? downloadURL : ""
             })
         });
@@ -264,7 +266,7 @@ exports.requestFileDeletion = async (event, context, callback) => {
         return;
     }
 
-    console.log(cognitoUserName, " wants download file ",  fileName, " for ", modelid, " from brand ", brand)
+    console.log(cognitoUserName, " wants to delete file ",  fileName, " for ", modelid, " from brand ", brand)
     try {
         // make sure the current cognito user has high enough access lvl
         const ownAccessLvl = await getAccessLvl(cognitoUserName, brand);
@@ -290,7 +292,7 @@ exports.requestFileDeletion = async (event, context, callback) => {
             })
         });
     } catch (error) {
-        console.error('Query failed to fetch downloadurl. Error JSON: ', JSON.stringify(error, null, 2));
+        console.error('Query failed to delete file. Error JSON: ', JSON.stringify(error, null, 2));
         callback(null, {
             statusCode: error.statusCode || 501,
             headers: makeHeader('text/plain'),
