@@ -58,8 +58,6 @@ function deleteObject(key) {
         Bucket: process.env.MODEL_BUCKET,
         Key: key
     }
-    console.log("deleteObject.params: ", params)
-
     return s3.deleteObject(params).promise()
 }
 
@@ -149,7 +147,7 @@ exports.getUploadURL = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const modelid = event.pathParameters.modelid.toLowerCase()
     const category = event.pathParameters.category.toLowerCase()
-    const fileName = event.queryStringParameters && event.queryStringParameters.fileName;
+    const fileName = event.queryStringParameters && event.queryStringParameters.fileName && decodeURIComponent(event.queryStringParameters.fileName);
 
     if (!modelid || !brand || !category || !fileName) {
         callback(null, {
@@ -202,7 +200,7 @@ exports.requestDownloadURL = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const modelid = event.pathParameters.modelid.toLowerCase()
     const category = event.pathParameters.category.toLowerCase()
-    const fileName = event.queryStringParameters && event.queryStringParameters.fileName;
+    const fileName = event.queryStringParameters && event.queryStringParameters.fileName && decodeURIComponent(event.queryStringParameters.fileName);
 
     if (!modelid || !brand || !category || !fileName) {
         callback(null, {
@@ -255,7 +253,7 @@ exports.requestFileDeletion = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const modelid = event.pathParameters.modelid.toLowerCase()
     const category = event.pathParameters.category.toLowerCase()
-    const fileName = event.pathParameters.filename.toLowerCase()
+    const fileName = event.queryStringParameters && event.queryStringParameters.fileName && decodeURIComponent(event.queryStringParameters.fileName);
 
     if (!modelid || !brand || !category || !fileName) {
         callback(null, {

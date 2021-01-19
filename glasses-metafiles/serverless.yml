@@ -126,7 +126,7 @@ functions:
         - shared/**
     events:
       - http:
-          path: /{brand}/category/{category}/{modelid}/files/{filename}
+          path: /{brand}/category/{category}/{modelid}/files
           method: delete
           cors: true
           request:
@@ -135,7 +135,6 @@ functions:
                 brand: true
                 category: true
                 modelid: true
-                filename: true
           authorizer:
             name: authorizer
             arn: arn:aws:cognito-idp:eu-central-1:338756162532:userpool/eu-central-1_Qg8GXUJ2v
