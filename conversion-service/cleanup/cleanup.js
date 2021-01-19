@@ -109,6 +109,17 @@ function getS3Content(bucket, continuationToken) {
     return s3.listObjectsV2(params).promise()
 }
 
+async function getAllS3Content(bucket) {
+    var continuationToken
+    var keys = []
+    do {
+        const data = await getS3Content(bucket, continuationToken)
+        continuationToken = data.NextContinuationToken
+        keys = keys.concat(data.Contents.map(object => object.Key))
+    } while (continuationToken !== undefined)
+    return keys
+}
+
 function deleteObjects(bucket, keys) {
     var params = {
         Bucket: bucket,
@@ -128,17 +139,24 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
 
     try {
         console.log("Fetching Models and Categories for: ", brands)
-        let modelsPromise = fetchAllModels(brands)
-        let categoryPromise = fetchAllCategories(brands)
-        let materialsPromise = fetchAllMaterials(brands)
-        let headerImagesPromise = fetchAppHeaderImages()
-        let imagesInS3Promise = getS3Content(process.env.IMAGE_BUCKET, null)
-        let modelsInS3Promise = getS3Content(process.env.MODEL_BUCKET, null)
+        const data = await Promise.all([
+            fetchAllModels(brands),
+            fetchAllMaterials(brands),
+            fetchAllCategories(brands),
+            fetchAppHeaderImages(),
+            getAllS3Content(process.env.IMAGE_BUCKET),
+            getAllS3Content(process.env.MODEL_BUCKET),
+        ])
+        let models = data[0]
+        let materials = data[1]
+        let categories = data[2]
+        let headerImages = data[3]
+        let imageKeys = data[4]
+        let modelKeys = data[5]
 
         let currentImages = new Set()
         let currentModelFiles = new Set()
 
-        let models = await modelsPromise
         models.forEach(array => {
             array.forEach(model => {
                 currentImages.add(model.image)
@@ -155,23 +173,17 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             currentImages.add(key)
         })
 
-        let materials = await materialsPromise
         materials.forEach(material => {
             if (material.image) currentImages.add(material.image)
             if (material.normalTex) currentImages.add(material.normalTex)
         })
 
-        let categories = await categoryPromise
         categories.forEach(array => {
             array.forEach(image => currentImages.add(image))
         })
 
-        let headerImages = await headerImagesPromise
         headerImages.forEach(key => currentImages.add(key))
 
-        let imagesInS3Data = await imagesInS3Promise
-        if (imagesInS3Data.IsTruncated) { console.log("More images are in S3, but haven't been loaded as maximum was hit") }
-        let imageKeys = imagesInS3Data.Contents.map(object => object.Key)
         var imageFileKeysToDelete = []
         imageKeys.forEach(imageKey => {
             if (!currentImages.has(imageKey)) {
@@ -179,11 +191,8 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             }
         })
         console.log("Deleting images ", imageFileKeysToDelete)
-        let deleteImagesPromise = imageFileKeysToDelete.length > 0 ? deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete) : undefined
+        let deleteImagesPromise = undefined // imageFileKeysToDelete.length > 0 ? deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete) : undefined
 
-        let modelsInS3Data = await modelsInS3Promise
-        if (modelsInS3Data.IsTruncated) { console.log("More models are in S3, but haven't been loaded as maximum was hit") }
-        let modelKeys = modelsInS3Data.Contents.map(object => object.Key)
         var modelFileKeysToDelete = []
         modelKeys.forEach( modelKey => {
             if (!currentModelFiles.has(modelKey)) {
@@ -191,7 +200,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             }
         })
         console.log("Deleting files ", modelFileKeysToDelete)
-        let deleteModelsPromise = modelFileKeysToDelete.length > 0 ? deleteObjects(process.env.MODEL_BUCKET, modelFileKeysToDelete) : undefined
+        let deleteModelsPromise = undefined // modelFileKeysToDelete.length > 0 ? deleteObjects(process.env.MODEL_BUCKET, modelFileKeysToDelete) : undefined
 
         let deleteImageResult = deleteImagesPromise ? await deleteImagesPromise : "Not needed"
         let deleteModelsResult = deleteModelsPromise ? await deleteModelsPromise : "Not needed"
