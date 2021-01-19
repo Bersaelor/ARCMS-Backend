@@ -6,6 +6,7 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const { getAccessLvl , accessLvlMayCreate } = require('./shared/access_methods')
+const path = require('path');
 
 function getS3Content(bucket, prefix, continuationToken) {
     var params = {
@@ -66,6 +67,22 @@ function deleteObject(bucket, key) {
     return s3.deleteObjects(params).promise()
 }
 
+// Example fileData.Contents dictionary entry:
+// ETag: ""8b5f3a00ee6476fadb0bc0f3ccc7f38f""
+// Key: "metafiles/loocfun/classic/001panto/IMG_E3ABBBD76582-1.jpeg"
+// LastModified: "2021-01-18T21:59:45.000Z"
+// Size: 2100629
+// StorageClass: "STANDARD"
+function convertFile(file) {
+    var result = {}
+    const parsedPath = path.parse(file.Key)
+    result.name = parsedPath.name
+    result.size = file.Size
+    result.lastModified = file.LastModified
+
+    return result
+}
+
 function makeHeader(content) {
     return { 
         'Access-Control-Allow-Origin': '*',
@@ -106,18 +123,12 @@ exports.getList = async (event, context, callback) => {
 
         const prefix = `metafiles/${brand}/${category}/${modelid}`
         const fileData = await getS3Content(process.env.MODEL_BUCKET, prefix, null)
-
-        // Example fileData.Contents dictionary entry:
-        // ETag: ""8b5f3a00ee6476fadb0bc0f3ccc7f38f""
-        // Key: "metafiles/loocfun/classic/001panto/IMG_E3ABBBD76582-1.jpeg"
-        // LastModified: "2021-01-18T21:59:45.000Z"
-        // Size: 2100629
-        // StorageClass: "STANDARD"
+        const files = Object.values(fileData.Contents).map(file => convertFile(file))
 
         callback(null, {
             statusCode: 200,
             headers: makeHeader('application/json'),
-            body: JSON.stringify(fileData.Contents)
+            body: JSON.stringify(files)
         });
     } catch (error) {
         console.error('Query failed to fetch files. Error JSON: ', JSON.stringify(error, null, 2));
