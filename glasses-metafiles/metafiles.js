@@ -197,12 +197,12 @@ exports.getUploadURL = async (event, context, callback) => {
 };
 
 // Get a download url for a given file
-exports.requestFile = async (event, context, callback) => {
+exports.requestDownloadURL = async (event, context, callback) => {
     let cognitoUserName = event.requestContext.authorizer.claims["cognito:username"].toLowerCase();
     const brand = event.pathParameters.brand.toLowerCase()
     const modelid = event.pathParameters.modelid.toLowerCase()
     const category = event.pathParameters.category.toLowerCase()
-    const fileName = event.pathParameters.filename.toLowerCase()
+    const fileName = event.queryStringParameters && event.queryStringParameters.fileName;
 
     if (!modelid || !brand || !category || !fileName) {
         callback(null, {
