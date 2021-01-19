@@ -76,7 +76,7 @@ function deleteObject(bucket, key) {
 function convertFile(file) {
     var result = {}
     const parsedPath = path.parse(file.Key)
-    result.name = parsedPath.name
+    result.name = parsedPath.base
     result.size = file.Size
     result.lastModified = file.LastModified
 
@@ -253,7 +253,7 @@ exports.requestFileDeletion = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const modelid = event.pathParameters.modelid.toLowerCase()
     const category = event.pathParameters.category.toLowerCase()
-    const fileName = event.pathParameters.fileName.toLowerCase()
+    const fileName = event.pathParameters.filename.toLowerCase()
 
     if (!modelid || !brand || !category || !fileName) {
         callback(null, {
