@@ -168,6 +168,7 @@ const fileExtension = (filename) => {
     return filename.split('.').pop();		
 }
 
+
 // Cached, public collections endpoint
 exports.all = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()

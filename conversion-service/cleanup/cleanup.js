@@ -5,6 +5,8 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
+const path = require('path');
+
 const { getAllModels, getCategorys } = require('../shared/get_dyndb_models')
 const brandSettings = require('../brand_settings.json')
 
@@ -165,6 +167,16 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
                 currentModelFiles.add(model.gltfFile)
                 currentModelFiles.add(model.dxfFile)
                 currentModelFiles.add(model.svgFile)
+                if (model.modelFile) {
+                    // replace the first folder name `original` with `metafiles`
+                    const metaFolderPath = model.modelFile.replace('original', 'metafiles')
+                    // the last `-` is the one between filename and timestamp, like `hornbrillefinal-1583230935604.dae`
+                    const dashSeparated = metaFolderPath.split('-')
+                    dashSeparated.pop()
+                    const pathWithoutTimeStamp = dashSeparated.join()
+                    // add a blank metafile entry for all the associated metafiles
+                    currentModelFiles.add(pathWithoutTimeStamp)
+                }
             })
         })
 
@@ -191,16 +203,20 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
             }
         })
         console.log("Deleting images ", imageFileKeysToDelete)
-        let deleteImagesPromise = undefined // imageFileKeysToDelete.length > 0 ? deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete) : undefined
+        let deleteImagesPromise = imageFileKeysToDelete.length > 0 ? deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete) : undefined
 
         var modelFileKeysToDelete = []
         modelKeys.forEach( modelKey => {
-            if (!currentModelFiles.has(modelKey)) {
+            if (modelKey.startsWith("metafiles")) {
+                if (!currentModelFiles.has(path.dirname(modelKey))) {
+                    modelFileKeysToDelete.push(modelKey)
+                }
+            } else if (!currentModelFiles.has(modelKey)) {                
                 modelFileKeysToDelete.push(modelKey)
             }
         })
         console.log("Deleting files ", modelFileKeysToDelete)
-        let deleteModelsPromise = undefined // modelFileKeysToDelete.length > 0 ? deleteObjects(process.env.MODEL_BUCKET, modelFileKeysToDelete) : undefined
+        let deleteModelsPromise = modelFileKeysToDelete.length > 0 ? deleteObjects(process.env.MODEL_BUCKET, modelFileKeysToDelete) : undefined
 
         let deleteImageResult = deleteImagesPromise ? await deleteImagesPromise : "Not needed"
         let deleteModelsResult = deleteModelsPromise ? await deleteModelsPromise : "Not needed"

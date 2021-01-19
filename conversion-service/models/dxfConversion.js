@@ -118,7 +118,6 @@ exports.convert = async (event, context, callback) => {
 
             const response = await startInstance(key)
             const updateDBResult = await updateDBEntryPromise
-
             console.log("Success: ", response.Instances, " Instances created and db updated: ", updateDBResult)
         } catch(error) {
             console.log("Failed: ", error)

@@ -13,6 +13,7 @@ const readline = require('readline');
 const { spawn } = require('child_process');
 const { tetraGeometry , instanceGeometry } = require('./tetraHedron')
 
+
 function cleanup(files) {
     const promises = files.map(file => {
         return new Promise((resolve, reject) => {

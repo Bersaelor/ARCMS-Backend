@@ -12,6 +12,7 @@ function startInstance(file, sizeInMB) {
     /usr/bin/chmod +x /tmp/ec2-init.sh
     /tmp/ec2-init.sh ${ file }
     `
+    
     const base64Script = Buffer.from(init_script).toString('base64')
     var instanceType
     if (sizeInMB > 40) {
