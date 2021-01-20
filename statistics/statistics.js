@@ -222,7 +222,14 @@ const getLatestDiskUsage = async (brand) => {
     };
 
     return dynamoDb.query(params).promise().then(data => {
-        return (data.Items && data.Items.length > 0 && data.Items[0].sizeInBytes) || 0
+        if (data.Items && data.Items.length > 0) {
+            return {
+                size: data.Items[0].sizeInBytes,
+                date: data.Items[0].sk
+            }
+        } else {
+            return undefined
+        }
     })
 }
 
@@ -327,16 +334,29 @@ exports.getDiskUsage = async (event, context, callback) => {
 
     console.log("Checking for disk usage of ", brand)
     try {
-        const size = await getLatestDiskUsage(brand)
+        const value = await getLatestDiskUsage(brand)
     
-        callback(null, {
-            statusCode: 200,
-            headers: makeHeader('application/json'),
-            body: JSON.stringify({
-                message: `${brand} is using ${(size / (1024 * 1024)).toFixed(2)} MB`,
-                sizeInBytes: size
-            })
-        });
+        if (value) {
+            callback(null, {
+                statusCode: 200,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify({
+                    message: `${brand} is using ${(value.size / (1024 * 1024)).toFixed(2)} MB`,
+                    sizeInBytes: value.size,
+                    date: value.date
+                })
+            });    
+        } else {
+            callback(null, {
+                statusCode: 404,
+                headers: makeHeader('application/json'),
+                body: JSON.stringify({
+                    message: `for ${brand} disk usage hasn't been recorded yet`,
+                    sizeInBytes: 0,
+                    date: "-"
+                })
+            });
+        }
     } catch(error) {
         console.error('Query failed to get disk usage. Error JSON: ', JSON.stringify(error, null, 2));
         callback(null, {
