@@ -209,7 +209,7 @@ const writeDiskUsageToDB = async (brand, date, size) => {
 const getLatestDiskUsage = async (brand) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "sk, size",
+        ProjectionExpression: "sk, sizeInBytes",
         KeyConditionExpression: "#id = :value",
         Limit: 1,
         ExpressionAttributeNames:{
