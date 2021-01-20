@@ -3,6 +3,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 const brandSettings = require('brand_settings.json')
 
+
 async function loadStoreCountFromDB(brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,

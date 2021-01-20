@@ -21,6 +21,7 @@ const athenaExpressConfig = {
 };
 const athenaExpress = new AthenaExpress(athenaExpressConfig);
 const dynamoDb = new aws.DynamoDB.DocumentClient();
+const s3 = new aws.S3();
 
 const RESULT_SIZE = 1000
 
@@ -192,6 +193,73 @@ const writeToDb = async (brand, day, appDataAnalysis, orderCount, mapHits) => {
     return dynamoDb.put(params).promise();
 }
 
+const writeDiskUsageToDB = async (brand, date, size) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        Item: {
+            "id": `${brand}#diskusage`,
+            "sk": `${date.toISOString()}`,
+            "sizeInBytes": size
+        }
+    };
+
+    return dynamoDb.put(params).promise();
+}
+
+const getLatestDiskUsage = async (brand) => {
+    var params = {
+        TableName: process.env.CANDIDATE_TABLE,
+        ProjectionExpression: "sk, size",
+        KeyConditionExpression: "#id = :value",
+        Limit: 1,
+        ExpressionAttributeNames:{
+            "#id": "id"
+        },
+        ExpressionAttributeValues: {
+            ":value": `${brand}#diskusage`,
+        },
+        ScanIndexForward: false
+    };
+
+    return dynamoDb.query(params).promise().then(data => {
+        return (data.Items && data.Items.length > 0 && data.Items[0].sizeInBytes) || 0
+    })
+}
+
+function getS3Content(bucket, continuationToken) {
+    var params = {
+        Bucket: bucket,
+        MaxKeys: 1000,
+    }
+
+    if (continuationToken) {
+        params.ContinuationToken = continuationToken
+    }
+
+    return s3.listObjectsV2(params).promise()
+}
+
+async function getAllS3ContentByBrand() {
+    var continuationToken
+    var brandSizes = {}
+    do {
+        const data = await getS3Content(process.env.MODEL_BUCKET, continuationToken)
+        continuationToken = data.NextContinuationToken
+        data.Contents.forEach(object => {
+            var components = object.Key.split('/')
+            if (components.length > 1) {
+                var brand = components[1]
+                if (brandSizes[brand] != null) {
+                    brandSizes[brand] += object.Size
+                } else {
+                    brandSizes[brand] = object.Size
+                }
+            }
+        })
+    } while (continuationToken !== undefined)
+    return brandSizes
+}
+
 // Queries the cloudfront logs for the appData
 exports.appData = async (event, context, callback) => {
     var day = new Date(event.time) 
@@ -224,6 +292,60 @@ exports.appData = async (event, context, callback) => {
 	} catch (error) {
 		console.log(error);
 	}
+}
+
+// Queries S3 for each brands disk space usage
+exports.cmsUsage = async (event, context, callback) => {
+    try {
+        var brandSizes = await getAllS3ContentByBrand()
+
+        var date = new Date(event.time) 
+        
+        var writeToDBPromises = Object.keys(brandSettings).map(brand => {
+            return writeDiskUsageToDB(brand, date, brandSizes[brand])
+        })
+
+		let results = await Promise.all(writeToDBPromises)
+		console.log(results);
+	} catch (error) {
+		console.log(error);
+	}
+}
+
+// Get the latest disk usage for a given brand
+exports.getDiskUsage = async (event, context, callback) => {
+    const brand = event.pathParameters.brand.toLowerCase()
+
+    if (!brand) {
+        callback(null, {
+            statusCode: 403,
+            headers: makeHeader('text/plain'),
+            body: `Expected a brand in the call.`,
+        });
+        return;
+    }    
+
+    console.log("Checking for disk usage of ", brand)
+    try {
+        const size = await getLatestDiskUsage(brand)
+    
+        callback(null, {
+            statusCode: 200,
+            headers: makeHeader('application/json'),
+            body: JSON.stringify({
+                message: `${brand} is using ${(size / (1024 * 1024)).toFixed(2)} MB`,
+                sizeInBytes: size
+            })
+        });
+    } catch(error) {
+        console.error('Query failed to get disk usage. Error JSON: ', JSON.stringify(error, null, 2));
+        callback(null, {
+            statusCode: error.statusCode || 501,
+            headers: makeHeader('text/plain'),
+            body: `Encountered error ${error}`,
+        });
+        return;
+    }
 }
 
 //  Gets a list of app statistics for a given date range
