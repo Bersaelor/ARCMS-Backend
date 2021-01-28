@@ -12,6 +12,7 @@ const brandSettings = require('../brand_settings.json')
 const makerjs = require('makerjs');
 const { makeModelParts, combineModel } = require('./DXFCombiner.js');
 
+
 async function getModel(brand, category, modelName) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,

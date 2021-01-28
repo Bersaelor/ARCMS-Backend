@@ -20,7 +20,7 @@
         "timeZone": "Europe/Berlin"
     },
     "grafix": {
-        "name": "Grafix",
+        "name": "GRAFIX",
         "AppAgentName": "Grafix",
         "MonthlyCostSettings": {
             "freeCountries": ["DE", "CH", "AT"],
