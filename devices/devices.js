@@ -15,6 +15,7 @@ function accessLvlHasUnlimitedDevices(accessLvl) {
     return accessLvl == process.env.ACCESS_ADMIN || accessLvl == process.env.ACCESS_MANAGER;
 }
 
+
 async function loadDevicesFromDB(email, brand) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,

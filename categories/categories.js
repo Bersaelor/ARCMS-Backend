@@ -8,7 +8,7 @@ const s3 = new AWS.S3();
 const cloudfront = new AWS.CloudFront;
 const { getAccessLvl , accessLvlMayCreate} = require('../shared/access_methods')
 const { convertStoredModel, convertStoredMaterial } = require('../shared/convert_models')
-const { getAllModels, getCategorys } = require('../shared/get_dyndb_models')
+const { getModels, getAllModels, getCategorys } = require('../shared/get_dyndb_models')
 const { getMaterials } = require('shared/get_materials')
 
 async function getSignedImageUploadURL(key, type) {
@@ -171,37 +171,43 @@ exports.all = async (event, context, callback) => {
 exports.appData = async (event, context, callback) => {
     const brand = event.pathParameters.brand.toLowerCase()
     const testing = event.queryStringParameters && event.queryStringParameters.testing;
+    const categoryId = event.queryStringParameters && event.queryStringParameters.c;
+    const modelId = event.queryStringParameters && event.queryStringParameters.f; // frame, as `m` is used for metal
+    const justOneModel = modelId !== undefined && categoryId !== undefined
     const showTestingContent = testing && testing === "true"
 
-    const catPromise = getCategorys(brand)
-    const modelPromise = brand && getAllModels(brand)
-
     try {
+        const catPromise = justOneModel ? undefined : getCategorys(brand)
+        const modelPromise = brand && (justOneModel ? getModels(brand, categoryId, modelId) : getAllModels(brand))
         const data = await Promise.all([catPromise, modelPromise, getAllMaterials(brand)])
         const catData = data[0]
         const modelData = data[1]
         const materials = data[2].filter(mat => mat.status === "published" || (showTestingContent && mat.status === "testing"))
 
-        const categories = catData.Items.filter(cat => {
+        const categories = catData && catData.Items.filter(cat => {
             return cat.status === "published" || (showTestingContent && cat.status === "testing")
         }).map((cat) => {
             return convertStoredCategory(cat)
-        })
+        }) || []
 
         const categoryNames = categories.map(cat => cat.name)
 
-        const models = modelData.Items.filter(model => {
+        var models = modelData.Items.filter(model => {
             return model.status === "published" || (showTestingContent && model.status === "testing")
         }).map(model => {
             return convertStoredModel(model)
-        }).filter(model => {
-            return categoryNames.includes(model.category)
-        }).map(model => {
-            const category = categories.find(cat => cat.name === model.category)
-            const isPromoted = category && category.promoted
-            model.promoted = isPromoted
-            return model
         })
+
+        if (!justOneModel) {
+            models = models.filter(model => {
+                return categoryNames.includes(model.category)
+            }).map(model => {
+                const category = categories.find(cat => cat.name === model.category)
+                const isPromoted = category && category.promoted
+                model.promoted = isPromoted
+                return model
+            })
+        }
 
         console.log(`Returning ${categories.length} categories and ${models.length} models from DynDB for brand ${brand} showTestingContent: ${showTestingContent}`)
 

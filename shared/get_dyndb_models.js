@@ -5,7 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-exports.getModels = async (brand, category) => {
+exports.getModels = async (brand, category, modelId) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
         ProjectionExpression: "sk, image, modelFile, dxfFile, svgFile, usdzFile, gltfFile, #s, localizedNames, props",
@@ -19,6 +19,8 @@ exports.getModels = async (brand, category) => {
             ":category": `${category}#`
         },
     };
+
+    if (modelId) params.ExpressionAttributeValues[":category"] = `${category}#${modelId}`
 
     return dynamoDb.query(params).promise()
 }

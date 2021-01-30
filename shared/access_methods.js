@@ -5,6 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
+
 exports.getAccessLvl = async (cognitoUserName, brand) => {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,

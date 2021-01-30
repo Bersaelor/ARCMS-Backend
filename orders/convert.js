@@ -5,6 +5,7 @@
 const AWS = require('aws-sdk'); 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
+
 async function loadUserOrdersFromDB(brand, email, perPage = 50) {
     var params = {
         TableName: process.env.CANDIDATE_TABLE,
