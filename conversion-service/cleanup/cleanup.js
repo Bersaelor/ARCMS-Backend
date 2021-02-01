@@ -26,6 +26,9 @@ function fetchAllModels(brands) {
             }
             return data.Items.map(model => {
                 return {
+                    'brand': brand,
+                    'category': model.sk.split('#')[0],
+                    'modelId': model.sk.split('#')[1],
                     'image': model.image,
                     'modelFile': model.modelFile,
                     'usdzFile': model.usdzFile,
@@ -154,7 +157,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         let categories = data[2]
         let headerImages = data[3]
         let imageKeys = data[4]
-        let modelKeys = data[5]
+        let s3ArGlassesKeys = data[5]
 
         let currentImages = new Set()
         let currentModelFiles = new Set()
@@ -167,16 +170,9 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
                 currentModelFiles.add(model.gltfFile)
                 currentModelFiles.add(model.dxfFile)
                 currentModelFiles.add(model.svgFile)
-                if (model.modelFile) {
-                    // replace the first folder name `original` with `metafiles`
-                    const metaFolderPath = model.modelFile.replace('original', 'metafiles')
-                    // the last `-` is the one between filename and timestamp, like `hornbrillefinal-1583230935604.dae`
-                    const dashSeparated = metaFolderPath.split('-')
-                    dashSeparated.pop()
-                    const pathWithoutTimeStamp = dashSeparated.join()
-                    // add a blank metafile entry for all the associated metafiles
-                    currentModelFiles.add(pathWithoutTimeStamp)
-                }
+
+                const metaFolderPath = `metafiles/${model.brand}/${model.category}/${model.modelId}`
+                currentModelFiles.add(metaFolderPath)
             })
         })
 
@@ -206,7 +202,7 @@ exports.cleanOldModelsAndImages = async (event, context, callback) => {
         let deleteImagesPromise = imageFileKeysToDelete.length > 0 ? deleteObjects(process.env.IMAGE_BUCKET, imageFileKeysToDelete) : undefined
 
         var modelFileKeysToDelete = []
-        modelKeys.forEach( modelKey => {
+        s3ArGlassesKeys.forEach( modelKey => {
             if (modelKey.startsWith("metafiles")) {
                 if (!currentModelFiles.has(path.dirname(modelKey))) {
                     modelFileKeysToDelete.push(modelKey)
