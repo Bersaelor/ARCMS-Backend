@@ -173,7 +173,7 @@ exports.appData = async (event, context, callback) => {
     const testing = event.queryStringParameters && event.queryStringParameters.testing;
     const categoryId = event.queryStringParameters && event.queryStringParameters.c;
     const modelId = event.queryStringParameters && event.queryStringParameters.f; // frame, as `m` is used for metal
-    const justOneModel = modelId !== undefined && categoryId !== undefined
+    const justOneModel = (modelId !== undefined && modelId !== null && categoryId !== undefined && categoryId !== null)
     const showTestingContent = testing && testing === "true"
 
     try {
