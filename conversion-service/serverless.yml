@@ -81,7 +81,7 @@ functions:
     handler: models/usdzConversion.convert
     role: ${self:custom.ec2-role}
     memorySize: 512
-    description: Convert glb files deposited into s3/original
+    description: Convert glb files deposited into s3/original to usdz, but also create an encrypted glb copy
     package:
       include:
         - models/usdzConversion.js
