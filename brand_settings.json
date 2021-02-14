@@ -28,7 +28,7 @@
         },
         "disclaimer" : "<p class=\"normal\"><font class=\"red\"><b><u>Diese Bestellung ist mit dem „Grafix - Versprechen“ ausgestattet!</u><br><br>Unser Grafix-Versprechen beinhaltet die pünktliche Lieferung Ihrer Standardfassung innerhalb von 4 Wochen. Falls nicht, erhalten Sie das Produkt gratis!</font></p>",
         "specialSizeDisclaimer": "<p class=\"normal\"><font class=\"red\"><b>Achtung: Sonderanfertigung – erhöhter Preis – ca. 6 Wochen Lieferzeit!</b><br><br><b><u>Diese Bestellung ist mit dem „Grafix - Versprechen“ ausgestattet!</u></b><br>Unser Grafix-Versprechen beinhaltet die pünktliche Lieferung Ihrer Sonderanfertigung innerhalb von 6 Wochen. Falls nicht, erhalten Sie das Produkt gratis!</font></p>",
-        "specialPlasticColorTitle": "Windor Ring",
+        "specialPlasticColorTitle": "Windsor Ring",
         "allows3DModelUpload": true,
         "wantsDXFConversion": true,
         "orderAdress": "order@grafix-eyewear.com",
