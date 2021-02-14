@@ -9,11 +9,15 @@ const Mustache = require('../node_modules/mustache/mustache.min.js');
 const strings = require('./locales.js');
 const brandSettings = require('../brand_settings.json')
 
-function localizeOrder(order, locale) {
+function localizeOrder(brand, order, locale) {
     return order.map(frame => {
         frame.frameOrderDetailItems = frame.frameOrderDetailItems.map(item => {
             if (item.titleTerm) {
-                item.title = strings[locale][item.titleTerm]
+                if (item.titleTerm == "OrderOption.Frame" && brandSettings[brand].specialPlasticColorTitle) {
+                    item.title = brandSettings[brand].specialPlasticColorTitle
+                } else {
+                    item.title = strings[locale][item.titleTerm]
+                }
             }
             if (item.defaultSize && item.chosenSize) {
                 let localeTemplate = item.defaultSize == item.chosenSize ? strings[locale].detail_item_default_size : strings[locale].detail_item_special_size
@@ -38,7 +42,7 @@ async function mailToStore(brand, storeEmail, ccMail, order, orderSK) {
     }
 
     const locale = brandSettings[brand].preferredLanguage
-    const localizedOrder = localizeOrder(order, locale)
+    const localizedOrder = localizeOrder(brand, order, locale)
     const brandName = brandSettings[brand].name
     const disclaimer = doesOrderContainSpecialSize(order) ? brandSettings[brand].specialSizeDisclaimer : brandSettings[brand].disclaimer
     const subject = Mustache.render(strings[locale].subject_store, { BRAND_NAME: brandName })
@@ -69,7 +73,7 @@ async function mailToManufacturer(brand, storeEmail, order, orderSK, customerCon
     }
 
     const locale = brandSettings[brand].preferredLanguage
-    const localizedOrder = localizeOrder(order, locale)
+    const localizedOrder = localizeOrder(brand, order, locale)
     const subject = Mustache.render(strings[locale].subject_manu, {STORE: storeEmail, FRAME_COUNT: order.length})
     const htmlTemplate = fs.readFileSync(`./templates/manufacturer_${locale}.html`, "utf8")
     const link = `https://cms.looc.io/${brand}/orders/${encodeURIComponent(orderSK)}`
