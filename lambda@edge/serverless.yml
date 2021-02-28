@@ -1,0 +1,9 @@
+service: cloudfront-service
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+
+functions:
+  cfLambda:
+    handler: handler.cloudfront
